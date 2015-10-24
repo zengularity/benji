@@ -1,11 +1,17 @@
 package com.zengularity.s3
 
+import org.apache.commons.codec.digest.DigestUtils
 import org.joda.time.DateTime
 
-import play.api.{ Application, Logger }
+import play.api.Logger
 import play.api.http.{ Writeable, Status }
 import play.api.libs.iteratee._
-import play.api.libs.ws.{ WSRequestHolder, WSResponseHeaders, WSResponse }
+import play.api.libs.ws.{
+  WSClient,
+  WSRequestHolder,
+  WSResponseHeaders,
+  WSResponse
+}
 
 import scala.concurrent.{ Future, ExecutionContext }
 
@@ -15,8 +21,10 @@ case class Object(key: String, bytes: Long, lastModifiedAt: DateTime)
 
 /**
  * Implementation of the S3 API using Play's WS library.
+ *
+ * @param ws the WS client to be use (the caller is responsible of closing it)
  */
-class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, app: Application) {
+class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: WSClient) {
 
   /** Logger instance for this class. */
   private val logger = Logger("com.zengularity.s3")
@@ -335,10 +343,8 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, app:
    * Allows you to calculate the 'Content-MD5' header for any upload. Include this to avoid data corruption over the network.
    */
   private object ContentMD5 {
-    private val md5 = java.security.MessageDigest.getInstance("MD5")
-
     def apply(bytes: Array[Byte]): String =
-      com.ning.http.util.Base64.encode(md5.digest(bytes))
+      com.ning.http.util.Base64.encode(DigestUtils.md5(bytes))
   }
 }
 
@@ -350,10 +356,10 @@ object S3 {
    * @param server CEPH server URL
    * @return A WSS3 instance configured to work with the S3-compatible API of a CEPH server
    */
-  def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ec: ExecutionContext, app: Application): WSS3 =
+  def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ec: ExecutionContext, ws: WSClient): WSS3 =
     new WSS3(new PathStyleWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(scheme + "://" + host)))
 
-  def apply(calculator: SignatureCalculator, scheme: String = "https", host: String = "s3.amazonaws.com")(implicit ec: ExecutionContext, app: Application): WSS3 = new WSS3(new VirtualHostWSRequestBuilder(calculator, new java.net.URL(scheme + "://" + host)))
+  def apply(calculator: SignatureCalculator, scheme: String = "https", host: String = "s3.amazonaws.com")(implicit ec: ExecutionContext, ws: WSClient): WSS3 = new WSS3(new VirtualHostWSRequestBuilder(calculator, new java.net.URL(scheme + "://" + host)))
 
-  def apply(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, app: Application): WSS3 = new WSS3(requestBuilder)
+  def apply(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: WSClient): WSS3 = new WSS3(requestBuilder)
 }

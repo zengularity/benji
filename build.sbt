@@ -14,8 +14,17 @@ libraryDependencies ++= Seq(
 // Test
 libraryDependencies ++= Seq("specs2-core", "specs2-junit").map(
   "org.specs2" %% _ % "3.6.4" % Test) ++ Seq(
-  "com.typesafe.play" %% "play-test" % PlayVersion % Test,
   "com.typesafe" % "config" % "1.3.0" % Test)
+
+fork in Test := false
+
+testOptions in Test += Tests.Cleanup(cl => {
+  import scala.language.reflectiveCalls
+  val c = cl.loadClass("tests.TestUtils$")
+  type M = { def close(): Unit }
+  val m: M = c.getField("MODULE$").get(null).asInstanceOf[M]
+  m.close()
+})
 
 autoAPIMappings := true
 

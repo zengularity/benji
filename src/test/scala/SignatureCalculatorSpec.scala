@@ -4,9 +4,6 @@ import scala.concurrent.duration._
 
 import com.ning.http.client.FluentCaseInsensitiveStringsMap
 
-import play.api.test.FakeApplication
-import play.api.test.Helpers._
-
 import com.zengularity.s3.SignatureCalculator
 
 // Sanity tests related to calculating the signature for S3 requests.
@@ -143,6 +140,7 @@ object SignatureCalculatorSpec extends org.specs2.mutable.Specification {
 
   // ---
 
+  // TODO: Load from config
   lazy val calculator = new SignatureCalculator(
     accessKey = "44CF9590006BF252F707",
     secretKey = "OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV",

@@ -2,8 +2,7 @@ package com.zengularity.s3
 
 import java.net.URL
 
-import play.api.Application
-import play.api.libs.ws.{ WS, WSRequestHolder }
+import play.api.libs.ws.{ WSClient, WSRequestHolder }
 
 /**
  * Strategy that takes care of building basic WS requests.
@@ -13,12 +12,12 @@ import play.api.libs.ws.{ WS, WSRequestHolder }
  * or virtual-host style requests (Amazon S3).
  */
 abstract class WSRequestBuilder(calculator: SignatureCalculator, serverUrl: URL) {
-  def request(bucketName: String = "", objectName: String = "", query: String = "")(implicit current: Application): WSRequestHolder = {
+  def request(bucketName: String = "", objectName: String = "", query: String = "")(implicit ws: WSClient): WSRequestHolder = {
     val hostWithPort = if (serverUrl.getPort > 0) {
       s"${serverUrl.getHost}:${serverUrl.getPort}"
     } else serverUrl.getHost
 
-    WS.url(requestUrl(
+    ws.url(requestUrl(
       serverUrl.getProtocol, hostWithPort, bucketName, objectName, query
     )).withHeaders("Host" -> serverUrl.getHost).sign(calculator)
   }

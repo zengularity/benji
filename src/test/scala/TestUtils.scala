@@ -2,10 +2,9 @@ package tests
 
 import scala.concurrent.ExecutionContext
 
-import play.api.Application
 import play.api.libs.iteratee.Iteratee
 
-import com.zengularity.s3.S3
+import com.zengularity.s3.{ S3, WS => S3WS }
 
 object TestUtils {
   import com.typesafe.config.ConfigFactory
@@ -30,13 +29,18 @@ object TestUtils {
     )
   }
 
-  def aws(implicit ec: ExecutionContext, app: Application) =
+  def aws(implicit ec: ExecutionContext) =
     S3(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
 
-  def ceph(implicit ec: ExecutionContext, app: Application) =
+  def ceph(implicit ec: ExecutionContext) =
     S3(cephAccessKey, cephSecretKey, cephProtocol, cephHost)
 
   def consume(implicit ec: ExecutionContext): Iteratee[Array[Byte], String] =
     Iteratee.consume[Array[Byte]]().map(new String(_))
 
+  implicit lazy val WS: play.api.libs.ws.WSClient = S3WS.client()
+
+  def close(): Unit = {
+    try { WS.close() } catch { case e: Throwable => e.printStackTrace() }
+  }
 }
