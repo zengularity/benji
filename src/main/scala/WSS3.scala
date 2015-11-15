@@ -24,7 +24,7 @@ case class Object(key: String, bytes: Long, lastModifiedAt: DateTime)
  *
  * @param ws the WS client to be use (the caller is responsible of closing it)
  */
-class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: WSClient) {
+class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None)(implicit ec: ExecutionContext, ws: WSClient) {
 
   /** Logger instance for this class. */
   private val logger = Logger("com.zengularity.s3")
@@ -37,24 +37,25 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: 
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html
    */
-  def buckets: Future[List[Bucket]] = request().get().map {
-    case Successful(response) => {
-      val xmlResponse = scala.xml.XML.loadString(response.body)
-      val buckets = xmlResponse \ "Buckets" \ "Bucket"
+  def buckets: Future[List[Bucket]] =
+    request(requestTimeout = requestTimeout).get().map {
+      case Successful(response) => {
+        val xmlResponse = scala.xml.XML.loadString(response.body)
+        val buckets = xmlResponse \ "Buckets" \ "Bucket"
 
-      buckets.map({ bucket =>
-        Bucket(
-          name = (bucket \ "Name").text,
-          creationDate =
-            DateTime.parse((bucket \ "CreationDate").text)
-        )
-      }).toList
+        buckets.map({ bucket =>
+          Bucket(
+            name = (bucket \ "Name").text,
+            creationDate =
+              DateTime.parse((bucket \ "CreationDate").text)
+          )
+        }).toList
+      }
+
+      case response => throw new IllegalStateException(
+        s"Could not get a list of all buckets. Response (${response.status} / ${response.statusText}): ${response.body}"
+      )
     }
-
-    case response => throw new IllegalStateException(
-      s"Could not get a list of all buckets. Response (${response.status} / ${response.statusText}): ${response.body}"
-    )
-  }
 
   /**
    * Selects the given bucket for further operations.
@@ -64,22 +65,23 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: 
      * Allows you to retrieve a list of all objects within this bucket.
      * @see @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
      */
-    def objects: Future[List[Object]] = request(bucketName).get().map {
-      case Successful(response) =>
-        val xmlResponse = scala.xml.XML.loadString(response.body)
-        val contents = xmlResponse \ "Contents"
-        contents.map({ content =>
-          Object(
-            key = (content \ "Key").text,
-            bytes = (content \ "Size").text.toLong,
-            lastModifiedAt =
-              DateTime.parse((content \ "LastModified").text)
-          )
-        }).toList
+    def objects: Future[List[Object]] =
+      request(bucketName, requestTimeout = requestTimeout).get().map {
+        case Successful(response) =>
+          val xmlResponse = scala.xml.XML.loadString(response.body)
+          val contents = xmlResponse \ "Contents"
+          contents.map({ content =>
+            Object(
+              key = (content \ "Key").text,
+              bytes = (content \ "Size").text.toLong,
+              lastModifiedAt =
+                DateTime.parse((content \ "LastModified").text)
+            )
+          }).toList
 
-      case response =>
-        throw new IllegalStateException(s"Could not list all objects within the bucket $bucketName. Response (${response.status} / ${response.statusText}): ${response.body}")
-    }
+        case response =>
+          throw new IllegalStateException(s"Could not list all objects within the bucket $bucketName. Response (${response.status} / ${response.statusText}): ${response.body}")
+      }
 
     /**
      * Determines whether or not this bucket exists. `false` might be returned also in
@@ -87,32 +89,35 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: 
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html
      */
     def exists: Future[Boolean] =
-      request(bucketName).head().map(_.status == Status.OK)
+      request(bucketName, requestTimeout = requestTimeout).
+        head().map(_.status == Status.OK)
 
     /**
      * Creates this bucket.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
      */
-    def create: Future[Unit] = request(bucketName).put("").map {
-      case Successful(response) =>
-        logger.info(s"Successfully created the bucket $bucketName.")
+    def create: Future[Unit] =
+      request(bucketName, requestTimeout = requestTimeout).put("").map {
+        case Successful(response) =>
+          logger.info(s"Successfully created the bucket $bucketName.")
 
-      case response =>
-        throw new IllegalStateException(s"Could not create the bucket $bucketName. Response (${response.status} / ${response.statusText}): ${response.body}")
+        case response =>
+          throw new IllegalStateException(s"Could not create the bucket $bucketName. Response (${response.status} / ${response.statusText}): ${response.body}")
 
-    }
+      }
 
     /**
      * Deletes this bucket.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
      */
-    def delete: Future[Unit] = request(bucketName).delete().map {
-      case Successful(response) =>
-        logger.info(s"Successfully deleted the bucket $bucketName.")
+    def delete: Future[Unit] =
+      request(bucketName, requestTimeout = requestTimeout).delete().map {
+        case Successful(response) =>
+          logger.info(s"Successfully deleted the bucket $bucketName.")
 
-      case response =>
-        throw new IllegalStateException(s"Could not delete the bucket $bucketName. Response (${response.status} / ${response.statusText}): ${response.body}")
-    }
+        case response =>
+          throw new IllegalStateException(s"Could not delete the bucket $bucketName. Response (${response.status} / ${response.statusText}): ${response.body}")
+      }
 
     /**
      * Selects the given object within this bucket for further operations.
@@ -131,19 +136,21 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: 
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
      */
     def exists: Future[Boolean] =
-      request(bucketName, objectName).head().map(_.status == Status.OK)
+      request(bucketName, objectName, requestTimeout = requestTimeout).
+        head().map(_.status == Status.OK)
 
     /**
      * Allows you to retrieve the contents of this object.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
      */
     def get: Enumerator[Array[Byte]] = Enumerator.flatten(
-      request(bucketName, objectName).getStream().map {
-        case (Successful(response), enumerator) => enumerator
+      request(bucketName, objectName, requestTimeout = requestTimeout).
+        getStream().map {
+          case (Successful(response), enumerator) => enumerator
 
-        case (response, _) =>
-          throw new IllegalStateException(s"Could not get the contents of the object $objectName in the bucket $bucketName. Response (${response.status})")
-      }
+          case (response, _) =>
+            throw new IllegalStateException(s"Could not get the contents of the object $objectName in the bucket $bucketName. Response (${response.status})")
+        }
     )
 
     /**
@@ -179,13 +186,15 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: 
      * Deletes this object
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
      */
-    def delete: Future[Unit] = request(bucketName, objectName).delete().map {
-      case Successful(response) =>
-        logger.info(s"Successfully deleted the object $bucketName/$objectName.")
+    def delete: Future[Unit] =
+      request(bucketName, objectName, requestTimeout = requestTimeout).
+        delete().map {
+          case Successful(response) =>
+            logger.info(s"Successfully deleted the object $bucketName/$objectName.")
 
-      case response =>
-        throw new IllegalStateException(s"Could not delete the object $bucketName/$objectName. Response (${response.status} / ${response.statusText}): ${response.body}")
-    }
+          case response =>
+            throw new IllegalStateException(s"Could not delete the object $bucketName/$objectName. Response (${response.status} / ${response.statusText}): ${response.body}")
+        }
 
     /**
      * Copies this object to another one.
@@ -199,7 +208,7 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: 
         throw new IllegalArgumentException(s"Target object you specified [$target] is unknown.")
     }
 
-    def copyTo(targetBucketName: String, targetObjectName: String): Future[Unit] = request(targetBucketName, targetObjectName).
+    def copyTo(targetBucketName: String, targetObjectName: String): Future[Unit] = request(targetBucketName, targetObjectName, requestTimeout = requestTimeout).
       withHeaders("x-amz-copy-source" -> s"/$bucketName/$objectName").
       put("").map {
         case Successful(response) =>
@@ -221,7 +230,7 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: 
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
      */
     private def putSimple(contentType: Option[String]): Iteratee[Array[Byte], Unit] = Iteratee.consume[Array[Byte]]().mapM { bytes =>
-      request(bucketName, objectName).
+      request(bucketName, objectName, requestTimeout = requestTimeout).
         withContentMD5Header(bytes).
         withContentTypeHeader(contentType).put(bytes).map {
           case Successful(response) => logger.debug(
@@ -254,7 +263,8 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: 
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
      */
     private def initiateUpload: Future[String] =
-      request(bucketName, objectName, "uploads").post("").map {
+      request(bucketName, objectName, "uploads",
+        requestTimeout = requestTimeout).post("").map {
         case Successful(response) => {
           val xmlResponse = scala.xml.XML.loadString(response.body)
           val uploadId = (xmlResponse \ "UploadId").text
@@ -272,7 +282,7 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: 
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPart.html
      */
     private def uploadPart(bytes: Array[Byte], contentType: Option[String], partNumber: Int, uploadId: String): Future[String] = request(bucketName, objectName,
-      s"partNumber=$partNumber&uploadId=$uploadId").
+      s"partNumber=$partNumber&uploadId=$uploadId", requestTimeout = requestTimeout).
       withContentMD5Header(bytes).
       withContentTypeHeader(contentType).put(bytes).map {
         case Successful(response) => {
@@ -291,7 +301,9 @@ class WSS3(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: 
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html
      */
     private def completeUpload(etags: List[String], uploadId: String): Future[Unit] = {
-      request(bucketName, objectName, query = s"uploadId=$uploadId").post(
+      request(bucketName, objectName,
+        query = s"uploadId=$uploadId",
+        requestTimeout = requestTimeout).post(
         <CompleteMultipartUpload>
           {
             etags.zipWithIndex.map({

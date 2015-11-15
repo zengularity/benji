@@ -12,14 +12,16 @@ import play.api.libs.ws.{ WSClient, WSRequestHolder }
  * or virtual-host style requests (Amazon S3).
  */
 abstract class WSRequestBuilder(calculator: SignatureCalculator, serverUrl: URL) {
-  def request(bucketName: String = "", objectName: String = "", query: String = "")(implicit ws: WSClient): WSRequestHolder = {
+  def request(bucketName: String = "", objectName: String = "", query: String = "", requestTimeout: Option[Long] = None)(implicit ws: WSClient): WSRequestHolder = {
     val hostWithPort = if (serverUrl.getPort > 0) {
       s"${serverUrl.getHost}:${serverUrl.getPort}"
     } else serverUrl.getHost
 
-    ws.url(requestUrl(
+    val req = ws.url(requestUrl(
       serverUrl.getProtocol, hostWithPort, bucketName, objectName, query
     )).withHeaders("Host" -> serverUrl.getHost).sign(calculator)
+
+    requestTimeout.fold(req)(req.withRequestTimeout(_))
   }
 
   /** Base builder function, to construct the request URL. */
