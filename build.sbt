@@ -2,8 +2,6 @@ organization := "com.zengularity"
 
 name := "s3"
 
-version := "1.0-SNAPSHOT"
-
 scalaVersion := "2.11.7"
 
 val PlayVersion = "2.4.2"
@@ -30,6 +28,8 @@ autoAPIMappings := true
 
 scalacOptions in (Compile,doc) := Seq("-diagrams")
 
+publishTo := Some("Zengularity" at s"http://archiva.znx.fr/repository/${if (isSnapshot.value) "snapshots" else "releases"}")
+
 import scalariform.formatter.preferences._
 
 scalariformSettings
@@ -54,3 +54,4 @@ ScalariformKeys.preferences := ScalariformKeys.preferences.value.
 
 //  .settings(
 // net.virtualvoid.sbt.graph.Plugin.graphSettings: _*)
+
