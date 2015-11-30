@@ -6,12 +6,7 @@ import org.joda.time.DateTime
 import play.api.Logger
 import play.api.http.{ Writeable, Status }
 import play.api.libs.iteratee._
-import play.api.libs.ws.{
-  WSClient,
-  WSRequestHolder,
-  WSResponseHeaders,
-  WSResponse
-}
+import play.api.libs.ws.{ WSRequest, WSClient, WSResponseHeaders, WSResponse }
 
 import scala.concurrent.{ Future, ExecutionContext }
 
@@ -31,6 +26,10 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
 
   import requestBuilder.request
 
+  /** Returns a WS/S3 instance with specified request timeout. */
+  def withRequestTimeout(requestTimeout: Long): WSS3 =
+    new WSS3(requestBuilder, Some(requestTimeout))
+
   /**
    * Returns a list of all buckets
    * owned by the authenticated sender of the request.
@@ -39,7 +38,7 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
    */
   def buckets: Future[List[Bucket]] =
     request(requestTimeout = requestTimeout).get().map {
-      case Successful(response) => {
+      case Successful(response) =>
         val xmlResponse = scala.xml.XML.loadString(response.body)
         val buckets = xmlResponse \ "Buckets" \ "Bucket"
 
@@ -50,10 +49,9 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
               DateTime.parse((bucket \ "CreationDate").text)
           )
         }).toList
-      }
 
       case response => throw new IllegalStateException(
-        s"Could not get a list of all buckets. Response (${response.status} / ${response.statusText}): ${response.body}"
+        s"Could not get a list of all buckets. Response: ${response.status} - ${response.statusText}; ${response.body}"
       )
     }
 
@@ -80,7 +78,7 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
           }).toList
 
         case response =>
-          throw new IllegalStateException(s"Could not list all objects within the bucket $bucketName. Response (${response.status} / ${response.statusText}): ${response.body}")
+          throw new IllegalStateException(s"Could not list all objects within the bucket $bucketName. Response: ${response.status} - ${response.statusText}; ${response.body}")
       }
 
     /**
@@ -88,23 +86,26 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
      * cases where you don't have permission to view a certain bucket.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html
      */
-    def exists: Future[Boolean] =
-      request(bucketName, requestTimeout = requestTimeout).
-        head().map(_.status == Status.OK)
+    def exists: Future[Boolean] = request(
+      bucketName,
+      requestTimeout = requestTimeout
+    ).head().map(_.status == Status.OK)
 
     /**
      * Creates this bucket.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
      */
-    def create: Future[Unit] =
-      request(bucketName, requestTimeout = requestTimeout).put("").map {
-        case Successful(response) =>
-          logger.info(s"Successfully created the bucket $bucketName.")
+    def create: Future[Unit] = request(
+      bucketName,
+      requestTimeout = requestTimeout
+    ).put("").map {
+      case Successful(response) =>
+        logger.info(s"Successfully created the bucket $bucketName.")
 
-        case response =>
-          throw new IllegalStateException(s"Could not create the bucket $bucketName. Response (${response.status} / ${response.statusText}): ${response.body}")
+      case response =>
+        throw new IllegalStateException(s"Could not create the bucket $bucketName. Response: ${response.status} - ${response.statusText}; ${response.body}")
 
-      }
+    }
 
     /**
      * Deletes this bucket.
@@ -116,7 +117,7 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
           logger.info(s"Successfully deleted the bucket $bucketName.")
 
         case response =>
-          throw new IllegalStateException(s"Could not delete the bucket $bucketName. Response (${response.status} / ${response.statusText}): ${response.body}")
+          throw new IllegalStateException(s"Could not delete the bucket $bucketName. Response: ${response.status} - ${response.statusText}; ${response.body}")
       }
 
     /**
@@ -126,8 +127,10 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
       new WSS3Object(bucketName, objectName)
   }
 
-  case class WSS3Object(bucketName: String, objectName: String) {
+  case class WSS3Object(bucketName: String, objectName: String, headers: List[(String, String)] = Nil) {
     // S3Object methods
+
+    def withRange(range: String) = copy(headers = ("Range" -> range) :: headers)
 
     /**
      * Determines whether or not this object exists.
@@ -135,9 +138,8 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
      * cases where you don't have permission to view a certain object.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
      */
-    def exists: Future[Boolean] =
-      request(bucketName, objectName, requestTimeout = requestTimeout).
-        head().map(_.status == Status.OK)
+    def exists: Future[Boolean] = request(bucketName, objectName,
+      requestTimeout = requestTimeout).head().map(_.status == Status.OK)
 
     /**
      * Allows you to retrieve the contents of this object.
@@ -145,11 +147,11 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
      */
     def get: Enumerator[Array[Byte]] = Enumerator.flatten(
       request(bucketName, objectName, requestTimeout = requestTimeout).
-        getStream().map {
+        withHeaders(headers: _*).getStream().map {
           case (Successful(response), enumerator) => enumerator
 
           case (response, _) =>
-            throw new IllegalStateException(s"Could not get the contents of the object $objectName in the bucket $bucketName. Response (${response.status})")
+            throw new IllegalStateException(s"Could not get the contents of the object $objectName in the bucket $bucketName. Response: ${response.status} - ${response.headers}")
         }
     )
 
@@ -186,22 +188,22 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
      * Deletes this object
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
      */
-    def delete: Future[Unit] =
-      request(bucketName, objectName, requestTimeout = requestTimeout).
-        delete().map {
-          case Successful(response) =>
-            logger.info(s"Successfully deleted the object $bucketName/$objectName.")
+    def delete: Future[Unit] = request(
+      bucketName, objectName, requestTimeout = requestTimeout
+    ).delete().map {
+      case Successful(response) =>
+        logger.info(s"Successfully deleted the object $bucketName/$objectName.")
 
-          case response =>
-            throw new IllegalStateException(s"Could not delete the object $bucketName/$objectName. Response (${response.status} / ${response.statusText}): ${response.body}")
-        }
+      case response =>
+        throw new IllegalStateException(s"Could not delete the object $bucketName/$objectName. Response: ${response.status} - ${response.statusText}; ${response.body}")
+    }
 
     /**
      * Copies this object to another one.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
      */
     def copyTo(target: WSS3#WSS3Object): Future[Unit] = target match {
-      case WSS3Object(targetBucketName, targetObjectName) =>
+      case WSS3Object(targetBucketName, targetObjectName, _) =>
         copyTo(targetBucketName, targetObjectName)
 
       case otherwise =>
@@ -215,7 +217,7 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
           logger.info(s"Successfully copied the object [$bucketName/$objectName] to [$targetBucketName/$targetObjectName].")
 
         case response =>
-          throw new IllegalStateException(s"Could not copy the object [$bucketName/$objectName] to [$targetBucketName/$targetObjectName]. Response (${response.status} / ${response.statusText}): ${response.body}")
+          throw new IllegalStateException(s"Could not copy the object [$bucketName/$objectName] to [$targetBucketName/$targetObjectName]. Response: ${response.status} - ${response.statusText}; ${response.body}")
       }
 
     // Utility methods
@@ -238,7 +240,7 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
           )
 
           case response =>
-            throw new IllegalStateException(s"Could not update the contents of the object $bucketName/$objectName. Response (${response.status} / ${response.statusText}): ${response.body}")
+            throw new IllegalStateException(s"Could not update the contents of the object $bucketName/$objectName. Response: ${response.status} - ${response.statusText}; ${response.body}")
         }
     }
 
@@ -265,14 +267,13 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
     private def initiateUpload: Future[String] =
       request(bucketName, objectName, "uploads",
         requestTimeout = requestTimeout).post("").map {
-        case Successful(response) => {
+        case Successful(response) =>
           val xmlResponse = scala.xml.XML.loadString(response.body)
           val uploadId = (xmlResponse \ "UploadId").text
           logger.debug(s"Initiated a multi-part upload for $bucketName/$objectName using the ID $uploadId.")
           uploadId
-        }
 
-        case response => throw new IllegalStateException(s"Could not initiate the upload for [$bucketName/$objectName] Response (${response.status} / ${response.statusText}}): ${response.body}")
+        case response => throw new IllegalStateException(s"Could not initiate the upload for [$bucketName/$objectName]. Response: ${response.status} - ${response.statusText}; ${response.body}")
       }
 
     /**
@@ -281,28 +282,28 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
      * the upload later on.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPart.html
      */
-    private def uploadPart(bytes: Array[Byte], contentType: Option[String], partNumber: Int, uploadId: String): Future[String] = request(bucketName, objectName,
-      s"partNumber=$partNumber&uploadId=$uploadId", requestTimeout = requestTimeout).
+    private def uploadPart(bytes: Array[Byte], contentType: Option[String], partNumber: Int, uploadId: String): Future[String] = request(
+      bucketName, objectName, s"partNumber=$partNumber&uploadId=$uploadId",
+      requestTimeout = requestTimeout
+    ).
       withContentMD5Header(bytes).
       withContentTypeHeader(contentType).put(bytes).map {
-        case Successful(response) => {
+        case Successful(response) =>
           logger.trace(s"Uploaded part $partNumber with ${bytes.length} bytes of the upload $uploadId for $bucketName/$objectName.")
 
           response.header("ETag").getOrElse(throw new IllegalStateException(
             s"Response for the upload [$bucketName/$objectName, $uploadId, part: $partNumber] did not include an ETag header: ${response.allHeaders}."
           ))
-        }
 
         case response =>
-          throw new IllegalStateException(s"Could not upload a part for [$bucketName/$objectName, $uploadId, part: $partNumber] Response (${response.status} / ${response.statusText}}): ${response.body}")
+          throw new IllegalStateException(s"Could not upload a part for [$bucketName/$objectName, $uploadId, part: $partNumber]. Response: ${response.status} - ${response.statusText}; ${response.body}")
       }
 
     /**
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html
      */
     private def completeUpload(etags: List[String], uploadId: String): Future[Unit] = {
-      request(bucketName, objectName,
-        query = s"uploadId=$uploadId",
+      request(bucketName, objectName, query = s"uploadId=$uploadId",
         requestTimeout = requestTimeout).post(
         <CompleteMultipartUpload>
           {
@@ -320,7 +321,7 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
 
           case response =>
             throw new IllegalStateException(
-              s"Could not complete the upload for [$bucketName/$objectName, $uploadId]; Response (${response.status} / ${response.statusText}}): ${response.body}"
+              s"Could not complete the upload for [$bucketName/$objectName, $uploadId]. Response: ${response.status} - ${response.statusText}; ${response.body}"
             )
         }
     }
@@ -330,24 +331,25 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
   private object Successful {
     // The S3 REST API only ever returns OK or NO_CONTENT .. which is why I'll only check these two.
     def unapply(response: WSResponse): Option[WSResponse] = {
-      if (response.status == Status.OK ||
-        response.status == Status.NO_CONTENT) {
+      if (response.status == Status.OK || response.status == Status.PARTIAL_CONTENT || response.status == Status.NO_CONTENT) {
         Some(response)
       } else None
     }
 
     def unapply(headers: WSResponseHeaders): Option[WSResponseHeaders] = {
-      if (headers.status == Status.OK || headers.status == Status.NO_CONTENT) {
+      if (headers.status == Status.OK ||
+        headers.status == Status.PARTIAL_CONTENT ||
+        headers.status == Status.NO_CONTENT) {
         Some(headers)
       } else None
     }
   }
 
-  private implicit class RichWSRequestHolder(self: WSRequestHolder) {
-    def withContentMD5Header(bytes: Array[Byte]): WSRequestHolder =
+  private implicit class RichWSRequestHolder(self: WSRequest) {
+    def withContentMD5Header(bytes: Array[Byte]): WSRequest =
       self.withHeaders("Content-MD5" -> ContentMD5(bytes))
 
-    def withContentTypeHeader(contentType: Option[String]): WSRequestHolder =
+    def withContentTypeHeader(contentType: Option[String]): WSRequest =
       contentType.fold(self)(c => self.withHeaders("Content-Type" -> c))
   }
 
@@ -365,7 +367,8 @@ object S3 {
   /**
    * @param accessKeyId CEPH user access key
    * @param secretAccessKeyId CEPH user secret key
-   * @param server CEPH server URL
+   * @param scheme CEPH scheme
+   * @param host CEPH host
    * @return A WSS3 instance configured to work with the S3-compatible API of a CEPH server
    */
   def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ec: ExecutionContext, ws: WSClient): WSS3 =
