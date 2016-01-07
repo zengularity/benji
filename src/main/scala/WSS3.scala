@@ -155,33 +155,34 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
         }
     )
 
+    def put[E](implicit wrt: Writeable[E]): Iteratee[E, Unit] =
+      put({})((_, _) => Future.successful({}))
+
     /**
      * Allows you to update the contents of this object.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html and http://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html
+     *
+     * @param threshold the multipart threshold (by default 5MB)
      */
-    def put[A](implicit wrt: Writeable[A]): Iteratee[A, Unit] = {
-      // Initially we'll be buffering up to 5 MB, because we might have to upload the contents in
-      // one big request. If we exceed that size, however, we'll switch to a multi-part upload and
-      // stop buffering all the incoming bytes.
-      val threshold = Bytes.megabytes(5)
-
+    def put[E, A](z: => A, threshold: Bytes = Bytes.megabytes(5))(f: (A, Array[Byte]) => Future[A])(implicit wrt: Writeable[E]): Iteratee[E, A] = {
       wrt.toEnumeratee &>>
-        Iteratees.consumeAtLeast(threshold).flatMapM({ bytes =>
-          if (threshold.wasExceeded(bytes)) {
-            // Knowing that we have at least one chunk that is bigger than 5 MB, it's safe to start
+        Iteratees.consumeAtLeast(threshold).flatMapM { bytes =>
+          if (threshold wasExceeded bytes) {
+            // Knowing that we have at least one chunk that
+            // is bigger than 5 MB, it's safe to start
             // a multi-part upload with everything we consumed so far.
-            putMulti(wrt.contentType).feed(Input.El(bytes))
+            putMulti(wrt.contentType, threshold, z, f).feed(Input.El(bytes))
           } else {
-            // This one also needs to be fed Input.EOF to finish the upload, we know that we've received
-            // Input.EOF as otherwise the threshold would have been exceeded (or we wouldn't be in this
-            // function).
+            // This one also needs to be fed Input.EOF to finish the upload,
+            // we know that we've received Input.EOF as otherwise the threshold
+            // would have been exceeded (or we wouldn't be in this function).
             for {
-              a <- Future.successful(putSimple(wrt.contentType))
+              a <- Future.successful(putSimple(wrt.contentType, z, f))
               b <- a.feed(Input.El(bytes))
               c <- b.feed(Input.EOF)
             } yield c
           }
-        })
+        }
     }
 
     /**
@@ -224,41 +225,48 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
 
     /**
      * Creates an Iteratee that will upload the bytes it consumes in one request, without streaming them.
-     * For this operation we need to know the overall content length (the server requires that), which is
-     * why we have to buffer everything upfront.
+     * For this operation we need to know the overall content length
+     * (the server requires that), which is why we have to buffer everything upfront.
      *
-     * If you already know that your upload will exceed 5 megabyte, use multi-part uploads.
+     * If you already know that your upload will exceed 5 megabyte,
+     * use multi-part uploads.
      *
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
      */
-    private def putSimple(contentType: Option[String]): Iteratee[Array[Byte], Unit] = Iteratee.consume[Array[Byte]]().mapM { bytes =>
-      request(bucketName, objectName, requestTimeout = requestTimeout).
-        withContentMD5Header(bytes).
-        withContentTypeHeader(contentType).put(bytes).map {
-          case Successful(response) => logger.debug(
-            s"Completed the simple upload for $bucketName/$objectName."
-          )
+    private def putSimple[A](contentType: Option[String], z: => A, f: (A, Array[Byte]) => Future[A]): Iteratee[Array[Byte], A] =
+      Iteratee.consume[Array[Byte]]().mapM { bytes =>
+        request(bucketName, objectName, requestTimeout = requestTimeout).
+          withContentMD5Header(bytes).
+          withContentTypeHeader(contentType).put(bytes).map {
+            case Successful(response) => logger.debug(
+              s"Completed the simple upload for $bucketName/$objectName."
+            )
 
-          case response =>
-            throw new IllegalStateException(s"Could not update the contents of the object $bucketName/$objectName. Response: ${response.status} - ${response.statusText}; ${response.body}")
-        }
-    }
+            case response =>
+              throw new IllegalStateException(s"Could not update the contents of the object $bucketName/$objectName. Response: ${response.status} - ${response.statusText}; ${response.body}")
+          }.flatMap(_ => f(z, bytes))
+      }
 
     /**
-     * Creates an Iteratee that will upload the bytes it consumes in multi-part uploads.
+     * Creates an Iteratee that will upload the bytes.
+     * It consumes in multi-part uploads.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html
      */
-    private def putMulti(contentType: Option[String]): Iteratee[Array[Byte], Unit] = {
-      // Each part we're uploading, apart from the last one, must have at least 5 megabytes
-      Enumeratee.grouped(Iteratees.consumeAtLeast(Bytes.megabytes(5))) &>>
-        Iteratee.flatten(initiateUpload.map { uploadId =>
-          Iteratee.foldM[Array[Byte], List[String]](Nil) {
-            case (etags, bytes) =>
-              uploadPart(bytes, contentType, etags.size + 1, uploadId).
-                map { _ :: etags }
-          }.mapM { etags => completeUpload(etags.reverse, uploadId) }
+    private def putMulti[A](contentType: Option[String], threshold: Bytes, z: => A, f: (A, Array[Byte]) => Future[A]): Iteratee[Array[Byte], A] =
+      Enumeratee.grouped(Iteratees.consumeAtLeast(threshold)) &>>
+        Iteratee.flatten(initiateUpload.map { id =>
+          Iteratee.foldM[Array[Byte], (List[String], A)](
+            List.empty[String] -> z
+          ) {
+              case ((etags, st), bytes) => for {
+                etag <- uploadPart(bytes, contentType, etags.size + 1, id)
+                nst <- f(st, bytes)
+              } yield (etag :: etags) -> nst
+            }.mapM[A] {
+              case (etags, res) =>
+                completeUpload(etags.reverse, id).map(_ => res)
+            }
         })
-    }
 
     /**
      * Initiates a multi-part upload and returns the upload ID we're supposed to include when uploading parts later on.
@@ -270,6 +278,7 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
         case Successful(response) =>
           val xmlResponse = scala.xml.XML.loadString(response.body)
           val uploadId = (xmlResponse \ "UploadId").text
+
           logger.debug(s"Initiated a multi-part upload for $bucketName/$objectName using the ID $uploadId.")
           uploadId
 

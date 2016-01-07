@@ -32,8 +32,9 @@ case class Bytes(inBytes: Long) extends AnyVal {
 
 /** Bytes companion object */
 object Bytes {
+  val MB = 1024 * 1024
   val zero = Bytes(0)
 
   def kilobytes(i: Int): Bytes = Bytes(i * 1024)
-  def megabytes(i: Int): Bytes = Bytes(i * 1024 * 1024)
+  def megabytes(i: Int): Bytes = Bytes(i * MB)
 }

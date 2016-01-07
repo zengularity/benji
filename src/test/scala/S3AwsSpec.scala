@@ -1,5 +1,6 @@
 package tests
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import org.specs2.concurrent.{ ExecutionEnv => EE }
@@ -25,14 +26,17 @@ object S3AwsSpec extends org.specs2.mutable.Specification {
           await(retries = 1, timeout = 10.seconds)
     }
 
-    s"Write file in $bucketName bucket" in {
-      implicit ee: EE =>
-        val filetest = aws.bucket(bucketName).obj("testfile.txt")
-        val iteratee = filetest.put[Array[Byte]]
-        val body = List.fill(1000)("hello world !!!").mkString(" ").getBytes
+    s"Write file in $bucketName bucket" in { implicit ee: EE =>
+      val filetest = aws.bucket(bucketName).obj("testfile.txt")
+      val upload = filetest.put[Array[Byte], Long](0L) { (sz, chunk) =>
+        Future.successful(sz + chunk.size)
+      }
+      val body = List.fill(1000)("hello world !!!").mkString(" ").getBytes
 
-        { repeat(20) { body } |>>> iteratee }.flatMap { _ => filetest.exists }.
-          aka("exists") must beTrue.await(retries = 1, timeout = 10.seconds)
+      (repeat(20)(body) |>>> upload).
+        flatMap(sz => filetest.exists.map(sz -> _)).
+        aka("exists") must beEqualTo(319980 -> true).
+        await(retries = 1, timeout = 10.seconds)
     }
 
     s"Get contents of $bucketName bucket" in {
@@ -74,10 +78,10 @@ object S3AwsSpec extends org.specs2.mutable.Specification {
         }).await(retries = 1, timeout = 10.seconds)
     }
 
-    "Get contents of a non-existing file" in { implicit ee: EE =>
+    "Fail to get contents of a non-existing file" in { implicit ee: EE =>
       aws.bucket(bucketName).obj("test-folder/DoesNotExist.txt").
         get |>>> consume must throwA[IllegalStateException].like({
-          case e => e.getMessage must_== s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response (404)"
+          case e => e.getMessage must startWith(s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
         }).await(retries = 1, timeout = 10.seconds)
     }
 

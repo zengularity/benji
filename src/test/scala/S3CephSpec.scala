@@ -32,7 +32,8 @@ object S3CephSpec extends org.specs2.mutable.Specification {
 
       val objects = for {
         _ <- s3.bucket(name).create
-        _ <- Enumerator("Hello".getBytes) |>>> s3.bucket(name).obj("testfile.txt").put
+        _ <- Enumerator("Hello".getBytes) |>>> s3.
+          bucket(name).obj("testfile.txt").put
         _ <- s3.buckets
         o <- s3.bucket(name).objects
       } yield o
@@ -100,10 +101,10 @@ object S3CephSpec extends org.specs2.mutable.Specification {
         }).await(retries = 1, timeout = 10.seconds)
     }
 
-    "Get contents of a non-existing file" in { implicit ee: EE =>
+    "Fail to get contents of a non-existing file" in { implicit ee: EE =>
       ceph.bucket(bucketName).obj("test-folder/DoesNotExist.txt").
         get |>>> consume must throwA[IllegalStateException].like({
-          case e => e.getMessage must_== s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response (404)"
+          case e => e.getMessage must startWith(s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
         }).await(retries = 1, timeout = 10.seconds)
     }
 
