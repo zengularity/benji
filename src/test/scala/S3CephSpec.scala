@@ -15,7 +15,7 @@ object S3CephSpec extends org.specs2.mutable.Specification {
   sequential
 
   "Ceph client" should {
-    val bucketName = s"bucket-${System identityHashCode this}"
+    val bucketName = s"test-${System identityHashCode this}"
 
     "Access the system" in { implicit ee: EE =>
       val s3 = ceph
@@ -28,7 +28,7 @@ object S3CephSpec extends org.specs2.mutable.Specification {
 
     "Create buckets and files" in { implicit ee: EE =>
       val s3 = ceph
-      val name = s"bucket-${System identityHashCode s3}"
+      val name = s"test-${System identityHashCode s3}"
 
       val objects = for {
         _ <- s3.bucket(name).create
@@ -67,7 +67,7 @@ object S3CephSpec extends org.specs2.mutable.Specification {
 
     "Creating & deleting buckets" in { implicit ee: EE =>
       val s3 = ceph
-      val name = s"bucket-${System identityHashCode s3}"
+      val name = s"test-${System identityHashCode s3}"
       val bucket = s3.bucket(name)
 
       bucket.exists must beFalse.

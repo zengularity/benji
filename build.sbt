@@ -2,6 +2,8 @@ organization := "com.zengularity"
 
 name := "s3"
 
+version := "1.0-SNAPSHOT"
+
 scalaVersion := "2.11.7"
 
 val PlayVersion = "2.4.2"

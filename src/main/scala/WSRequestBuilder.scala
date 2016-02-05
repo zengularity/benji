@@ -4,6 +4,13 @@ import java.net.URL
 
 import play.api.libs.ws.{ WSClient, WSRequest }
 
+/** Information prepared for the request according the [[RequestStyle]]. */
+case class PreparedRequest(
+  hostHeader: String,
+  style: String,
+  url: String
+)
+
 /**
  * Strategy that takes care of building basic WS requests.
  *
@@ -17,15 +24,19 @@ abstract class WSRequestBuilder(calculator: SignatureCalculator, serverUrl: URL)
       s"${serverUrl.getHost}:${serverUrl.getPort}"
     } else serverUrl.getHost
 
-    val req = ws.url(requestUrl(
+    val prepared = prepare(
       serverUrl.getProtocol, hostWithPort, bucketName, objectName, query
-    )).withHeaders("Host" -> serverUrl.getHost).sign(calculator)
+    )
+    val req = ws.url(prepared.url).withHeaders(
+      "Host" -> prepared.hostHeader,
+      "X-Request-Style" -> prepared.style
+    ).sign(calculator)
 
     requestTimeout.fold(req)(req.withRequestTimeout(_))
   }
 
   /** Base builder function, to construct the request URL. */
-  protected[s3] def requestUrl(scheme: String, host: String, bucketName: String, objectName: String, query: String): String
+  protected[s3] def prepare(scheme: String, host: String, bucketName: String, objectName: String, query: String): PreparedRequest
 }
 
 /**
@@ -35,7 +46,7 @@ class PathStyleWSRequestBuilder(
     calculator: SignatureCalculator, serverUrl: URL
 ) extends WSRequestBuilder(calculator, serverUrl) {
 
-  protected[s3] def requestUrl(scheme: String, host: String, bucketName: String, objectName: String, query: String): String = {
+  protected[s3] def prepare(scheme: String, host: String, bucketName: String, objectName: String, query: String): PreparedRequest = {
     val url = new StringBuilder()
 
     url.append(scheme).append("://").append(host).append('/')
@@ -49,7 +60,7 @@ class PathStyleWSRequestBuilder(
       }
     }
 
-    url.toString()
+    PreparedRequest(serverUrl.getHost, "path", url.toString())
   }
 }
 
@@ -67,7 +78,7 @@ class VirtualHostWSRequestBuilder(
     calculator: SignatureCalculator, serverUrl: URL
 ) extends WSRequestBuilder(calculator, serverUrl) {
 
-  protected[s3] def requestUrl(scheme: String, host: String, bucketName: String, objectName: String, query: String): String = {
+  protected[s3] def prepare(scheme: String, host: String, bucketName: String, objectName: String, query: String): PreparedRequest = {
     val url = new StringBuilder()
 
     url.append(scheme).append("://")
@@ -86,6 +97,6 @@ class VirtualHostWSRequestBuilder(
       }
     }
 
-    url.toString()
+    PreparedRequest(s"$bucketName.$host", "virtualhost", url.toString())
   }
 }

@@ -17,6 +17,18 @@ import com.ning.http.client.FluentCaseInsensitiveStringsMap
 import scala.collection.JavaConversions._
 import scala.util.Try
 
+/** S3 [[request style http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html]]. */
+sealed trait RequestStyle
+object PathRequest extends RequestStyle
+object VirtualHostRequest extends RequestStyle
+
+object RequestStyle {
+  def apply(raw: String): RequestStyle = raw match {
+    case "virtualhost" => VirtualHostRequest
+    case _             => PathRequest
+  }
+}
+
 /**
  * Computes the signature according access and secret keys,
  * to be used along each S3 requests, in the 'Authorization' header.
@@ -34,6 +46,7 @@ class SignatureCalculator(
     with com.ning.http.client.SignatureCalculator {
 
   val logger = Logger("com.zengularity.s3")
+  type HeaderMap = java.util.Map[String, java.util.List[String]]
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
@@ -43,21 +56,20 @@ class SignatureCalculator(
       Option(request.getHeaders.getFirstValue(name))
     }
 
-    val date = header("Date").
-      getOrElse(RFC1123_DATE_TIME_FORMATTER print DateTime.now())
-
-    val host = header("Host").getOrElse(serverHost)
+    val date = header("x-amz-date").orElse(header("Date")).getOrElse(
+      RFC1123_DATE_TIME_FORMATTER print DateTime.now()
+    )
+    val style = RequestStyle(header("X-Request-Style").getOrElse("path"))
 
     requestBuilder.setHeader("Date", date)
 
-    val stringToSign = request.getMethod + "\n" +
-      header("Content-MD5").getOrElse("") + "\n" +
-      header("Content-Type").getOrElse("") + "\n" +
-      s"$date\n" +
-      canonicalizedAmzHeadersFor(request.getHeaders) +
-      canonicalizedResourceFor(request.getUrl, host)
+    val str = stringToSign(
+      request.getMethod, style,
+      header("Content-MD5"), header("Content-Type"),
+      date, request.getHeaders, serverHost, request.getUrl
+    )
 
-    calculateFor(stringToSign).map { signature =>
+    calculateFor(str).map { signature =>
       requestBuilder.setHeader("Authorization", s"AWS $accessKey:$signature")
     }.recover {
       case e =>
@@ -73,6 +85,18 @@ class SignatureCalculator(
   private val RFC1123_DATE_TIME_FORMATTER =
     DateTimeFormat.forPattern("EEE, dd MMM yyyy HH:mm:ss Z").
       withLocale(java.util.Locale.US).withZoneUTC()
+
+  /**
+   * Computes the string-to-sign for request authentication.
+   * @param serverHost the base host of the S3 server (without the bucket prefix in the virtual host style)
+   */
+  def stringToSign(httpVerb: String, style: RequestStyle, contentMd5: Option[String], contentType: Option[String], date: String, headers: HeaderMap, serverHost: String, url: String): String = {
+    httpVerb + "\n" +
+      contentMd5.getOrElse("") + "\n" +
+      contentType.getOrElse("") + s"\n$date\n" +
+      canonicalizedAmzHeadersFor(headers) +
+      canonicalizedResourceFor(style, url, serverHost)
+  }
 
   /**
    * Calculates the signature for the given string to sign.
@@ -99,7 +123,7 @@ class SignatureCalculator(
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#RESTAuthenticationConstructingCanonicalizedAmzHeaders
    */
-  def canonicalizedAmzHeadersFor(allHeaders: FluentCaseInsensitiveStringsMap): String = {
+  def canonicalizedAmzHeadersFor(allHeaders: HeaderMap): String = {
     val amzHeaderNames = allHeaders.keySet().filter(_.toLowerCase.startsWith("x-amz-")).toList.sortBy(_.toLowerCase)
     amzHeaderNames.map({ amzHeaderName =>
       amzHeaderName.toLowerCase + ":" + allHeaders(amzHeaderName).mkString(",") + "\n"
@@ -117,6 +141,9 @@ class SignatureCalculator(
     }.mkString
   }
 
+  @inline private def checkPathSlash(url: java.net.URL): String =
+    if (url.getPath startsWith "/") url.getPath else "/" + url.getPath
+
   /**
    * For an S3 request URL,
    * like 'https://my-bucket.s3.amazonaws.com/test-folder/file.txt' this
@@ -124,19 +151,19 @@ class SignatureCalculator(
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheCanonicalizedResourceElement
    */
-  def canonicalizedResourceFor(requestUrl: String, host: String): String = {
-    val url = new java.net.URL(requestUrl)
+  def canonicalizedResourceFor(style: RequestStyle, requestUrl: String, host: String): String = {
+    val url = new java.net.URL(requestUrl) // TODO: Unsafe
 
-    val checkPathSlash = { (url: java.net.URL) =>
-      if (url.getPath.startsWith("/")) url.getPath else "/" + url.getPath
+    val query = Option(url.getQuery).fold("")(q => s"?$q")
+    val path = checkPathSlash(url) + query
+
+    style match {
+      case PathRequest => path
+      case _ => {
+        val bucket = url.getHost.dropRight(host.size + 1)
+        if (bucket.isEmpty) path else s"/${bucket}$path"
+      }
     }
-
-    val path = if (url.getQuery != null && url.getQuery.nonEmpty) {
-      checkPathSlash(url) + "?" + url.getQuery
-    } else checkPathSlash(url)
-
-    if (isPathStyleRequest(url, host)) path
-    else "/" + url.getHost.replaceFirst("." + host, "") + path
   }
 
   protected def isPathStyleRequest(requestUrl: java.net.URL, hostHeader: String): Boolean = requestUrl.getHost == serverHost || hostHeader.contains(requestUrl.getHost)

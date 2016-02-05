@@ -383,7 +383,17 @@ object S3 {
   def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ec: ExecutionContext, ws: WSClient): WSS3 =
     new WSS3(new PathStyleWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(scheme + "://" + host)))
 
-  def apply(calculator: SignatureCalculator, scheme: String = "https", host: String = "s3.amazonaws.com")(implicit ec: ExecutionContext, ws: WSClient): WSS3 = new WSS3(new VirtualHostWSRequestBuilder(calculator, new java.net.URL(scheme + "://" + host)))
+  /**
+   * Returns the S3 client in the virtual host style.
+   *
+   * @param accessKeyId CEPH user access key
+   * @param secretAccessKeyId CEPH user secret key
+   * @param scheme CEPH scheme
+   * @param host CEPH host
+   * @return A WSS3 instance configured to work with the S3-compatible API of a CEPH server
+   */
+  def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ec: ExecutionContext, ws: WSClient): WSS3 =
+    new WSS3(new VirtualHostWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(scheme + "://" + host)))
 
   def apply(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: WSClient): WSS3 = new WSS3(requestBuilder)
 }
