@@ -4,7 +4,7 @@ package com.zengularity.s3
  * Use this type when you want to specify a size
  * in terms of bytes or something like that in a type-safe way.
  */
-case class Bytes(inBytes: Long) extends AnyVal {
+final class Bytes private (val inBytes: Long) extends AnyVal {
   /**
    * Indicates whether this size value was exceeded by the given byte array.
    *
@@ -21,20 +21,23 @@ case class Bytes(inBytes: Long) extends AnyVal {
   /**
    * Subtracts the size of the given array from this size indication, possibly returning negative values.
    */
-  def -(bytes: Array[Byte]): Bytes = Bytes(inBytes - bytes.length)
+  def -(bytes: Array[Byte]): Bytes = new Bytes(inBytes - bytes.length)
 
   /** To compare sizes */
   def >(other: Bytes): Boolean = inBytes > other.inBytes
   def >=(other: Bytes): Boolean = inBytes >= other.inBytes
   def <(other: Bytes): Boolean = inBytes < other.inBytes
   def <=(other: Bytes): Boolean = inBytes <= other.inBytes
+
+  def /:(bytes: Long): Long = bytes / inBytes
 }
 
 /** Bytes companion object */
 object Bytes {
   val MB = 1024 * 1024
-  val zero = Bytes(0)
+  val zero = new Bytes(0)
 
-  def kilobytes(i: Int): Bytes = Bytes(i * 1024)
-  def megabytes(i: Int): Bytes = Bytes(i * MB)
+  def apply(bytes: Long): Bytes = new Bytes(bytes)
+  def kilobytes(i: Int): Bytes = new Bytes(i * 1024)
+  def megabytes(i: Int): Bytes = new Bytes(i * MB)
 }

@@ -15,7 +15,7 @@ case class PreparedRequest(
  * Strategy that takes care of building basic WS requests.
  *
  * Depending on your infrastructure,
- * you might need to use path-style requests (CEPH)
+ * you might need to use path-style requests (e.g. CEPH),
  * or virtual-host style requests (Amazon S3).
  */
 abstract class WSRequestBuilder(calculator: SignatureCalculator, serverUrl: URL) {
@@ -40,7 +40,8 @@ abstract class WSRequestBuilder(calculator: SignatureCalculator, serverUrl: URL)
 }
 
 /**
- * Builds something like "https://s3.amazonaws.com/bucket-name/object?uploads
+ * Builder for requests using the path style
+ * (e.g. https://s3.amazonaws.com/bucket-name/object?uploads).
  */
 class PathStyleWSRequestBuilder(
     calculator: SignatureCalculator, serverUrl: URL
