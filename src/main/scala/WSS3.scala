@@ -24,6 +24,9 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
   /** Logger instance for this class. */
   private val logger = Logger("com.zengularity.s3")
 
+  /** The maximum number of part (10,000) for a multipart upload to S3/AWS. */
+  val AWSPartLimit = 10000
+
   import requestBuilder.request
 
   /** Returns a WS/S3 instance with specified request timeout. */
@@ -159,30 +162,50 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
       put({})((_, _) => Future.successful({}))
 
     /**
+     * @param size the total size in bytes to be PUTed
+     */
+    def put[E](size: Long)(implicit wrt: Writeable[E]): Iteratee[E, Unit] = put({}, size = size)((_, _) => Future.successful({}))
+
+    /**
+     * @param size the total size in bytes to be PUTed
+     * @param maxPart the maximum number of part (if using multipart upload)
+     */
+    def put[E](size: Long, maxPart: Int)(implicit wrt: Writeable[E]): Iteratee[E, Unit] = put({}, size = size, maxPart = maxPart)((_, _) => Future.successful({}))
+
+    /**
      * Allows you to update the contents of this object.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html and http://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html
      *
+     * If the `size` is known and if the partitioning according that and the `threshold` would exceed the `maxPart`, then `size / maxPart` is used instead of the given threshold for multipart upload.
+     *
      * @param threshold the multipart threshold (by default 5MB)
+     * @param size the total size in bytes to be PUTed (by default -1L for unknown)
+     * @param maxPart the maximum number of part (if using multipart upload)
      */
-    def put[E, A](z: => A, threshold: Bytes = Bytes.megabytes(5))(f: (A, Array[Byte]) => Future[A])(implicit wrt: Writeable[E]): Iteratee[E, A] = {
-      wrt.toEnumeratee &>>
-        Iteratees.consumeAtLeast(threshold).flatMapM { bytes =>
-          if (threshold wasExceeded bytes) {
-            // Knowing that we have at least one chunk that
-            // is bigger than 5 MB, it's safe to start
-            // a multi-part upload with everything we consumed so far.
-            putMulti(wrt.contentType, threshold, z, f).feed(Input.El(bytes))
-          } else {
-            // This one also needs to be fed Input.EOF to finish the upload,
-            // we know that we've received Input.EOF as otherwise the threshold
-            // would have been exceeded (or we wouldn't be in this function).
-            for {
-              a <- Future.successful(putSimple(wrt.contentType, z, f))
-              b <- a.feed(Input.El(bytes))
-              c <- b.feed(Input.EOF)
-            } yield c
-          }
+    def put[E, A](z: => A, threshold: Bytes = Bytes.megabytes(5), size: Long = -1L, maxPart: Int = AWSPartLimit)(f: (A, Array[Byte]) => Future[A])(implicit wrt: Writeable[E]): Iteratee[E, A] = {
+      val th = if (size < 0) threshold else {
+        val partCount = size /: threshold
+
+        if (partCount <= maxPart) threshold else Bytes(size / maxPart)
+      }
+
+      wrt.toEnumeratee &>> Iteratees.consumeAtLeast(th).flatMapM { bytes =>
+        if (th wasExceeded bytes) {
+          // Knowing that we have at least one chunk that
+          // is bigger than 5 MB, it's safe to start
+          // a multi-part upload with everything we consumed so far.
+          putMulti(wrt.contentType, th, z, f).feed(Input.El(bytes))
+        } else {
+          // This one also needs to be fed Input.EOF to finish the upload,
+          // we know that we've received Input.EOF as otherwise the threshold
+          // would have been exceeded (or we wouldn't be in this function).
+          for {
+            a <- Future.successful(putSimple(wrt.contentType, z, f))
+            b <- a.feed(Input.El(bytes))
+            c <- b.feed(Input.EOF)
+          } yield c
         }
+      }
     }
 
     /**

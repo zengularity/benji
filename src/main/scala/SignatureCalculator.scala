@@ -17,7 +17,7 @@ import com.ning.http.client.FluentCaseInsensitiveStringsMap
 import scala.collection.JavaConversions._
 import scala.util.Try
 
-/** S3 [[request style http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html]]. */
+/** S3 [[http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html request style]]. */
 sealed trait RequestStyle
 object PathRequest extends RequestStyle
 object VirtualHostRequest extends RequestStyle
