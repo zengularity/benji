@@ -17,9 +17,10 @@ case class Object(key: String, bytes: Long, lastModifiedAt: DateTime)
 /**
  * Implementation of the S3 API using Play's WS library.
  *
- * @param ws the WS client to be use (the caller is responsible of closing it)
+ * @define contentTypeParam the MIME type of content
+ * @define putSizeParam the total size in bytes to be PUTed
  */
-class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None)(implicit ec: ExecutionContext, ws: WSClient) {
+class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None) {
 
   /** Logger instance for this class. */
   private val logger = Logger("com.zengularity.s3")
@@ -29,7 +30,10 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
 
   import requestBuilder.request
 
-  /** Returns a WS/S3 instance with specified request timeout. */
+  /**
+   * Returns a WS/S3 instance with specified request timeout.
+   * @param requestTimeout the request timeout for client instance
+   */
   def withRequestTimeout(requestTimeout: Long): WSS3 =
     new WSS3(requestBuilder, Some(requestTimeout))
 
@@ -39,82 +43,84 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html
    */
-  def buckets: Future[List[Bucket]] =
-    request(requestTimeout = requestTimeout).get().map {
-      case Successful(response) =>
-        val xmlResponse = scala.xml.XML.loadString(response.body)
-        val buckets = xmlResponse \ "Buckets" \ "Bucket"
+  def buckets(implicit ec: ExecutionContext, ws: WSClient): Future[List[Bucket]] = request(requestTimeout = requestTimeout).get().map {
+    case Successful(response) =>
+      val xmlResponse = scala.xml.XML.loadString(response.body)
+      val buckets = xmlResponse \ "Buckets" \ "Bucket"
 
-        buckets.map({ bucket =>
-          Bucket(
-            name = (bucket \ "Name").text,
-            creationDate =
-              DateTime.parse((bucket \ "CreationDate").text)
-          )
-        }).toList
+      buckets.map({ bucket =>
+        Bucket(
+          name = (bucket \ "Name").text,
+          creationDate =
+            DateTime.parse((bucket \ "CreationDate").text)
+        )
+      }).toList
 
-      case response => throw new IllegalStateException(
-        s"Could not get a list of all buckets. Response: ${response.status} - ${response.statusText}; ${response.body}"
-      )
-    }
+    case response => throw new IllegalStateException(
+      s"Could not get a list of all buckets. Response: ${response.status} - ${response.statusText}; ${response.body}"
+    )
+  }
 
   /**
-   * Selects the given bucket for further operations.
+   * Bucket selection, for operations scoped from there.
+   *
+   * @param bucketName the name of the bucket to select
    */
   case class bucket(bucketName: String) {
     /**
      * Allows you to retrieve a list of all objects within this bucket.
      * @see @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
      */
-    def objects: Future[List[Object]] =
-      request(bucketName, requestTimeout = requestTimeout).get().map {
-        case Successful(response) =>
-          val xmlResponse = scala.xml.XML.loadString(response.body)
-          val contents = xmlResponse \ "Contents"
-          contents.map({ content =>
-            Object(
-              key = (content \ "Key").text,
-              bytes = (content \ "Size").text.toLong,
-              lastModifiedAt =
-                DateTime.parse((content \ "LastModified").text)
-            )
-          }).toList
+    def objects(implicit ec: ExecutionContext, ws: WSClient): Future[List[Object]] = request(bucketName, requestTimeout = requestTimeout).get().map {
+      case Successful(response) =>
+        val xmlResponse = scala.xml.XML.loadString(response.body)
+        val contents = xmlResponse \ "Contents"
+        contents.map({ content =>
+          Object(
+            key = (content \ "Key").text,
+            bytes = (content \ "Size").text.toLong,
+            lastModifiedAt =
+              DateTime.parse((content \ "LastModified").text)
+          )
+        }).toList
 
-        case response =>
-          throw new IllegalStateException(s"Could not list all objects within the bucket $bucketName. Response: ${response.status} - ${response.statusText}; ${response.body}")
-      }
+      case response =>
+        throw new IllegalStateException(s"Could not list all objects within the bucket $bucketName. Response: ${response.status} - ${response.statusText}; ${response.body}")
+    }
 
     /**
      * Determines whether or not this bucket exists. `false` might be returned also in
      * cases where you don't have permission to view a certain bucket.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html
      */
-    def exists: Future[Boolean] = request(
-      bucketName,
-      requestTimeout = requestTimeout
-    ).head().map(_.status == Status.OK)
+    def exists(implicit ec: ExecutionContext, ws: WSClient): Future[Boolean] =
+      request(
+        bucketName,
+        requestTimeout = requestTimeout
+      ).head().map(_.status == Status.OK)
 
     /**
      * Creates this bucket.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
      */
-    def create: Future[Unit] = request(
-      bucketName,
-      requestTimeout = requestTimeout
-    ).put("").map {
-      case Successful(response) =>
-        logger.info(s"Successfully created the bucket $bucketName.")
+    def create(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
+      request(
+        bucketName,
+        requestTimeout = requestTimeout
+      ).put("").map {
+        case Successful(response) =>
+          logger.info(s"Successfully created the bucket $bucketName.")
 
-      case response =>
-        throw new IllegalStateException(s"Could not create the bucket $bucketName. Response: ${response.status} - ${response.statusText}; ${response.body}")
+        case response =>
+          throw new IllegalStateException(s"Could not create the bucket $bucketName. Response: ${response.status} - ${response.statusText}; ${response.body}")
 
-    }
+      }
 
     /**
      * Deletes this bucket.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
      */
-    def delete: Future[Unit] =
+    def delete(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
       request(bucketName, requestTimeout = requestTimeout).delete().map {
         case Successful(response) =>
           logger.info(s"Successfully deleted the bucket $bucketName.")
@@ -125,14 +131,30 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
 
     /**
      * Selects the given object within this bucket for further operations.
+     * @param objectName the name of child object to select
      */
     def obj(objectName: String): WSS3Object =
       new WSS3Object(bucketName, objectName)
   }
 
-  case class WSS3Object(bucketName: String, objectName: String, headers: List[(String, String)] = Nil) {
+  /**
+   * Object selection.
+   *
+   * @param bucketName the name of parent bucket
+   * @param objectName the name of the selected object
+   * @param headers the list of HTTP headers (key -> value)
+   */
+  case class WSS3Object(
+      bucketName: String,
+      objectName: String,
+      headers: List[(String, String)] = Nil
+  ) {
     // S3Object methods
 
+    /**
+     * Returns a new object selection, using the specified content range.
+     * @param range the value for the `Range` header
+     */
     def withRange(range: String) = copy(headers = ("Range" -> range) :: headers)
 
     /**
@@ -141,36 +163,35 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
      * cases where you don't have permission to view a certain object.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
      */
-    def exists: Future[Boolean] = request(bucketName, objectName,
-      requestTimeout = requestTimeout).head().map(_.status == Status.OK)
+    def exists(implicit ec: ExecutionContext, ws: WSClient): Future[Boolean] =
+      request(bucketName, objectName,
+        requestTimeout = requestTimeout).head().map(_.status == Status.OK)
 
     /**
      * Allows you to retrieve the contents of this object.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
      */
-    def get: Enumerator[Array[Byte]] = Enumerator.flatten(
-      request(bucketName, objectName, requestTimeout = requestTimeout).
-        withHeaders(headers: _*).getStream().map {
-          case (Successful(response), enumerator) => enumerator
+    def get(implicit ec: ExecutionContext, ws: WSClient): Enumerator[Array[Byte]] = Enumerator.flatten(request(bucketName, objectName,
+      requestTimeout = requestTimeout).
+      withHeaders(headers: _*).getStream().map {
+        case (Successful(response), enumerator) => enumerator
 
-          case (response, _) =>
-            throw new IllegalStateException(s"Could not get the contents of the object $objectName in the bucket $bucketName. Response: ${response.status} - ${response.headers}")
-        }
-    )
+        case (response, _) =>
+          throw new IllegalStateException(s"Could not get the contents of the object $objectName in the bucket $bucketName. Response: ${response.status} - ${response.headers}")
+      })
 
-    def put[E](implicit wrt: Writeable[E]): Iteratee[E, Unit] =
-      put({})((_, _) => Future.successful({}))
+    def put[E](implicit ec: ExecutionContext, ws: WSClient, wrt: Writeable[E]): Iteratee[E, Unit] = put({})((_, _) => Future.successful({}))
 
     /**
-     * @param size the total size in bytes to be PUTed
+     * @param size $putSizeParam
      */
-    def put[E](size: Long)(implicit wrt: Writeable[E]): Iteratee[E, Unit] = put({}, size = size)((_, _) => Future.successful({}))
+    def put[E](size: Long)(implicit ec: ExecutionContext, ws: WSClient, wrt: Writeable[E]): Iteratee[E, Unit] = put({}, size = size)((_, _) => Future.successful({}))
 
     /**
-     * @param size the total size in bytes to be PUTed
+     * @param size $putSizeParam
      * @param maxPart the maximum number of part (if using multipart upload)
      */
-    def put[E](size: Long, maxPart: Int)(implicit wrt: Writeable[E]): Iteratee[E, Unit] = put({}, size = size, maxPart = maxPart)((_, _) => Future.successful({}))
+    def put[E](size: Long, maxPart: Int)(implicit ec: ExecutionContext, ws: WSClient, wrt: Writeable[E]): Iteratee[E, Unit] = put({}, size = size, maxPart = maxPart)((_, _) => Future.successful({}))
 
     /**
      * Allows you to update the contents of this object.
@@ -179,10 +200,10 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
      * If the `size` is known and if the partitioning according that and the `threshold` would exceed the `maxPart`, then `size / maxPart` is used instead of the given threshold for multipart upload.
      *
      * @param threshold the multipart threshold (by default 5MB)
-     * @param size the total size in bytes to be PUTed (by default -1L for unknown)
+     * @param size $putSizeParam (by default -1L for unknown)
      * @param maxPart the maximum number of part (if using multipart upload)
      */
-    def put[E, A](z: => A, threshold: Bytes = Bytes.megabytes(5), size: Long = -1L, maxPart: Int = AWSPartLimit)(f: (A, Array[Byte]) => Future[A])(implicit wrt: Writeable[E]): Iteratee[E, A] = {
+    def put[E, A](z: => A, threshold: Bytes = Bytes.megabytes(5), size: Long = -1L, maxPart: Int = AWSPartLimit)(f: (A, Array[Byte]) => Future[A])(implicit ec: ExecutionContext, ws: WSClient, wrt: Writeable[E]): Iteratee[E, A] = {
       val th = if (size < 0) threshold else {
         val partCount = size /: threshold
 
@@ -209,40 +230,54 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
     }
 
     /**
-     * Deletes this object
+     * Deletes the referenced object.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
      */
-    def delete: Future[Unit] = request(
-      bucketName, objectName, requestTimeout = requestTimeout
-    ).delete().map {
-      case Successful(response) =>
-        logger.info(s"Successfully deleted the object $bucketName/$objectName.")
+    def delete(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
+      request(bucketName, objectName, requestTimeout = requestTimeout).
+        delete().map {
+          case Successful(response) =>
+            logger.info(
+              s"Successfully deleted the object $bucketName/$objectName."
+            )
 
-      case response =>
-        throw new IllegalStateException(s"Could not delete the object $bucketName/$objectName. Response: ${response.status} - ${response.statusText}; ${response.body}")
-    }
+          case response =>
+            throw new IllegalStateException(s"Could not delete the object $bucketName/$objectName. Response: ${response.status} - ${response.statusText}; ${response.body}")
+        }
 
     /**
-     * Copies this object to another one.
+     * Copies the referenced object to another one.
+     *
+     * @param target the reference to the target object
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
      */
-    def copyTo(target: WSS3#WSS3Object): Future[Unit] = target match {
+    def copyTo(target: WSS3#WSS3Object)(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = target match {
       case WSS3Object(targetBucketName, targetObjectName, _) =>
         copyTo(targetBucketName, targetObjectName)
 
       case otherwise =>
-        throw new IllegalArgumentException(s"Target object you specified [$target] is unknown.")
+        throw new IllegalArgumentException(
+          s"Target object you specified [$target] is unknown."
+        )
     }
 
-    def copyTo(targetBucketName: String, targetObjectName: String): Future[Unit] = request(targetBucketName, targetObjectName, requestTimeout = requestTimeout).
-      withHeaders("x-amz-copy-source" -> s"/$bucketName/$objectName").
-      put("").map {
-        case Successful(response) =>
-          logger.info(s"Successfully copied the object [$bucketName/$objectName] to [$targetBucketName/$targetObjectName].")
+    /**
+     * Copies the referenced object to another location.
+     *
+     * @param targetBucketName the name of the parent bucket for the target object
+     * @param targetObjectName the name of the target object
+     */
+    def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
+      request(targetBucketName, targetObjectName,
+        requestTimeout = requestTimeout).
+        withHeaders("x-amz-copy-source" -> s"/$bucketName/$objectName").
+        put("").map {
+          case Successful(response) =>
+            logger.info(s"Successfully copied the object [$bucketName/$objectName] to [$targetBucketName/$targetObjectName].")
 
-        case response =>
-          throw new IllegalStateException(s"Could not copy the object [$bucketName/$objectName] to [$targetBucketName/$targetObjectName]. Response: ${response.status} - ${response.statusText}; ${response.body}")
-      }
+          case response =>
+            throw new IllegalStateException(s"Could not copy the object [$bucketName/$objectName] to [$targetBucketName/$targetObjectName]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+        }
 
     // Utility methods
 
@@ -254,72 +289,81 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
      * If you already know that your upload will exceed 5 megabyte,
      * use multi-part uploads.
      *
+     * @param contentType $contentTypeParam
+     *
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
      */
-    private def putSimple[A](contentType: Option[String], z: => A, f: (A, Array[Byte]) => Future[A]): Iteratee[Array[Byte], A] =
-      Iteratee.consume[Array[Byte]]().mapM { bytes =>
-        request(bucketName, objectName, requestTimeout = requestTimeout).
-          withContentMD5Header(bytes).
-          withContentTypeHeader(contentType).put(bytes).map {
-            case Successful(response) => logger.debug(
-              s"Completed the simple upload for $bucketName/$objectName."
-            )
+    private def putSimple[A](contentType: Option[String], z: => A, f: (A, Array[Byte]) => Future[A])(implicit ec: ExecutionContext, ws: WSClient): Iteratee[Array[Byte], A] = Iteratee.consume[Array[Byte]]().mapM { bytes =>
+      request(bucketName, objectName, requestTimeout = requestTimeout).
+        withContentMD5Header(bytes).
+        withContentTypeHeader(contentType).put(bytes).map {
+          case Successful(response) => logger.debug(
+            s"Completed the simple upload for $bucketName/$objectName."
+          )
 
-            case response =>
-              throw new IllegalStateException(s"Could not update the contents of the object $bucketName/$objectName. Response: ${response.status} - ${response.statusText}; ${response.body}")
-          }.flatMap(_ => f(z, bytes))
-      }
+          case response =>
+            throw new IllegalStateException(s"Could not update the contents of the object $bucketName/$objectName. Response: ${response.status} - ${response.statusText}; ${response.body}")
+        }.flatMap(_ => f(z, bytes))
+    }
 
     /**
      * Creates an Iteratee that will upload the bytes.
      * It consumes in multi-part uploads.
+     *
+     * @param contentType $contentTypeParam
      * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html
      */
-    private def putMulti[A](contentType: Option[String], threshold: Bytes, z: => A, f: (A, Array[Byte]) => Future[A]): Iteratee[Array[Byte], A] =
-      Enumeratee.grouped(Iteratees.consumeAtLeast(threshold)) &>>
-        Iteratee.flatten(initiateUpload.map { id =>
-          Iteratee.foldM[Array[Byte], (List[String], A)](
-            List.empty[String] -> z
-          ) {
-              case ((etags, st), bytes) => for {
-                etag <- uploadPart(bytes, contentType, etags.size + 1, id)
-                nst <- f(st, bytes)
-              } yield (etag :: etags) -> nst
-            }.mapM[A] {
-              case (etags, res) =>
-                completeUpload(etags.reverse, id).map(_ => res)
-            }
-        })
+    private def putMulti[A](contentType: Option[String], threshold: Bytes, z: => A, f: (A, Array[Byte]) => Future[A])(implicit ec: ExecutionContext, ws: WSClient): Iteratee[Array[Byte], A] = Enumeratee.grouped(
+      Iteratees.consumeAtLeast(threshold)
+    ) &>>
+      Iteratee.flatten(initiateUpload.map { id =>
+        Iteratee.foldM[Array[Byte], (List[String], A)](
+          List.empty[String] -> z
+        ) {
+            case ((etags, st), bytes) => for {
+              etag <- uploadPart(bytes, contentType, etags.size + 1, id)
+              nst <- f(st, bytes)
+            } yield (etag :: etags) -> nst
+          }.mapM[A] {
+            case (etags, res) =>
+              completeUpload(etags.reverse, id).map(_ => res)
+          }
+      })
 
     /**
      * Initiates a multi-part upload and returns the upload ID we're supposed to include when uploading parts later on.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
      */
-    private def initiateUpload: Future[String] =
-      request(bucketName, objectName, "uploads",
-        requestTimeout = requestTimeout).post("").map {
-        case Successful(response) =>
-          val xmlResponse = scala.xml.XML.loadString(response.body)
-          val uploadId = (xmlResponse \ "UploadId").text
+    private def initiateUpload(implicit ec: ExecutionContext, ws: WSClient): Future[String] = request(bucketName, objectName, "uploads",
+      requestTimeout = requestTimeout).post("").map {
+      case Successful(response) =>
+        val xmlResponse = scala.xml.XML.loadString(response.body)
+        val uploadId = (xmlResponse \ "UploadId").text
 
-          logger.debug(s"Initiated a multi-part upload for $bucketName/$objectName using the ID $uploadId.")
-          uploadId
+        logger.debug(s"Initiated a multi-part upload for $bucketName/$objectName using the ID $uploadId.")
+        uploadId
 
-        case response => throw new IllegalStateException(s"Could not initiate the upload for [$bucketName/$objectName]. Response: ${response.status} - ${response.statusText}; ${response.body}")
-      }
+      case response => throw new IllegalStateException(s"Could not initiate the upload for [$bucketName/$objectName]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+    }
 
     /**
-     * Uploads a part in a multi-part upload. Note that each part (the bytes) needs to be bigger than 5 MB, except the last one.
-     * It returns the ETag header returned for that uploaded part, something that we'll need to keep track of to finish
-     * the upload later on.
+     * Uploads a part in a multi-part upload.
+     * Note that each part (the bytes) needs to be bigger than 5 MB,
+     * except the last one.
+     * It returns the ETag header returned for that uploaded part,
+     * something that we'll need to keep track of to finish the upload later on.
+     *
+     * @param bytes the bytes for the part content
+     * @param contentType $contentTypeParam
+     * @param partNumber the number of the part, within the current upload
+     * @param uploadId the unique ID of the current upload
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPart.html
      */
-    private def uploadPart(bytes: Array[Byte], contentType: Option[String], partNumber: Int, uploadId: String): Future[String] = request(
+    private def uploadPart(bytes: Array[Byte], contentType: Option[String], partNumber: Int, uploadId: String)(implicit ec: ExecutionContext, ws: WSClient): Future[String] = request(
       bucketName, objectName, s"partNumber=$partNumber&uploadId=$uploadId",
       requestTimeout = requestTimeout
-    ).
-      withContentMD5Header(bytes).
-      withContentTypeHeader(contentType).put(bytes).map {
+    ).withContentMD5Header(bytes).withContentTypeHeader(contentType).
+      put(bytes).map {
         case Successful(response) =>
           logger.trace(s"Uploaded part $partNumber with ${bytes.length} bytes of the upload $uploadId for $bucketName/$objectName.")
 
@@ -334,7 +378,7 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
     /**
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html
      */
-    private def completeUpload(etags: List[String], uploadId: String): Future[Unit] = {
+    private def completeUpload(etags: List[String], uploadId: String)(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = {
       request(bucketName, objectName, query = s"uploadId=$uploadId",
         requestTimeout = requestTimeout).post(
         <CompleteMultipartUpload>
@@ -361,7 +405,8 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
 
   /** To make code more descriptive .. we just want to match on succesful responses after all. */
   private object Successful {
-    // The S3 REST API only ever returns OK or NO_CONTENT .. which is why I'll only check these two.
+    // The S3 REST API only ever returns OK or NO_CONTENT ...
+    // which is why I'll only check these two.
     def unapply(response: WSResponse): Option[WSResponse] = {
       if (response.status == Status.OK || response.status == Status.PARTIAL_CONTENT || response.status == Status.NO_CONTENT) {
         Some(response)
@@ -397,26 +442,26 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
 /** S3 companion */
 object S3 {
   /**
-   * @param accessKeyId CEPH user access key
-   * @param secretAccessKeyId CEPH user secret key
-   * @param scheme CEPH scheme
-   * @param host CEPH host
-   * @return A WSS3 instance configured to work with the S3-compatible API of a CEPH server
+   * Returns the S3 client in the path style.
+   *
+   * @param accessKeyId the user access key
+   * @param secretAccessKeyId the user secret key
+   * @param scheme the scheme
+   * @param host the host name (or IP address)
+   * @return A WSS3 instance configured to work with the S3-compatible API of a the server
    */
-  def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ec: ExecutionContext, ws: WSClient): WSS3 =
-    new WSS3(new PathStyleWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(scheme + "://" + host)))
+  def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String): WSS3 = new WSS3(new PathStyleWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
 
   /**
    * Returns the S3 client in the virtual host style.
    *
-   * @param accessKeyId CEPH user access key
-   * @param secretAccessKeyId CEPH user secret key
-   * @param scheme CEPH scheme
-   * @param host CEPH host
-   * @return A WSS3 instance configured to work with the S3-compatible API of a CEPH server
+   * @param accessKeyId the user access key
+   * @param secretAccessKeyId the user secret key
+   * @param scheme the scheme
+   * @param host the host name (or IP address)
+   * @return A WSS3 instance configured to work with the S3-compatible API of a the server
    */
-  def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ec: ExecutionContext, ws: WSClient): WSS3 =
-    new WSS3(new VirtualHostWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(scheme + "://" + host)))
+  def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String): WSS3 = new WSS3(new VirtualHostWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
 
   def apply(requestBuilder: WSRequestBuilder)(implicit ec: ExecutionContext, ws: WSClient): WSS3 = new WSS3(requestBuilder)
 }

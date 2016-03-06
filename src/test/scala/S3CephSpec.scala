@@ -7,7 +7,7 @@ import play.api.libs.iteratee.Enumerator
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 
 import Enumerators.repeat
-import TestUtils.{ ceph, consume }
+import TestUtils.{ WS, ceph, consume }
 
 object S3CephSpec extends org.specs2.mutable.Specification {
   "S3 Ceph" title
