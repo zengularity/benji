@@ -38,9 +38,12 @@ sealed trait AwsTests { specs: Specification =>
         val s3 = s3f(ee.ec)
         val bucket = s3.bucket(bucketName)
 
-        bucket.create.flatMap(_ => s3.buckets).
+        bucket.create().flatMap(_ => s3.buckets).
           map(_.exists(_.name == bucketName)) must beTrue.
-          await(retries = 1, timeout = 10.seconds)
+          await(retries = 1, timeout = 10.seconds) and (
+            bucket.create(checkBefore = true) must beFalse.
+            await(retries = 1, timeout = 10.seconds)
+          )
     }
 
     s"Get objects of the empty $bucketName bucket" in {
@@ -79,7 +82,7 @@ sealed trait AwsTests { specs: Specification =>
       val bucket = s3.bucket(name)
 
       bucket.exists must beFalse.await(retries = 1, timeout = 5.seconds) and {
-        val bucketsWithTestRemovable = bucket.create.flatMap(_ => s3.buckets)
+        val bucketsWithTestRemovable = bucket.create().flatMap(_ => s3.buckets)
         bucketsWithTestRemovable.map(_.exists(_.name == name)).
           aka("exists") must beTrue.await(retries = 1, timeout = 5.seconds)
 
