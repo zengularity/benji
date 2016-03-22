@@ -17,10 +17,15 @@ case class Object(key: String, bytes: Long, lastModifiedAt: DateTime)
 /**
  * Implementation of the S3 API using Play's WS library.
  *
+ * @param requestBuilder the request builder
+ * @param requestTimeout the optional timeout for the prepared requests
  * @define contentTypeParam the MIME type of content
  * @define putSizeParam the total size in bytes to be PUTed
  */
-class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None) {
+class WSS3(
+    requestBuilder: WSRequestBuilder,
+    requestTimeout: Option[Long] = None
+) {
 
   /** Logger instance for this class. */
   private val logger = Logger("com.zengularity.s3")
@@ -101,26 +106,35 @@ class WSS3(requestBuilder: WSRequestBuilder, requestTimeout: Option[Long] = None
 
     /**
      * Creates this bucket.
+     *
+     * @param checkBefore if true, checks if it already exists before
+     * @return true if a new bucket has been created
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
      */
-    def create(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
-      request(
-        bucketName,
-        requestTimeout = requestTimeout
-      ).put("").map {
-        case Successful(response) =>
-          logger.info(s"Successfully created the bucket $bucketName.")
+    def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, ws: WSClient): Future[Boolean] = if (!checkBefore) {
+      create.map(_ => true)
+    } else exists.flatMap {
+      case true => Future.successful(false)
+      case _    => create.map(_ => true)
+    }
 
-        case response =>
-          throw new IllegalStateException(s"Could not create the bucket $bucketName. Response: ${response.status} - ${response.statusText}; ${response.body}")
+    private def create(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = request(
+      bucketName,
+      requestTimeout = requestTimeout
+    ).put("").map {
+      case Successful(response) =>
+        logger.info(s"Successfully created the bucket $bucketName.")
 
-      }
+      case response =>
+        throw new IllegalStateException(s"Could not create the bucket $bucketName. Response: ${response.status} - ${response.statusText}; ${response.body}")
+
+    }
 
     /**
      * Deletes this bucket.
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
      */
-    def delete(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
+    def delete()(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
       request(bucketName, requestTimeout = requestTimeout).delete().map {
         case Successful(response) =>
           logger.info(s"Successfully deleted the bucket $bucketName.")

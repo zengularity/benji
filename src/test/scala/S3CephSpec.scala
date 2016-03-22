@@ -21,9 +21,12 @@ object S3CephSpec extends org.specs2.mutable.Specification {
       val s3 = ceph
       val bucket = s3.bucket(bucketName)
 
-      bucket.create.flatMap(_ => s3.buckets).
+      bucket.create().flatMap(_ => s3.buckets).
         map(_.exists(_.name == bucketName)) must beTrue.
-        await(retries = 1, timeout = 10.seconds)
+        await(retries = 1, timeout = 10.seconds) and (
+          bucket.create(checkBefore = true) must beFalse.
+          await(retries = 1, timeout = 10.seconds)
+        )
     }
 
     "Create buckets and files" in { implicit ee: EE =>
@@ -31,7 +34,7 @@ object S3CephSpec extends org.specs2.mutable.Specification {
       val name = s"test-${System identityHashCode s3}"
 
       val objects = for {
-        _ <- s3.bucket(name).create
+        _ <- s3.bucket(name).create()
         _ <- Enumerator("Hello".getBytes) |>>> s3.
           bucket(name).obj("testfile.txt").put
         _ <- s3.buckets
@@ -42,13 +45,12 @@ object S3CephSpec extends org.specs2.mutable.Specification {
         await(retries = 1, timeout = 10.seconds)
     }
 
-    s"Creating bucket $bucketName and get a list of all buckets" in {
-      implicit ee: EE =>
-        ceph.buckets.map(_.exists(_.name == bucketName)) must beTrue.
-          await(retries = 1, timeout = 10.seconds)
+    "List of all buckets" in { implicit ee: EE =>
+      ceph.buckets.map(_.exists(_.name == bucketName)) must beTrue.
+        await(retries = 1, timeout = 10.seconds)
     }
 
-    s"Write file in $bucketName bucket" in { implicit ee: EE =>
+    "Write file in $bucketName bucket" in { implicit ee: EE =>
 
       val filetest = ceph.bucket(bucketName).obj("testfile.txt")
       val iteratee = filetest.put[Array[Byte]]
@@ -73,7 +75,7 @@ object S3CephSpec extends org.specs2.mutable.Specification {
       bucket.exists must beFalse.
         await(retries = 1, timeout = 10.seconds) and {
           val bucketsWithTestRemovable =
-            bucket.create.flatMap { _ => s3.buckets }
+            bucket.create().flatMap { _ => s3.buckets }
 
           bucketsWithTestRemovable.map(
             _.exists(_.name == name)
