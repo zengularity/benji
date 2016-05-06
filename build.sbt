@@ -1,59 +1,22 @@
 organization := "com.zengularity"
 
-name := "s3"
+version := "1.2.0-SNAPSHOT"
 
-version := "1.1-SNAPSHOT"
-
-scalaVersion := "2.11.7"
-
-val PlayVersion = "2.4.2"
-
-libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play-ws" % PlayVersion % "provided")
-
-// Test
-libraryDependencies ++= Seq("specs2-core", "specs2-junit").map(
-  "org.specs2" %% _ % "3.6.4" % Test) ++ Seq(
-  "com.typesafe" % "config" % "1.3.0" % Test)
-
-fork in Test := false
-
-testOptions in Test += Tests.Cleanup(cl => {
-  import scala.language.reflectiveCalls
-  val c = cl.loadClass("tests.TestUtils$")
-  type M = { def close(): Unit }
-  val m: M = c.getField("MODULE$").get(null).asInstanceOf[M]
-  m.close()
-})
+scalaVersion := "2.11.8"
 
 autoAPIMappings := true
 
-scalacOptions in (Compile,doc) := Seq("-diagrams")
+lazy val core = project.in(file("core"))
 
-publishTo := Some("Zengularity" at s"http://archiva.znx.fr/repository/${if (isSnapshot.value) "snapshots" else "releases"}")
+lazy val s3 = project.in(file("s3")).dependsOn(core)
 
-import scalariform.formatter.preferences._
+lazy val google = project.in(file("google")).dependsOn(core)
 
-scalariformSettings
-
-ScalariformKeys.preferences := ScalariformKeys.preferences.value.
-  setPreference(AlignParameters, false).
-  setPreference(AlignSingleLineCaseStatements, true).
-  setPreference(CompactControlReadability, false).
-  setPreference(CompactStringConcatenation, false).
-  setPreference(DoubleIndentClassDeclaration, true).
-  setPreference(FormatXml, true).
-  setPreference(IndentLocalDefs, false).
-  setPreference(IndentPackageBlocks, true).
-  setPreference(IndentSpaces, 2).
-  setPreference(MultilineScaladocCommentsStartOnFirstLine, false).
-  setPreference(PreserveSpaceBeforeArguments, false).
-  setPreference(PreserveDanglingCloseParenthesis, true).
-  setPreference(RewriteArrowSymbols, false).
-  setPreference(SpaceBeforeColon, false).
-  setPreference(SpaceInsideBrackets, false).
-  setPreference(SpacesWithinPatternBinders, true)
-
-//  .settings(
-// net.virtualvoid.sbt.graph.Plugin.graphSettings: _*)
-
+lazy val cabinet = (project in file(".")).
+  settings(unidocSettings: _*).
+  settings(
+    name := "doc",
+    scalaVersion := "2.11.8",
+    scalacOptions ++= Seq("-Ywarn-unused-import", "-unchecked")).
+  dependsOn(s3, google).
+  aggregate(core, s3, google)

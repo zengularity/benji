@@ -1,0 +1,5 @@
+project/project
+project/target
+target
+src/test/resources/local.conf
+src/test/resources/gcs-test.json
