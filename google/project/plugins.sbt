@@ -5,10 +5,3 @@ resolvers ++= Seq(
 //addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.7.5")
 
 addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.4.0")
-
-addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.3.3")
-
-addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.0")
-
-// For the the highlight extractor
-libraryDependencies += "commons-io" % "commons-io" % "2.4"

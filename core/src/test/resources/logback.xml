@@ -1,0 +1,20 @@
+<configuration>
+  <conversionRule conversionWord="coloredLevel"
+                  converterClass="play.api.Logger$ColoredLevel" />
+
+  <property name="version" value="0.1-SNAPSHOT" />
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%date{HH:mm:ss.SSS} %coloredLevel %logger - %message%n%xException</pattern>
+    </encoder>
+  </appender>
+
+  <logger name="play" level="WARN" />
+  <logger name="com.ning" level="WARN" />
+  <logger name="fr.airbus" level="WARN" /><!-- DEBUG -->
+
+  <root level="TRACE">
+    <appender-ref ref="STDOUT" />
+  </root>
+</configuration>
