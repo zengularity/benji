@@ -18,7 +18,7 @@ class S3CephSpec extends org.specs2.mutable.Specification {
   sequential
 
   "Ceph client" should {
-    val bucketName = s"test-${System identityHashCode this}"
+    val bucketName = s"cabinet-test-${System identityHashCode this}"
 
     "Access the system" in { implicit ee: EE =>
       val s3 = ceph
@@ -33,7 +33,7 @@ class S3CephSpec extends org.specs2.mutable.Specification {
 
     "Create buckets and files" in { implicit ee: EE =>
       val s3 = ceph
-      val name = s"test-${System identityHashCode s3}"
+      val name = s"cabinet-test-${System identityHashCode s3}"
 
       val objects = for {
         _ <- s3.bucket(name).create()
@@ -139,9 +139,9 @@ class S3CephSpec extends org.specs2.mutable.Specification {
     }
 
     "Fail to get contents of a non-existing file" in { implicit ee: EE =>
-      ceph.bucket(bucketName).obj("test-folder/DoesNotExist.txt").
+      ceph.bucket(bucketName).obj("cabinet-test-folder/DoesNotExist.txt").
         get() |>>> consume must throwA[IllegalStateException].like({
-          case e => e.getMessage must startWith(s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
+          case e => e.getMessage must startWith(s"Could not get the contents of the object cabinet-test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
         }).await(1, 10.seconds)
     }
 

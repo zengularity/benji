@@ -108,8 +108,10 @@ class VirtualHostWSRequestBuilder private[s3] (
       }
     }
 
+    val serverHost = bucketName.fold(host) { b => s"$b.$host" }
+
     WSRequestBuilder.build(
-      ws, calculator, url.toString, s"$bucketName.$host", "virtualhost"
+      ws, calculator, url.toString, serverHost, "virtualhost"
     )
   }
 }
