@@ -28,7 +28,7 @@ sealed trait AwsTests { specs: Specification =>
     label: String,
     s3f: => com.zengularity.s3.WSS3
   ) = s"S3 client $label" should {
-    val bucketName = s"test-${System identityHashCode s3f}"
+    val bucketName = s"cabinet-test-${System identityHashCode s3f}"
 
     s"Not find bucket $bucketName before it's created" in {
       implicit ee: EE =>
@@ -119,9 +119,9 @@ sealed trait AwsTests { specs: Specification =>
     "Get contents of a non-existing file" in { implicit ee: EE =>
       val s3 = s3f
 
-      s3.bucket(bucketName).obj("test-folder/DoesNotExist.txt").
+      s3.bucket(bucketName).obj("cabinet-test-folder/DoesNotExist.txt").
         get() |>>> consume must throwA[IllegalStateException].like({
-          case e => e.getMessage must startWith(s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
+          case e => e.getMessage must startWith(s"Could not get the contents of the object cabinet-test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
         }).await(retries = 1, timeout = 10.seconds)
     }
 
