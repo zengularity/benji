@@ -104,7 +104,44 @@ final class GoogleObjectRef private[google] (
   def put[E, A] = new RESTPutRequest[E, A]()
 
   def delete(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] =
-    Future { gt.client.objects().delete(bucket, name).execute() }
+    exists.flatMap {
+      case true => Future { gt.client.objects().delete(bucket, name).execute() }
+      case _ => Future.failed[Unit](new IllegalArgumentException(
+        s"Could not delete $bucket/$name: doesn't exist"
+      ))
+    }
+
+  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = {
+    val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
+
+    for {
+      _ <- {
+        if (!preventOverwrite) Future.successful({})
+        else targetObj.exists.flatMap {
+          case true => Future.failed[Unit](new IllegalStateException(
+            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"
+          ))
+
+          case _ => Future.successful({})
+        }
+      }
+      _ <- Future {
+        val col = gt.client.objects()
+        //def obj = col.get(bucket, name)
+
+        col.copy(bucket, name,
+          targetBucketName, targetObjectName, null).execute()
+
+      }.recoverWith {
+        case reason =>
+          reason.printStackTrace()
+
+          targetObj.delete.filter(_ => false).
+            recoverWith { case x => x.printStackTrace(); Future.failed[Unit](reason) }
+      }
+      _ <- delete // the previous reference
+    } yield ()
+  }
 
   def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = Future {
     gt.client.objects().

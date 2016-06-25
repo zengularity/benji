@@ -1,6 +1,13 @@
 # Changelog
 
-## Release 1.2.x
+## Release 1.2.2
+
+Concerning the `ObjectRef` API;
+
+- The behaviour of the `.delete` function is now specified in case the referenced object doesn't exist: it fails.
+- A new `.moveTo` function is available.
+
+## Release 1.2.0
 
 The `Bucket`, `Object` and `Bytes` case classes are moved to the package `fr.airbus.storage`.
 
@@ -25,7 +32,7 @@ The new `ObjectRef` interface;
 - The `.get` function now returns a `GetRequest`, that can be applied with some optional arguments (e.g. ContentRange).
 - The `.put[E, A]` function now returns a `PutRequest`, that can be applied with some optional arguments.
 
-The `WSS3ObjectRef` class is now an implementation of the generic `ObjectRef`.
+The `WSS3ObjectRef` class is now an implementation of the generic `ObjectRef`, provided by the `cabinet-s3` module.
 
 - The property `defaultMaxPart` is moved to the S3 `RESTPutRequest`, where it can be adjusted using `.withMaxPart`.
 

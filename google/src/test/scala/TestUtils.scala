@@ -37,7 +37,7 @@ object TestUtils {
     GoogleTransport(
       googleCredential,
       config.getString("google.storage.projectId"),
-      s"tests-${System identityHashCode this}"
+      s"cabinet-tests-${System identityHashCode this}"
     )
 
   lazy val google = GoogleStorage()
@@ -49,7 +49,7 @@ object TestUtils {
     import com.zengularity.storage.ObjectStorage
 
     def storageCleanup[T <: ObjectStorage[T]](st: T)(implicit tr: st.Pack#Transport) = st.buckets.collect[List]().flatMap(bs =>
-      Future.sequence(bs.filter(_.name startsWith "test-").map { b =>
+      Future.sequence(bs.filter(_.name startsWith "cabinet-test-").map { b =>
         val bucket: com.zengularity.storage.BucketRef[T] = st.bucket(b.name)
 
         bucket.objects.collect[List]().flatMap { os =>

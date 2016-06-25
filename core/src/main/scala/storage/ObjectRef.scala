@@ -14,6 +14,12 @@ import play.api.libs.iteratee.{ Enumerator, Iteratee }
  * @define thresholdParam the multipart threshold
  * @define consumerInputTParam the consumer input type
  * @define consumerOutputTparam the consumer output type
+ * @define moveToOperation Moves the referenced object to another one. If fails, the current object is still available.
+ * @define copyToOperation Copies the referenced object to another one.
+ * @define targetParam the reference to the target object
+ * @define preventOverwriteParam if true, prevents overwriting an existing target object
+ * @define targetBucketNameParam the name of the parent bucket for the target object
+ * @define targetObjectNameParam the name of the target object
  */
 trait ObjectRef[T <: ObjectStorage[T]] { ref =>
   /** The type of the storage transport. */
@@ -76,16 +82,43 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
   def put[E, A]: PutRequest[E, A]
 
   /**
-   * Deletes the object.
+   * Deletes the object if it exists, otherwise it fails.
    *
    * @param tr $transportParam
    */
   def delete(implicit ec: ExecutionContext, tr: Transport): Future[Unit]
 
   /**
-   * Copies the referenced object to another one.
+   * $moveToOperation
    *
-   * @param target the reference to the target object
+   * @param target $targetParam
+   * @param preventOverwrite $preventOverwriteParam (default: true)
+   * @param tr $transportParam
+   */
+  def moveTo(target: T#ObjectRef, preventOverwrite: Boolean = true)(implicit ec: ExecutionContext, tr: Transport): Future[Unit] = target match {
+    case ObjectRef(targetBucketName, targetObjectName) =>
+      moveTo(targetBucketName, targetObjectName, preventOverwrite)
+
+    case otherwise =>
+      throw new IllegalArgumentException(
+        s"Target object you specified [$target] is unknown."
+      )
+  }
+
+  /**
+   * $moveToOperation
+   *
+   * @param targetBucketName $targetBucketNameParam
+   * @param targetObjectName $targetObjectNameParam
+   * @param preventOverwrite $preventOverwrite
+   * @param tr $transportParam
+   */
+  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, tr: Transport): Future[Unit]
+
+  /**
+   * $copyToOperation
+   *
+   * @param target $targetParam
    * @param tr $transportParam
    */
   def copyTo(target: T#ObjectRef)(implicit ec: ExecutionContext, tr: Transport): Future[Unit] = target match {
@@ -99,10 +132,10 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
   }
 
   /**
-   * Copies the referenced object to another location.
+   * $copyToOperation
    *
-   * @param targetBucketName the name of the parent bucket for the target object
-   * @param targetObjectName the name of the target object
+   * @param targetBucketName $targetBucketNameParam
+   * @param targetObjectName $targetObjectNameParam
    * @param tr $transportParam
    */
   def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext, tr: Transport): Future[Unit]

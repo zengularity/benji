@@ -15,7 +15,7 @@ libraryDependencies ++= Seq(
 
 // Test
 libraryDependencies ++= Seq("specs2-core", "specs2-junit").map(
-  "org.specs2" %% _ % "3.7.3" % Test)
+  "org.specs2" %% _ % "3.8.3" % Test)
 
 autoAPIMappings := true
 
