@@ -106,15 +106,51 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
    */
-  def delete(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
-    storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).
-      delete().map {
+  def delete(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = {
+    def failMsg = s"Could not delete the object $bucket/$name"
+
+    exists.flatMap {
+      case true => storage.request(Some(bucket), Some(name),
+        requestTimeout = requestTimeout).delete().map {
         case Successful(response) =>
           logger.info(s"Successfully deleted the object $bucket/$name.")
 
         case response =>
-          throw new IllegalStateException(s"Could not delete the object $bucket/$name. Response: ${response.status} - ${response.statusText}; ${response.body}")
+          throw new IllegalStateException(s"$failMsg. Response: ${response.status} - ${response.statusText}; ${response.body}")
       }
+
+      case _ => Future.failed[Unit](new IllegalArgumentException(
+        s"$failMsg. Response: 404 - Object not found"
+      ))
+    }
+  }
+
+  /**
+   * @see #copyTo
+   * @see #delete
+   */
+  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = {
+    val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
+
+    for {
+      _ <- {
+        if (!preventOverwrite) Future.successful({})
+        else targetObj.exists.flatMap {
+          case true => Future.failed[Unit](new IllegalStateException(
+            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"
+          ))
+
+          case _ => Future.successful({})
+        }
+      }
+      _ <- copyTo(targetBucketName, targetObjectName).recoverWith {
+        case reason =>
+          targetObj.delete.filter(_ => false).
+            recoverWith { case _ => Future.failed[Unit](reason) }
+      }
+      _ <- delete // the previous reference
+    } yield ()
+  }
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html

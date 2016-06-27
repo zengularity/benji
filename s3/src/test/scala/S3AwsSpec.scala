@@ -6,9 +6,11 @@ import scala.concurrent.duration._
 import play.api.libs.iteratee.Iteratee
 
 import org.specs2.mutable.Specification
+import org.specs2.matcher.MatchResult
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 
 import com.zengularity.storage.{ Bucket, Object }
+import com.zengularity.s3.WSS3ObjectRef
 
 import Enumerators.repeat
 import TestUtils.{ WS, consume }
@@ -34,7 +36,7 @@ sealed trait AwsTests { specs: Specification =>
       implicit ee: EE =>
         val bucket = s3f.bucket(bucketName)
 
-        bucket.exists must beFalse.await(retries = 1, timeout = 10.seconds)
+        bucket.exists must beFalse.await(1, 10.seconds)
     }
 
     s"Creating bucket $bucketName and get a list of all buckets" in {
@@ -44,17 +46,16 @@ sealed trait AwsTests { specs: Specification =>
 
         bucket.create().flatMap(_ => s3.buckets.collect[List]()).
           map(_.exists(_.name == bucketName)) must beTrue.
-          await(retries = 1, timeout = 10.seconds) and (
+          await(1, 10.seconds) and (
             bucket.create(checkBefore = true) must beFalse.
-            await(retries = 1, timeout = 10.seconds)
+            await(1, 10.seconds)
           )
     }
 
     s"Get objects of the empty $bucketName bucket" in { implicit ee: EE =>
       val s3 = s3f
       s3.bucket(bucketName).objects.
-        collect[List]().map(_.size) must beEqualTo(0).
-        await(retries = 1, timeout = 5.seconds)
+        collect[List]().map(_.size) must beEqualTo(0).await(1, 5.seconds)
     }
 
     s"Write file in $bucketName bucket" in { implicit ee: EE =>
@@ -67,8 +68,7 @@ sealed trait AwsTests { specs: Specification =>
 
       (repeat(20)(body) |>>> upload).
         flatMap(sz => filetest.exists.map(sz -> _)).
-        aka("exists") must beEqualTo(319980 -> true).
-        await(retries = 1, timeout = 10.seconds)
+        aka("exists") must beEqualTo(319980 -> true).await(1, 10.seconds)
     }
 
     s"Get contents of $bucketName bucket after first upload" in {
@@ -78,28 +78,32 @@ sealed trait AwsTests { specs: Specification =>
 
         (ls |>>> Iteratee.getChunks[Object]).map(
           _.exists(_.name == "testfile.txt")
-        ) must beTrue.await(retries = 1, timeout = 5.seconds)
+        ) must beTrue.await(1, 5.seconds)
     }
 
     "Creating & deleting buckets" in { implicit ee: EE =>
-      val name = s"removable-${System identityHashCode s3f}"
+      val name = s"cabinet-test-removable-${System identityHashCode s3f}"
       val s3 = s3f
       val bucket = s3.bucket(name)
 
-      bucket.exists must beFalse.await(retries = 1, timeout = 5.seconds) and {
+      bucket.exists must beFalse.await(1, 5.seconds) and {
         val bucketsWithTestRemovable = bucket.create().
           flatMap(_ => s3.buckets.collect[List]())
+
         bucketsWithTestRemovable.map(_.exists(_.name == name)).
-          aka("exists") must beTrue.await(retries = 1, timeout = 5.seconds)
+          aka("exists") must beTrue.await(1, 5.seconds)
 
       } and {
         (for {
           _ <- bucket.exists
           _ <- bucket.delete
+          _ <- bucket.delete.filter(_ => false).recoverWith {
+            case _: IllegalStateException => Future.successful({})
+          }
           bs <- (s3.buckets() |>>> Iteratee.getChunks[Bucket])
         } yield bs.exists(_.name == name)).aka("exists") must beFalse.
-          await(retries = 1, timeout = 5.seconds) and (
-            bucket.exists must beFalse.await(retries = 1, timeout = 5.seconds)
+          await(1, 5.seconds) and (
+            bucket.exists must beFalse.await(1, 5.seconds)
           )
       }
     }
@@ -113,7 +117,7 @@ sealed trait AwsTests { specs: Specification =>
             response.isEmpty must beFalse and (
               response.startsWith("hello world !!!") must beTrue
             )
-        }).await(retries = 1, timeout = 10.seconds)
+        }).await(1, 10.seconds)
     }
 
     "Get contents of a non-existing file" in { implicit ee: EE =>
@@ -131,25 +135,113 @@ sealed trait AwsTests { specs: Specification =>
       val file1 = s3.bucket(bucketName).obj("testfile1.txt")
       val file2 = s3.bucket(bucketName).obj("testfile2.txt")
 
-      file1.exists.aka("exists #1") must beFalse.
-        await(retries = 1, timeout = 5.seconds) and {
-          val iteratee = file1.put[Array[Byte]]
-          val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+      file1.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
+        val iteratee = file1.put[Array[Byte]]
+        val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-          { repeat(20) { body } |>>> iteratee }.flatMap(_ => file1.exists).
-            aka("exists") must beTrue.await(retries = 1, timeout = 10.seconds)
+        { repeat(20) { body } |>>> iteratee }.flatMap(_ => file1.exists).
+          aka("exists") must beTrue.await(1, 10.seconds)
 
-        } and {
-          file1.copyTo(file2).flatMap(_ => file2.exists) must beTrue.
-            await(retries = 1, timeout = 10.seconds)
-        } and {
-          (for {
-            _ <- Future.sequence(Seq(file1.delete, file2.delete))
-            a <- file1.exists
-            b <- file2.exists
-          } yield a -> b) must beEqualTo(false -> false).
-            await(retries = 1, timeout = 10.seconds)
-        }
+      } and {
+        file1.copyTo(file2).flatMap(_ => file2.exists) must beTrue.
+          await(1, 10.seconds)
+      } and {
+        (for {
+          _ <- Future.sequence(Seq(file1.delete, file2.delete))
+          a <- file1.exists
+          b <- file2.exists
+        } yield a -> b) must beEqualTo(false -> false).await(1, 10.seconds)
+      }
+    }
+
+    "Write and delete file" in { implicit ee: EE =>
+      val s3 = s3f
+      val file = s3.bucket(bucketName).obj("removable.txt")
+
+      file.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
+        val iteratee = file.put[Array[Byte]]
+        val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+
+        { repeat(5) { body } |>>> iteratee }.flatMap(_ => file.exists).
+          aka("exists") must beTrue.await(1, 10.seconds)
+
+      } and {
+        (for {
+          _ <- file.delete
+          _ <- file.delete.filter(_ => false).recoverWith {
+            case _: IllegalArgumentException => Future.successful({})
+            case err                         => Future.failed[Unit](err)
+          }
+          x <- file.exists
+        } yield x) must beFalse.await(1, 10.seconds)
+      }
+    }
+
+    "Write and move file" >> {
+      lazy val s3 = s3f
+
+      def moveSpec[T](target: => Future[WSS3ObjectRef], preventOverwrite: Boolean = true)(onMove: (WSS3ObjectRef, WSS3ObjectRef, Future[Unit]) => MatchResult[Future[T]])(implicit ee: EE) = {
+        val file3 = s3.bucket(bucketName).obj("testfile3.txt")
+
+        file3.exists.aka("exists #3") must beFalse.await(1, 5.seconds) and (
+          target must beLike[WSS3ObjectRef] {
+            case file4 =>
+              val write = file3.put[Array[Byte]]
+              val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+
+              { repeat(20) { body } |>>> write }.flatMap(_ => file3.exists).
+                aka("exists") must beTrue.await(1, 10.seconds) and {
+                  onMove(file3, file4, file3.moveTo(file4, preventOverwrite))
+                } and {
+                  (for {
+                    _ <- file3.delete.recoverWith {
+                      case _ => Future.successful({})
+                    }
+                    _ <- file4.delete
+                    a <- file3.exists
+                    b <- file4.exists
+                  } yield a -> b) must beEqualTo(false -> false).
+                    await(1, 10.seconds)
+                }
+          }.await(1, 10.seconds)
+        )
+      }
+
+      @inline def successful(file3: WSS3ObjectRef, file4: WSS3ObjectRef, res: Future[Unit])(implicit ee: EE) = (for {
+        _ <- res
+        a <- file3.exists
+        b <- file4.exists
+      } yield a -> b) must beEqualTo(false -> true).await(1, 10.seconds)
+
+      @inline def failed(file3: WSS3ObjectRef, file4: WSS3ObjectRef, res: Future[Unit])(implicit ee: EE) = (res.recoverWith {
+        case _: IllegalStateException => for {
+          a <- file3.exists
+          b <- file4.exists
+        } yield a -> b
+      }) must beEqualTo(true -> true).await(1, 10.seconds)
+
+      @inline def existingTarget(implicit ec: ExecutionContext): Future[WSS3ObjectRef] = {
+        val target = s3.bucket(bucketName).obj("testfile4.txt")
+        val write = target.put[Array[Byte]]
+        val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+
+        { repeat(20) { body } |>>> write }.map(_ => target)
+      }
+
+      "if prevent overwrite when target doesn't exist" in {
+        implicit ee: EE =>
+          moveSpec(
+            Future.successful(s3.bucket(bucketName).obj("testfile4.txt"))
+          )(successful)
+      }
+
+      "if prevent overwrite when target exists" in { implicit ee: EE =>
+        moveSpec(existingTarget)(failed)
+      }
+
+      "if overwrite when target exists" in { implicit ee: EE =>
+        moveSpec(existingTarget, preventOverwrite = false)(successful)
+      }
     }
   }
 }
