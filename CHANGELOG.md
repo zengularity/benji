@@ -9,7 +9,7 @@ Concerning the `ObjectRef` API;
 
 ## Release 1.2.0
 
-The `Bucket`, `Object` and `Bytes` case classes are moved to the package `fr.airbus.storage`.
+The `Bucket`, `Object` and `Bytes` case classes are moved to the package `com.zengularity.storage`.
 
 In the case class `Bucket`, the property `creationDate` is renamed to `creationTime`.
 
@@ -48,4 +48,4 @@ The `WSRequestBuilder` has been refactored as a sealed trait. The related `Prepa
 
 [SLF4J](http://slf4j.org/) is directly used for logging, instead of `play.api.Logger`.
 
-The utility `Iteratees` is moved as `fr.airbus.storage.Streams`, with the new `consumeAtMost` function (used for the Google module).
+The utility `Iteratees` is moved as `com.zengularity.storage.Streams`, with the new `consumeAtMost` function (used for the Google module).

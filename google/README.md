@@ -20,7 +20,7 @@ In your `build.sbt` (or `project/Build.scala`):
 
 ```
 libraryDependencies ++= Seq(
-  "fr.airbus" %% "cabinet-google" % "VERSION"
+  "com.zengularity" %% "cabinet-google" % "VERSION"
 )
 ```
 

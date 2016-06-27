@@ -12,7 +12,7 @@
 
   <logger name="play" level="WARN" />
   <logger name="com.ning" level="WARN" />
-  <logger name="fr.airbus" level="WARN" /><!-- DEBUG -->
+  <logger name="com.zengularity" level="WARN" /><!-- DEBUG -->
 
   <root level="TRACE">
     <appender-ref ref="STDOUT" />
