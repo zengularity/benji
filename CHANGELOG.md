@@ -1,13 +1,10 @@
 # Changelog
 
-## Release 1.2.2
+## Release 1.3.0
 
-Concerning the `ObjectRef` API;
+Akka Stream migration (see Play [Migration guide](https://www.playframework.com/documentation/2.5.x/StreamsMigration25)).
 
-- The behaviour of the `.delete` function is now specified in case the referenced object doesn't exist: it fails.
-- A new `.moveTo` function is available.
-
-## Release 1.2.0
+## Release 1.2.x
 
 The `Bucket`, `Object` and `Bytes` case classes are moved to the package `com.zengularity.storage`.
 
@@ -31,8 +28,10 @@ The new `ObjectRef` interface;
 - The property `objectName` is renamed to `name`.
 - The `.get` function now returns a `GetRequest`, that can be applied with some optional arguments (e.g. ContentRange).
 - The `.put[E, A]` function now returns a `PutRequest`, that can be applied with some optional arguments.
+- The behaviour of the `.delete` function is now specified in case the referenced object doesn't exist: it returns a failure
+.
 
-The `WSS3ObjectRef` class is now an implementation of the generic `ObjectRef`, provided by the `cabinet-s3` module.
+The `WSS3ObjectRef` class is now an implementation of the generic `ObjectRef`.
 
 - The property `defaultMaxPart` is moved to the S3 `RESTPutRequest`, where it can be adjusted using `.withMaxPart`.
 

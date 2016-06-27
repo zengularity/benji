@@ -3,7 +3,9 @@ package tests
 import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
 
-import play.api.libs.iteratee.Iteratee
+import akka.util.ByteString
+import akka.stream.Materializer
+import akka.stream.scaladsl.Sink
 
 import com.zengularity.ws.{ WS => TestWS }
 import com.zengularity.google.{ GoogleStorage, GoogleTransport }
@@ -20,10 +22,21 @@ object TestUtils {
     ConfigFactory.load("tests.conf")
   }
 
-  def consume(implicit ec: ExecutionContext): Iteratee[Array[Byte], String] =
-    Iteratee.consume[Array[Byte]]().map(new String(_))
+  lazy val system = akka.actor.ActorSystem("cabinet-google-tests")
+  lazy val materializer = akka.stream.ActorMaterializer.create(system)
 
-  implicit lazy val WS: play.api.libs.ws.WSClient = TestWS.client()
+  implicit lazy val WS: play.api.libs.ws.WSClient =
+    TestWS.client()(materializer)
+
+  def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
+
+  def consume(implicit m: Materializer): Sink[ByteString, Future[String]] = {
+    implicit def ec: ExecutionContext = m.executionContext
+
+    Sink.fold[StringBuilder, ByteString](StringBuilder.newBuilder) {
+      _ ++= _.utf8String
+    }.mapMaterializedValue(_.map(_.result()))
+  }
 
   lazy val googleCredential: GoogleCredential = try {
     GoogleCredential.fromStream(getClass.getResourceAsStream("/gcs-test.json"))
@@ -45,8 +58,10 @@ object TestUtils {
   // ---
 
   def close(): Unit = if (inited) {
-    import ExecutionContext.Implicits.global
     import com.zengularity.storage.ObjectStorage
+
+    implicit def m: Materializer = materializer
+    implicit def ec: ExecutionContext = m.executionContext
 
     def storageCleanup[T <: ObjectStorage[T]](st: T)(implicit tr: st.Pack#Transport) = st.buckets.collect[List]().flatMap(bs =>
       Future.sequence(bs.filter(_.name startsWith "cabinet-test-").map { b =>
@@ -62,6 +77,8 @@ object TestUtils {
     } catch {
       case e: Throwable => logger.warn("fails to cleanup GCS", e)
     }
+
+    system.terminate()
 
     try { WS.close() } catch {
       case e: Throwable => logger.warn("fails to close WS", e)

@@ -1,5 +1,7 @@
 package com.zengularity
 
+import akka.util.ByteString
+
 import play.api.http.Status
 import play.api.libs.ws.{ WSResponse, WSResponseHeaders }
 
@@ -55,11 +57,11 @@ package object ws {
   }
 
   /** MD5 checksum utility. */
-  object ContentMD5 extends (Array[Byte] => String) {
+  object ContentMD5 extends (ByteString => String) {
     import org.apache.commons.codec.digest.DigestUtils
 
     /** Returns the MD5 checksum for the given bytes. */
-    def apply(bytes: Array[Byte]): String =
-      com.ning.http.util.Base64.encode(DigestUtils.md5(bytes))
+    def apply(content: ByteString): String =
+      org.asynchttpclient.util.Base64.encode(DigestUtils.md5(content.toArray))
   }
 }

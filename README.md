@@ -15,9 +15,22 @@ According your Object Storage, the following modules are available.
 - [S3](./s3/README.md) for Amazon (or compliant Object Storage, like CEPH).
 - [Google Cloud Storage](./google/README.md).
 
-Then the storage operations can be called according the DSL from your `GoogleStorage[T]` instance.
+These modules can be configured as dependencies in your `build.sbt` (or `project/Build.scala`):
 
-> Generally, these operations must be applied in a scope providing an `ExecutionContext` and a transport instance (whose type is according the `ObjectStorage` instance; e.g. `play.api.libs.ws.WSClient` for S3).
+```
+val cabinetVer = "VERSION"
+
+libraryDependencies += "com.zengularity" %% "cabinet-s3" % cabinetVer
+
+libraryDependencies += "com.zengularity" %% "cabinet-google" % cabinetVer
+
+// If Play WS is not yet provided:
+libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.4"
+```
+
+Then the storage operations can be called according the DSL from your `ObjectStorage[T]` instance.
+
+> Generally, these operations must be applied in a scope providing an `Materializer` and a transport instance (whose type is according the `ObjectStorage` instance; e.g. `play.api.libs.ws.WSClient` for S3).
 
 ### Bucket operations
 
@@ -25,22 +38,25 @@ The operations to manage the buckets are available on the `ObjectStorage` instan
 
 #### Listing the buckets
 
-- `ObjectStorage.buckets(): Enumerator[Bucket]` (note the final `()`); Can be processed using an `Iteratee[Bucket, _]`.
+- `ObjectStorage.buckets(): Source[Bucket, NotUsed]` (note the final `()`); Can be processed using an `Sink[Bucket, _]`.
 - `ObjectStorage.buckets.collect[M]: Future[M[Bucket]]` (when `CanBuildFrom[M[_], Bucket, M[Bucket]]`)
 
 ```scala
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
+
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.Source
 
 import play.api.libs.ws.WSClient
-import play.api.libs.iteratee.Enumerator
 
 import com.zengularity.storage.Bucket
 import com.zengularity.s3.WSS3
 import com.zengularity.google.{ GoogleStorage, GoogleTransport }
 
-def listBuckets(s3: WSS3)(implicit ec: ExecutionContext, tr: WSClient): Future[List[Bucket]] = s3.buckets.collect[List]
+def listBuckets(s3: WSS3)(implicit m: Materializer, tr: WSClient): Future[List[Bucket]] = s3.buckets.collect[List]
 
-def enumerateBucket(gcs: GoogleStorage)(implicit ec: ExecutionContext, tr: GoogleTransport): Enumerator[Bucket] = gcs.buckets()
+def enumerateBucket(gcs: GoogleStorage)(implicit m: Materializer, tr: GoogleTransport): Source[Bucket, NotUsed] = gcs.buckets()
 ```
 
 #### Get a bucket
@@ -69,23 +85,26 @@ The operations to manage the objects are available on the `ObjectStorage` instan
 
 The objects can be listed from the parent `BucketRef`.
 
-- `BucketRef[T].objects()` (note the final `()`); Can be processed using an `Iteratee[Object, _]`.
+- `BucketRef[T].objects()` (note the final `()`); Can be processed using an `Sink[Object, _]`.
 - `BucketRef[T].objects.collect[M[Object]]` (when `CanBuildFrom[M[_], Object, M[Object]]`)
 
 ```scala
 import scala.collection.immutable.Set
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
+
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.Source
 
 import play.api.libs.ws.WSClient
-import play.api.libs.iteratee.Enumerator
 
 import com.zengularity.storage.{ BucketRef, Object, ObjectStorage }
 import com.zengularity.s3.WSS3BucketRef
 
-def objectSet(bucket: WSS3BucketRef)(implicit ec: ExecutionContext, tr: WSClient): Future[Set[Object]] = bucket.objects.collect[Set]
+def objectSet(bucket: WSS3BucketRef)(implicit m: Materializer, tr: WSClient): Future[Set[Object]] = bucket.objects.collect[Set]
 
-def enumerateObjects[T <: ObjectStorage[T]](bucket: BucketRef[T])(implicit ec: ExecutionContext, tr: T#Pack#Transport): Enumerator[Object] = bucket.objects()
+def enumerateObjects[T <: ObjectStorage[T]](bucket: BucketRef[T])(implicit m: Materializer, tr: T#Pack#Transport): Source[Object, NotUsed] = bucket.objects()
 // Generic - Works with any kind of ObjectStorage[T]
 ```
 
@@ -111,28 +130,32 @@ def googleObject(bucket: GoogleBucketRef, name: String)(implicit ec: ExecutionCo
 
 To upload data to a previously obtained `ObjectRef`, the `put` functions can be used.
 
-- `ObjectRef[T].put[E : Writer]: Iteratee[E, Unit]`
-- `ObjectRef[T].put[E : Writer](size: Long): Iteratee[E, Unit]`
-- `ObjectRef[T].put[E : Writer, A](z: => A, threshold: Bytes, size: Option[Long])(f: (A, Array[Byte]) => A): Iteratee[E, A]`
+- `ObjectRef[T].put[E : Writer]: Sink[E, NotUsed]`
+- `ObjectRef[T].put[E : Writer](size: Long): Sink[E, NotUsed]`
+- `ObjectRef[T].put[E : Writer, A](z: => A, threshold: Bytes, size: Option[Long])(f: (A, Chunk) => A): Sink[E, NotUsed]`
 
 ```scala
 import scala.concurrent.{ ExecutionContext, Future }
 
-import play.api.libs.iteratee.{ Enumerator, Iteratee }
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Sink, Source }
 
 import com.zengularity.storage.{ BucketRef, ObjectStorage }
 
 // Upload with any ObjectStorage instance
-def upload[T <: ObjectStorage[T]](bucket: BucketRef[T], objName: String, data: => Enumerator[Array[Byte]])(implicit ec: ExecutionContext, tr: T#Pack#Transport, w: T#Pack#Writer[Array[Byte]]): Future[(String, Long)] = {
+def upload[T <: ObjectStorage[T]](bucket: BucketRef[T], objName: String, data: => Source[Array[Byte], NotUsed])(implicit m: Materializer, tr: T#Pack#Transport, w: T#Pack#Writer[Array[Byte]]): Future[(String, Long)] = {
+  implicit def ec: ExecutionContext = m.executionContext
+
   val storeObj = bucket.obj(objName)
 
-  val to: Iteratee[Array[Byte], Long] =
+  val to: Sink[Array[Byte], Future[Long]] =
     storeObj.put[Array[Byte], Long](0L) { (acc, chunk) =>
       println(s"uploading ${chunk.size} bytes of $objName @ $acc")
       Future.successful(acc + chunk.size)
     }
 
-  (data |>>> to).transform({ (size: Long) =>
+  (data runWith to).transform({ (size: Long) =>
     println(s"Object uploaded to ${bucket.name}/$objName (size = $size)")
     objName -> size
   }, { err =>
@@ -145,14 +168,18 @@ import play.api.libs.ws.WSClient
 
 import com.zengularity.s3.WSS3
 
-def putToS3[A : WSS3#Pack#Writer](storage: WSS3, bucketName: String, objName: String, data: => Enumerator[A])(implicit ec: ExecutionContext, tr: WSClient): Future[Unit] = for {
-  bucketRef <- { // get-or-create
-    val ref = storage.bucket(bucketName)
-    ref.create(checkBefore = true).map(_ => ref)
-  }
-  storageObj = bucketRef.obj(objName)
-  _ <- data |>>> storageObj.put[A]
-} yield ()
+def putToS3[A : WSS3#Pack#Writer](storage: WSS3, bucketName: String, objName: String, data: => Source[A, NotUsed])(implicit m: Materializer, tr: WSClient): Future[Unit] = {
+  implicit def ec: ExecutionContext = m.executionContext
+
+  for {
+    bucketRef <- { // get-or-create
+      val ref = storage.bucket(bucketName)
+      ref.create(checkBefore = true).map(_ => ref)
+    }
+    storageObj = bucketRef.obj(objName)
+    _ <- data runWith storageObj.put[A]
+  } yield ()
+}
 ```
 
 ### Datatypes

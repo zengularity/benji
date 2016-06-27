@@ -4,9 +4,12 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 import org.joda.time.DateTime
 
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.Source
+
 import play.api.http.Status
 import play.api.libs.ws.WSClient
-import play.api.libs.iteratee.Enumerator
 
 import com.zengularity.ws.Successful
 import com.zengularity.storage.{ BucketRef, Bytes, Object }
@@ -22,13 +25,13 @@ final class WSS3BucketRef private[s3] (
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
   object objects extends ref.ListRequest {
-    def apply()(implicit ec: ExecutionContext, ws: WSClient): Enumerator[Object] = Enumerator.flatten(
-      storage.request(Some(name), requestTimeout = requestTimeout).get().map {
-        case Successful(response) => {
-          val xmlResponse = scala.xml.XML.loadString(response.body)
-          val contents = xmlResponse \ "Contents"
+    def apply()(implicit m: Materializer, ws: WSClient): Source[Object, NotUsed] = {
+      S3.getXml[Object](
+        storage.request(Some(name), requestTimeout = requestTimeout)
+      )({ xml =>
+          val contents = xml \ "Contents"
 
-          Enumerator.enumerate(contents.map { content =>
+          Source(contents.map { content =>
             Object(
               name = (content \ "Key").text,
               size = Bytes((content \ "Size").text.toLong),
@@ -36,12 +39,8 @@ final class WSS3BucketRef private[s3] (
                 DateTime.parse((content \ "LastModified").text)
             )
           })
-        }
-
-        case response =>
-          throw new IllegalStateException(s"Could not list all objects within the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}")
-      }
-    )
+        }, { response => s"Could not list all objects within the bucket $name. Response: ${response.status} - $response" })
+    }
   }
 
   /**

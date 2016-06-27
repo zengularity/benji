@@ -4,7 +4,11 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 import play.utils.UriEncoding.{ encodePathSegment => encPathSeg }
 
-import play.api.libs.iteratee.{ Enumerator, Enumeratee, Input, Iteratee }
+import akka.NotUsed
+import akka.util.ByteString
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
+
 import play.api.libs.ws.WSResponse
 
 import com.google.api.client.http.ByteArrayContent
@@ -13,11 +17,12 @@ import com.google.api.services.storage.model.StorageObject
 import com.zengularity.ws.{ ContentMD5, Ok, Successful }
 import com.zengularity.storage.{
   Bytes,
-  Chunk,
   ByteRange,
+  Chunk,
+  FoldAsync,
   ObjectRef,
   Streams
-}, Chunk.{ Last, NonEmpty }
+}
 
 final class GoogleObjectRef private[google] (
     val storage: GoogleStorage,
@@ -41,8 +46,10 @@ final class GoogleObjectRef private[google] (
   val get = new GoogleGetRequest()
 
   final class GoogleGetRequest private[google] () extends GetRequest {
-    def apply(range: Option[ByteRange] = None)(implicit ec: ExecutionContext, gt: GoogleTransport): Enumerator[Array[Byte]] = Enumerator.flatten {
-      Future {
+    def apply(range: Option[ByteRange] = None)(implicit m: Materializer, gt: GoogleTransport): Source[ByteString, NotUsed] = {
+      implicit def ec: ExecutionContext = m.executionContext
+
+      Source.fromFuture(Future {
         val req = gt.client.objects().get(bucket, name)
 
         req.setRequestHeaders {
@@ -55,13 +62,13 @@ final class GoogleObjectRef private[google] (
         req.setDisableGZipContent(storage.disableGZip)
 
         req.executeMediaAsInputStream()
-      }.map(Enumerator.fromStream(_)).recoverWith {
+      }.map(in => StreamConverters.fromInputStream(() => in)).recoverWith {
         case HttpResponse(status, msg) =>
-          Future.failed[Enumerator[Array[Byte]]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: $status - $msg"))
+          Future.failed[Source[ByteString, NotUsed]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: $status - $msg"))
 
         case cause =>
-          Future.failed[Enumerator[Array[Byte]]](cause)
-      }
+          Future.failed[Source[ByteString, NotUsed]](cause)
+      }).flatMapMerge(1, identity)
     }
   }
 
@@ -71,33 +78,27 @@ final class GoogleObjectRef private[google] (
   final class RESTPutRequest[E, A] private[google] ()
       extends ref.PutRequest[E, A] {
 
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None)(f: (A, Array[Byte]) => Future[A])(implicit ec: ExecutionContext, tr: Transport, w: Writer[E]): Iteratee[E, A] = {
-      val th = threshold
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None)(f: (A, Chunk) => Future[A])(implicit m: Materializer, tr: Transport, w: Writer[E]): Sink[E, Future[A]] = {
+      implicit def ec: ExecutionContext = m.executionContext
 
-      w.toEnumeratee &>> Streams.consumeAtMost(th).flatMapM {
-        case Last(Some(bytes)) => {
-          // This one also needs to be fed Input.EOF to finish the upload,
-          // we know that we've received Input.EOF as otherwise the threshold
-          // would have been exceeded (or we wouldn't be in this function).
-          for {
-            a <- Future.successful(putSimple(w.contentType, z, f))
-            b <- a.feed(Input.El(bytes))
-            c <- b.feed(Input.EOF)
-          } yield c
+      def flowChunks = Flow.fromFunction[E, ByteString](w.transform).
+        via(Streams.consumeAtMost(threshold))
+
+      flowChunks.prefixAndTail(1).flatMapMerge[A, NotUsed](1, {
+        case (Nil, _) => Source.empty[A]
+
+        case (head, tail) => head.toList match {
+          case (last @ Chunk.Last(_)) :: _ => // if first is last, single chunk
+            Source.single(last).via(putSimple(w.contentType, z, f))
+
+          case first :: _ => {
+            def source = tail.zip(initiateUpload(w.contentType).
+              flatMapConcat(Source.repeat /* same ID for all */ ))
+
+            source.via(putMulti(first, w.contentType, threshold, z, f))
+          }
         }
-
-        case NonEmpty(bytes) if (th wasExceeded bytes) => {
-          // Knowing that we have at least one chunk that
-          // is bigger than threshold, it's safe to start
-          // a multi-part upload with everything we consumed so far.
-          Future.successful(putMulti(bytes, w.contentType, threshold, z, f))
-        }
-
-        case _ =>
-          Future.failed[Iteratee[Array[Byte], A]](
-            new IllegalStateException("cannot upload an empty source")
-          )
-      }
+      }).toMat(Sink.head[A]) { (_, mat) => mat }
     }
   }
 
@@ -156,11 +157,12 @@ final class GoogleObjectRef private[google] (
   // Utility methods
 
   /**
-   * Creates an Iteratee that will upload the bytes it consumes in one request,
+   * Creates an Flow that will upload the bytes it consumes in one request,
    * without streaming them.
    *
    * For this operation we need to know the overall content length
-   * (the server requires that), which is why we have to buffer everything upfront.
+   * (the server requires that), which is why we have to buffer
+   * everything upfront.
    *
    * If you already know that your upload will exceed the threshold,
    * then use multi-part uploads.
@@ -169,65 +171,76 @@ final class GoogleObjectRef private[google] (
    *
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#simple
    */
-  private def putSimple[A](contentType: Option[String], z: => A, f: (A, Array[Byte]) => Future[A])(implicit ec: ExecutionContext, gt: GoogleTransport): Iteratee[Array[Byte], A] = Iteratee.consume[Array[Byte]]().mapM { bytes =>
-    lazy val typ = contentType getOrElse "application/octet-stream"
-    def content = new ByteArrayContent(typ, bytes)
-    def obj = {
-      val so = new StorageObject()
+  private def putSimple[A](contentType: Option[String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, gt: GoogleTransport): Flow[Chunk, A, NotUsed] = {
+    implicit def ec: ExecutionContext = m.executionContext
 
-      so.setBucket(bucket)
-      so.setName(name)
-      so.setContentType(typ)
-      so.setSize(new java.math.BigInteger(bytes.size.toString))
+    Flow[Chunk].limit(1).flatMapConcat { single =>
+      lazy val typ = contentType getOrElse "application/octet-stream"
+      def content = new ByteArrayContent(typ, single.data.toArray)
+      def obj = {
+        val so = new StorageObject()
 
-      so
+        so.setBucket(bucket)
+        so.setName(name)
+        so.setContentType(typ)
+        so.setSize(new java.math.BigInteger(single.size.toString))
+
+        so
+      }
+
+      Source.fromFuture(Future {
+        val req = gt.client.objects().insert(bucket, obj, content)
+
+        req.setDisableGZipContent(storage.disableGZip)
+
+        req.execute()
+      }.flatMap(_ => f(z, single)))
     }
-
-    Future {
-      val req = gt.client.objects().insert(bucket, obj, content)
-
-      req.setDisableGZipContent(storage.disableGZip)
-
-      req.execute()
-    }.flatMap(_ => f(z, bytes))
   }
 
   /**
-   * Creates an Iteratee that will upload the bytes.
+   * Creates an Flow that will upload the bytes.
    * It consumes in multi-part uploads.
    *
    * @param firstChunk the data of the first chunk (already consumed)
    * @param contentType $contentTypeParam
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#multipart
    */
-  private def putMulti[A](firstChunk: Array[Byte], contentType: Option[String], threshold: Bytes, z: => A, f: (A, Array[Byte]) => Future[A])(implicit ec: ExecutionContext, gt: GoogleTransport): Iteratee[Array[Byte], A] = {
-    Enumeratee.grouped(Streams.consumeAtMost(threshold)) &>>
-      Iteratee.flatten(initiateUpload(contentType).map { url =>
-        Iteratee.foldM[Chunk, (Long, Array[Byte], A)]((0L, firstChunk, z)) {
-          case ((offset, prev, st), chunk) =>
-            uploadPart(url, prev, offset, contentType).flatMap { _ =>
-              chunk match {
-                case Last(Some(bytes)) => f(st, prev).flatMap { tmp =>
-                  val off = offset + prev.size
-                  val sz = off + bytes.size.toLong
+  private def putMulti[A](firstChunk: Chunk, contentType: Option[String], threshold: Bytes, z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, gt: GoogleTransport): Flow[(Chunk, String), A, NotUsed] = {
+    implicit def ec: ExecutionContext = m.executionContext
 
-                  for {
-                    _ <- uploadPart(url, bytes, off, contentType, Some(sz))
-                    nst <- f(tmp, bytes)
-                  } yield (sz, Array.empty[Byte], nst)
-                }
+    @inline def zst = (Option.empty[String], 0L, firstChunk, z)
 
-                case NonEmpty(bytes) => f(st, prev).map { nst =>
-                  ((offset + prev.size), bytes, nst)
-                }
+    FoldAsync[(Chunk, String), (Option[String], Long, Chunk, A)](zst) {
+      case ((_, offset, prev, st), (chunk, url)) =>
+        uploadPart(url, prev.data, offset, contentType).flatMap { _ =>
+          chunk match {
+            case last @ Chunk.Last(data) => f(st, prev).flatMap { tmp =>
+              val off = offset + prev.size
+              val sz = off + data.size.toLong
 
-                case _ => f(st, prev).map { (offset, Array.empty[Byte], _) }
-              }
+              for {
+                _ <- uploadPart(url, data, off, contentType, Some(sz))
+                nst <- f(tmp, last)
+              } yield (Some(url), sz, Chunk.last(ByteString.empty), nst)
             }
-        }.mapM[A] {
-          case (_, _, res) => Future.successful(res)
+
+            case ne @ Chunk.NonEmpty(_) => f(st, prev).map { nst =>
+              (Some(url), (offset + prev.size), ne, nst)
+            }
+
+            case _ => f(st, prev).map {
+              (Some(url), offset, Chunk.last(ByteString.empty), _)
+            }
+          }
         }
-      })
+    }.mapAsync[A](1) {
+      case (Some(_), _, _, res) => Future.successful(res)
+
+      case st => Future.failed[A](
+        new IllegalStateException(s"invalid upload state: $st")
+      )
+    }
   }
 
   /**
@@ -237,29 +250,33 @@ final class GoogleObjectRef private[google] (
    * @param contentType $contentTypeParam
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#start-resumable
    */
-  private def initiateUpload(contentType: Option[String])(implicit ec: ExecutionContext, gt: GoogleTransport): Future[String] = gt.withWSRequest1(
-    "upload", s"/b/${encPathSeg(bucket, "UTF-8")}/o"
-  ) { req =>
-      contentType.fold(req) { typ =>
-        req.withHeaders("Content-Type" -> "0", "X-Upload-Content-Type" -> typ)
-      }.withQueryString("uploadType" -> "resumable", "name" -> name).
-        post(Array.empty[Byte]).flatMap {
-          case Successful(response) => response.header("Location") match {
-            case Some(url) => Future.successful {
-              logger.debug(s"Initiated a resumable upload for $bucket/$name: $url")
-              url
+  private def initiateUpload(contentType: Option[String])(implicit m: Materializer, gt: GoogleTransport): Source[String, NotUsed] = {
+    implicit def ec: ExecutionContext = m.executionContext
+
+    Source.fromFuture(gt.withWSRequest1(
+      "upload", s"/b/${encPathSeg(bucket, "UTF-8")}/o"
+    ) { req =>
+        contentType.fold(req) { typ =>
+          req.withHeaders("Content-Type" -> "0", "X-Upload-Content-Type" -> typ)
+        }.withQueryString("uploadType" -> "resumable", "name" -> name).
+          post(Array.empty[Byte]).flatMap {
+            case Successful(response) => response.header("Location") match {
+              case Some(url) => Future.successful {
+                logger.debug(s"Initiated a resumable upload for $bucket/$name: $url")
+                url
+              }
+              case _ => Future.failed[String](new scala.RuntimeException(s"missing upload URL: ${response.status} - ${response.statusText}: ${response.allHeaders}"))
             }
-            case _ => Future.failed[String](new scala.RuntimeException(s"missing upload URL: ${response.status} - ${response.statusText}: ${response.allHeaders}"))
-          }
-          case failed => Future.failed[String] {
-            val msg = s"Could not initiate the upload for [$bucket/$name]. Response: ${failed.status} - ${failed.statusText}"
+            case failed => Future.failed[String] {
+              val msg = s"Could not initiate the upload for [$bucket/$name]. Response: ${failed.status} - ${failed.statusText}"
 
-            logger.debug(s"$msg\r\b${failed.body}")
+              logger.debug(s"$msg\r\b${failed.body}")
 
-            new IllegalStateException(msg)
+              new IllegalStateException(msg)
+            }
           }
-        }
-    }
+      })
+  }
 
   /**
    * Uploads a part in a resumable upload.
@@ -272,31 +289,35 @@ final class GoogleObjectRef private[google] (
    * @param globalSz the global size (if known)
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#uploading_the_file_in_chunks
    */
-  private def uploadPart(url: String, bytes: Array[Byte], offset: Long, contentType: Option[String], globalSz: Option[Long] = None)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[String] = gt.withWSRequest2(url) { req =>
-    val reqRange =
-      s"bytes $offset-${offset + bytes.size - 1}/${globalSz getOrElse "*"}"
+  private def uploadPart(url: String, bytes: ByteString, offset: Long, contentType: Option[String], globalSz: Option[Long] = None)(implicit m: Materializer, gt: GoogleTransport): Future[String] = {
+    implicit def ec: ExecutionContext = m.executionContext
 
-    val uploadReq = req.withHeaders(
-      "Content-Length" -> bytes.size.toString,
-      "Content-Range" -> reqRange
-    )
+    gt.withWSRequest2(url) { req =>
+      val reqRange =
+        s"bytes $offset-${offset + bytes.size - 1}/${globalSz getOrElse "*"}"
 
-    logger.debug(s"Prepare upload part: $reqRange; size = ${bytes.size}")
+      val uploadReq = req.withHeaders(
+        "Content-Length" -> bytes.size.toString,
+        "Content-Range" -> reqRange
+      )
 
-    contentType.fold(uploadReq) { typ =>
-      uploadReq.withHeaders("Content-Type" -> typ)
-    }.withHeaders("Content-MD5" -> ContentMD5(bytes)).put(bytes).flatMap {
-      case Ok(response) =>
-        Future.successful(reqRange)
+      logger.debug(s"Prepare upload part: $reqRange; size = ${bytes.size}")
 
-      case ResumeIncomplete(response) =>
-        partResponse(response, offset, bytes.size, url)
+      contentType.fold(uploadReq) { typ =>
+        uploadReq.withHeaders("Content-Type" -> typ)
+      }.withHeaders("Content-MD5" -> ContentMD5(bytes)).put(bytes).flatMap {
+        case Ok(response) =>
+          Future.successful(reqRange)
 
-      case Successful(response) =>
-        partResponse(response, offset, bytes.size, url)
+        case ResumeIncomplete(response) =>
+          partResponse(response, offset, bytes.size, url)
 
-      case response =>
-        throw new IllegalStateException(s"Could not upload a part for [$bucket/$name, $url, range: $reqRange]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+        case Successful(response) =>
+          partResponse(response, offset, bytes.size, url)
+
+        case response =>
+          throw new IllegalStateException(s"Could not upload a part for [$bucket/$name, $url, range: $reqRange]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+      }
     }
   }
 

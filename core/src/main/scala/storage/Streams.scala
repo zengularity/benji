@@ -1,118 +1,165 @@
 package com.zengularity.storage
 
-import scala.collection.mutable.ArrayBuilder
-
-import scala.concurrent.ExecutionContext
-
-import play.api.libs.iteratee.{ Cont, Done, Input, Iteratee }
+import akka.NotUsed
+import akka.util.{ ByteString, ByteStringBuilder }
+import akka.stream.scaladsl.Flow
 
 /** Stream management utility. */
 object Streams {
 
   /**
-   * Creates an Iteratee that consumes byte arrays up until the buffer reaches a certain size. So, for example, if you
-   * want to consume 512 bytes, and feed it 256 bytes at first, it will keep on consuming more until you feed another
-   * 256 bytes. Only then will it go into the Done state using the total 512 bytes, appended together.
+   * Returns an flow to consume chunks of at least at the specified size.
    *
+   * @param size the maximum number of bytes to be read from the source
    */
-  def consumeAtLeast(size: Bytes): Iteratee[Array[Byte], Array[Byte]] =
-    consumeAtLeast(size, size, Nil)
-
-  private def consumeAtLeast(initial: Bytes, remaining: Bytes, chunks: List[Array[Byte]]): Iteratee[Array[Byte], Array[Byte]] = {
-    // Are we still required to consume something?
-    if (remaining > Bytes.zero) {
-      Cont {
-        case Input.Empty => {
-          // In this case, nothing changes at all,
-          // continue in the current state ..
-          consumeAtLeast(initial, remaining, chunks)
-        }
-
-        case Input.El(bytes) => {
-          // Include the input and recursively call this function again, which
-          // then determines whether or not we'll continue consuming input.
-          consumeAtLeast(initial, remaining - bytes, bytes :: chunks)
-        }
-
-        // If there's nothing else left, then just force the Done step by recursively calling this with a 0 size
-        case Input.EOF => consumeAtLeast(initial, Bytes.zero, chunks)
-      }
-    } else {
-      // Only now do we merge so that the final byte array has to be allocated only once, we don't copy
-      // stuff all the time, etc - and every iteratee instance along the way remains referentially transparent
-      // (i.e. we're not passing a mutable ArrayBuilder around, for example .. that would screw up things).
-      val builder = ArrayBuilder.make[Byte]()
-      builder.sizeHint(initial.bytes.toInt)
-      // We always prepended elements, so now we need to reverse the whole list first
-      chunks.reverseIterator foreach { chunk =>
-        builder ++= chunk
-      }
-      Done(builder.result())
-    }
-  }
+  def consumeAtLeast(size: Bytes): Flow[ByteString, Chunk, NotUsed] =
+    Flow.fromGraph(new ChunkOfAtLeast(size.bytes.toInt))
 
   /**
-   * Returns an iteratee consuming at most the specified size.
+   * Returns an flow to consume chunks of at most the specified size.
    *
-   * @param size the maximum number of bytes to be read from the enumerator
+   * @param size the maximum number of bytes to be read from the source
    */
-  def consumeAtMost(size: Bytes)(implicit ec: ExecutionContext): Iteratee[Array[Byte], Chunk] = consumeAtMost(size, size, Nil)
+  def consumeAtMost(size: Bytes): Flow[ByteString, Chunk, NotUsed] =
+    Flow.fromGraph(new ChunkOfAtMost(size.bytes.toInt))
 
-  private def consumeAtMost(max: Bytes, remaining: Bytes, chunks: List[Array[Byte]], end: Boolean = false)(implicit ec: ExecutionContext): Iteratee[Array[Byte], Chunk] = {
-    if (remaining > Bytes.zero) {
-      Iteratee.head[Array[Byte]].flatMap {
-        case Some(bytes) => {
-          // Include the input and recursively call this function again, which
-          // then determines whether or not we'll continue consuming input.
-          consumeAtMost(max, remaining - bytes, bytes :: chunks, end)
-        }
+  // Internal stages
 
-        case _ => {
-          // If there's nothing else left then, just force the Done step bellow
-          consumeAtMost(max, Bytes.zero, chunks, true)
-        }
-      }
-    } else if (chunks.isEmpty) {
-      Done(Chunk.last)
-    } else {
-      // Only now do we merge so that the final byte array has to be allocated only once, we don't copy
-      // stuff all the time, etc - and every iteratee instance along the way remains referentially transparent
-      // (i.e. we're not passing a mutable ArrayBuilder around, for example .. that would screw up things).
-
-      val (merge, extra) = mergeAtMost(
-        max.bytes.toInt, chunks.reverseIterator,
-        0, ArrayBuilder.make[Byte], ArrayBuilder.make[Byte]
-      )
-
-      val ck = {
-        if (!end || !extra.isEmpty) Chunk(merge)
-        else if (merge.isEmpty) Chunk.last
-        else Chunk.last(merge)
-      }
-
-      Done(ck, Input.El(extra))
-    }
+  import akka.util.ByteString
+  import akka.stream.{ Attributes, FlowShape, Inlet, Outlet }
+  import akka.stream.stage.{
+    GraphStage,
+    GraphStageLogic,
+    InHandler,
+    OutHandler
   }
 
-  @annotation.tailrec
-  private def mergeAtMost(maxSz: Int, chunks: Iterator[Array[Byte]], count: Int, merge: ArrayBuilder[Byte], extra: ArrayBuilder[Byte]): (Array[Byte], Array[Byte]) = {
-    if (chunks.hasNext) {
-      val chunk = chunks.next()
-      val remaining = maxSz - count
+  private class ChunkOfAtMost(limit: Int)
+      extends GraphStage[FlowShape[ByteString, Chunk]] {
 
-      if (remaining > 0) {
-        val (bytes, x) = {
-          if (chunk.size <= remaining) chunk -> Array.empty[Byte]
-          else chunk.splitAt(remaining)
+    val in = Inlet[ByteString]("ChunkOfAtMost.in")
+    val out = Outlet[Chunk]("ChunkOfAtMost.out")
+
+    val shape = FlowShape.of(in, out)
+
+    def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
+      new GraphStageLogic(shape) {
+        private val inbuf = new ByteStringBuilder()
+        private var outbuf = Option.empty[ByteString]
+        private var downstreamWaiting = false
+
+        override def preStart() {
+          pull(in)
+          super.preStart()
         }
 
-        mergeAtMost(maxSz, chunks, count + bytes.size,
-          merge ++= bytes, extra ++= x)
+        setHandler(in, new InHandler {
+          def onPush(): Unit = {
+            inbuf ++= grab(in)
 
-      } else {
-        // Keep the extra bytes
-        mergeAtMost(maxSz, chunks, count, merge, extra ++= chunk)
+            val wasWaiting = downstreamWaiting
+
+            if (downstreamWaiting) outbuf.foreach { previous =>
+              downstreamWaiting = false
+              outbuf = None
+
+              push(out, Chunk(previous))
+            }
+
+            if (outbuf.isEmpty && inbuf.length >= limit) {
+              val (chunk, rem) = inbuf.result().splitAt(limit)
+              outbuf = Some(chunk)
+
+              inbuf.clear()
+              inbuf ++= rem
+            }
+
+            if (wasWaiting) pull(in)
+          }
+
+          override def onUpstreamFinish(): Unit = {
+            val rem = outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
+
+            if (rem.nonEmpty) { // Emit the remaining/last chunk(s)
+              if (rem.size <= limit) {
+                emit(out, Chunk.last(rem))
+              } else rem.splitAt(limit) match {
+                case (a, b) => emitMultiple(out, List(Chunk(a), Chunk.last(b)))
+              }
+            }
+
+            completeStage()
+          }
+        })
+
+        setHandler(out, new OutHandler {
+          def onPull(): Unit = {
+            downstreamWaiting = true
+
+            if (outbuf.isEmpty && !hasBeenPulled(in)) pull(in)
+          }
+        })
       }
-    } else merge.result() -> extra.result()
+  }
+
+  private class ChunkOfAtLeast(limit: Int)
+      extends GraphStage[FlowShape[ByteString, Chunk]] {
+
+    val in = Inlet[ByteString]("ChunkOfAtLeast.in")
+    val out = Outlet[Chunk]("ChunkOfAtLeast.out")
+
+    val shape = FlowShape.of(in, out)
+
+    def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
+      new GraphStageLogic(shape) {
+        private val inbuf = new ByteStringBuilder()
+        private var outbuf = Option.empty[ByteString]
+        private var downstreamWaiting = false
+
+        override def preStart() {
+          pull(in)
+          super.preStart()
+        }
+
+        setHandler(in, new InHandler {
+          def onPush(): Unit = {
+            inbuf ++= grab(in)
+
+            val wasWaiting = downstreamWaiting
+
+            if (downstreamWaiting) outbuf.foreach { previous =>
+              downstreamWaiting = false
+              outbuf = None
+
+              push(out, Chunk(previous))
+            }
+
+            if (outbuf.isEmpty && inbuf.length >= limit) {
+              outbuf = Some(inbuf.result())
+              inbuf.clear()
+            }
+
+            if (wasWaiting) pull(in)
+          }
+
+          override def onUpstreamFinish(): Unit = {
+            val rem = outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
+
+            if (rem.nonEmpty) { // Emit the remaining/last chunk(s)
+              emit(out, Chunk.last(rem))
+            }
+
+            completeStage()
+          }
+        })
+
+        setHandler(out, new OutHandler {
+          def onPull(): Unit = {
+            downstreamWaiting = true
+
+            if (outbuf.isEmpty && !hasBeenPulled(in)) pull(in)
+          }
+        })
+      }
   }
 }

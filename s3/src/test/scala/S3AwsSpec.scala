@@ -1,9 +1,10 @@
 package tests
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
-import play.api.libs.iteratee.Iteratee
+import akka.stream.Materializer
+import akka.stream.scaladsl.Sink
 
 import org.specs2.mutable.Specification
 import org.specs2.matcher.MatchResult
@@ -12,34 +13,40 @@ import org.specs2.concurrent.{ ExecutionEnv => EE }
 import com.zengularity.storage.{ Bucket, Object }
 import com.zengularity.s3.WSS3ObjectRef
 
-import Enumerators.repeat
-import TestUtils.{ WS, consume }
+import Sources.repeat
+import TestUtils.{ WS, consume, withMatEx }
 
 class S3AwsSpec extends Specification with AwsTests {
   "S3 Amazon" title
 
   sequential
 
-  awsSuite("in path style", TestUtils.aws)
+  awsSuite(
+    "in path style",
+    TestUtils.aws
+  )(TestUtils.materializer)
 
-  awsSuite("in virtual host style", TestUtils.awsVirtualHost)
+  awsSuite(
+    "in virtual host style",
+    TestUtils.awsVirtualHost
+  )(TestUtils.materializer)
 }
 
 sealed trait AwsTests { specs: Specification =>
   def awsSuite(
     label: String,
     s3f: => com.zengularity.s3.WSS3
-  ) = s"S3 client $label" should {
+  )(implicit m: Materializer) = s"S3 client $label" should {
     val bucketName = s"cabinet-test-${System identityHashCode s3f}"
 
-    s"Not find bucket $bucketName before it's created" in {
+    s"Not find bucket $bucketName before it's created" in withMatEx {
       implicit ee: EE =>
         val bucket = s3f.bucket(bucketName)
 
         bucket.exists must beFalse.await(1, 10.seconds)
     }
 
-    s"Creating bucket $bucketName and get a list of all buckets" in {
+    s"Creating bucket $bucketName and get a list of all buckets" in withMatEx {
       implicit ee: EE =>
         val s3 = s3f
         val bucket = s3.bucket(bucketName)
@@ -52,13 +59,15 @@ sealed trait AwsTests { specs: Specification =>
           )
     }
 
-    s"Get objects of the empty $bucketName bucket" in { implicit ee: EE =>
-      val s3 = s3f
-      s3.bucket(bucketName).objects.
-        collect[List]().map(_.size) must beEqualTo(0).await(1, 5.seconds)
+    s"Get objects of the empty $bucketName bucket" in withMatEx {
+      implicit ee: EE =>
+        val s3 = s3f
+        s3.bucket(bucketName).objects.
+          collect[List]().map(_.size) must beEqualTo(0).
+          await(retries = 1, timeout = 5.seconds)
     }
 
-    s"Write file in $bucketName bucket" in { implicit ee: EE =>
+    s"Write file in $bucketName bucket" in withMatEx { implicit ee: EE =>
       val s3 = s3f
       val filetest = s3.bucket(bucketName).obj("testfile.txt")
       val upload = filetest.put[Array[Byte], Long](0L) { (sz, chunk) =>
@@ -66,22 +75,22 @@ sealed trait AwsTests { specs: Specification =>
       }
       val body = List.fill(1000)("hello world !!!").mkString(" ").getBytes
 
-      (repeat(20)(body) |>>> upload).
+      (repeat(20)(body) runWith upload).
         flatMap(sz => filetest.exists.map(sz -> _)).
         aka("exists") must beEqualTo(319980 -> true).await(1, 10.seconds)
     }
 
-    s"Get contents of $bucketName bucket after first upload" in {
+    s"Get contents of $bucketName bucket after first upload" in withMatEx {
       implicit ee: EE =>
         val s3 = s3f
         def ls = s3.bucket(bucketName).objects()
 
-        (ls |>>> Iteratee.getChunks[Object]).map(
+        (ls runWith Sink.seq[Object]).map(
           _.exists(_.name == "testfile.txt")
         ) must beTrue.await(1, 5.seconds)
     }
 
-    "Creating & deleting buckets" in { implicit ee: EE =>
+    "Creating & deleting buckets" in withMatEx { implicit ee: EE =>
       val name = s"cabinet-test-removable-${System identityHashCode s3f}"
       val s3 = s3f
       val bucket = s3.bucket(name)
@@ -100,7 +109,7 @@ sealed trait AwsTests { specs: Specification =>
           _ <- bucket.delete.filter(_ => false).recoverWith {
             case _: IllegalStateException => Future.successful({})
           }
-          bs <- (s3.buckets() |>>> Iteratee.getChunks[Bucket])
+          bs <- (s3.buckets() runWith Sink.seq[Bucket])
         } yield bs.exists(_.name == name)).aka("exists") must beFalse.
           await(1, 5.seconds) and (
             bucket.exists must beFalse.await(1, 5.seconds)
@@ -108,10 +117,10 @@ sealed trait AwsTests { specs: Specification =>
       }
     }
 
-    "Get contents of a file" in { implicit ee: EE =>
+    "Get contents of a file" in withMatEx { implicit ee: EE =>
       val s3 = s3f
 
-      (s3.bucket(bucketName).obj("testfile.txt").get() |>>> consume).
+      (s3.bucket(bucketName).obj("testfile.txt").get() runWith consume).
         aka("response") must beLike[String]({
           case response =>
             response.isEmpty must beFalse and (
@@ -120,38 +129,13 @@ sealed trait AwsTests { specs: Specification =>
         }).await(1, 10.seconds)
     }
 
-    "Get contents of a non-existing file" in { implicit ee: EE =>
+    "Get contents of a non-existing file" in withMatEx { implicit ee: EE =>
       val s3 = s3f
 
       s3.bucket(bucketName).obj("cabinet-test-folder/DoesNotExist.txt").
-        get() |>>> consume must throwA[IllegalStateException].like({
+        get() runWith consume must throwA[IllegalStateException].like({
           case e => e.getMessage must startWith(s"Could not get the contents of the object cabinet-test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
         }).await(retries = 1, timeout = 10.seconds)
-    }
-
-    "Write and copy file" in { implicit ee: EE =>
-      val s3 = s3f
-
-      val file1 = s3.bucket(bucketName).obj("testfile1.txt")
-      val file2 = s3.bucket(bucketName).obj("testfile2.txt")
-
-      file1.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
-        val iteratee = file1.put[Array[Byte]]
-        val body = List.fill(1000)("qwerty").mkString(" ").getBytes
-
-        { repeat(20) { body } |>>> iteratee }.flatMap(_ => file1.exists).
-          aka("exists") must beTrue.await(1, 10.seconds)
-
-      } and {
-        file1.copyTo(file2).flatMap(_ => file2.exists) must beTrue.
-          await(1, 10.seconds)
-      } and {
-        (for {
-          _ <- Future.sequence(Seq(file1.delete, file2.delete))
-          a <- file1.exists
-          b <- file2.exists
-        } yield a -> b) must beEqualTo(false -> false).await(1, 10.seconds)
-      }
     }
 
     "Write and delete file" in { implicit ee: EE =>
@@ -159,10 +143,10 @@ sealed trait AwsTests { specs: Specification =>
       val file = s3.bucket(bucketName).obj("removable.txt")
 
       file.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
-        val iteratee = file.put[Array[Byte]]
+        val put = file.put[Array[Byte]]
         val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-        { repeat(5) { body } |>>> iteratee }.flatMap(_ => file.exists).
+        { repeat(5) { body } runWith put }.flatMap(_ => file.exists).
           aka("exists") must beTrue.await(1, 10.seconds)
 
       } and {
@@ -174,6 +158,31 @@ sealed trait AwsTests { specs: Specification =>
           }
           x <- file.exists
         } yield x) must beFalse.await(1, 10.seconds)
+      }
+    }
+
+    "Write and copy file" in withMatEx { implicit ee: EE =>
+      val s3 = s3f
+
+      val file1 = s3.bucket(bucketName).obj("testfile1.txt")
+      val file2 = s3.bucket(bucketName).obj("testfile2.txt")
+
+      file1.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
+        val put = file1.put[Array[Byte]]
+        val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+
+        { repeat(20) { body } runWith put }.flatMap(_ => file1.exists).
+          aka("exists") must beTrue.await(1, 10.seconds)
+
+      } and {
+        file1.copyTo(file2).flatMap(_ => file2.exists) must beTrue.
+          await(1, 10.seconds)
+      } and {
+        (for {
+          _ <- Future.sequence(Seq(file1.delete, file2.delete))
+          a <- file1.exists
+          b <- file2.exists
+        } yield a -> b) must beEqualTo(false -> false).await(1, 10.seconds)
       }
     }
 
@@ -189,7 +198,7 @@ sealed trait AwsTests { specs: Specification =>
               val write = file3.put[Array[Byte]]
               val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-              { repeat(20) { body } |>>> write }.flatMap(_ => file3.exists).
+              { repeat(20) { body } runWith write }.flatMap(_ => file3.exists).
                 aka("exists") must beTrue.await(1, 10.seconds) and {
                   onMove(file3, file4, file3.moveTo(file4, preventOverwrite))
                 } and {
@@ -220,12 +229,12 @@ sealed trait AwsTests { specs: Specification =>
         } yield a -> b
       }) must beEqualTo(true -> true).await(1, 10.seconds)
 
-      @inline def existingTarget(implicit ec: ExecutionContext): Future[WSS3ObjectRef] = {
+      @inline def existingTarget(implicit ee: EE): Future[WSS3ObjectRef] = {
         val target = s3.bucket(bucketName).obj("testfile4.txt")
         val write = target.put[Array[Byte]]
         val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-        { repeat(20) { body } |>>> write }.map(_ => target)
+        { repeat(20) { body } runWith write }.map(_ => target)
       }
 
       "if prevent overwrite when target doesn't exist" in {

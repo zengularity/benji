@@ -1,0 +1,9 @@
+ceph.s3.host="ceph-host"
+ceph.s3.accessKey="accessKey"
+ceph.s3.secretKey="secretKey"
+ceph.s3.protocol=http
+
+aws.s3.host=s3.amazonaws.com
+aws.s3.accessKey="accessKey"
+aws.s3.secretKey="secretKey"
+aws.s3.protocol=https

@@ -8,32 +8,39 @@ The project is using [SBT](http://www.scala-sbt.org/).
 
     sbt compile
 
-> A JDK 1.8+ is required.
 
-**Run the tests:** The integration tests can be executed with SBT, after having configured the required account with the appropriate `src/test/resources/local.conf` and `src/test/resources/gcs-test.json` files.
+**Run the tests:** The integration tests can be executed with SBT, after having configured the required account with the appropriate [`src/test/resources/local.conf`](./src/test/resources/local.conf.sample) and `src/test/resources/gcs-test.json` files.
 
     sbt test
+
+**Requirements:**
+
+- A JDK 1.8+ is required.
+- [Play WS](https://www.playframework.com/documentation/latest/ScalaWS) must be provided; Tested with version 2.5.4.
 
 ## Usage
 
 In your `build.sbt` (or `project/Build.scala`):
 
 ```
-libraryDependencies ++= Seq(
-  "com.zengularity" %% "cabinet-google" % "VERSION"
-)
+libraryDependencies += "com.zengularity" %% "cabinet-google" % "VERSION"
+
+// If Play WS is not yet provided:
+libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.4"
 ```
 
 Then, the Google Storage client can be used as following in your code.
 
 ```scala
-import scala.concurrent.{ Future, ExecutionContext }
-// As the storage operations are async, needs an ExecutionContext
+import scala.concurrent.{ ExecutionContext, Future }
+
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Sink, Source }
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 
 import play.api.libs.ws.WSClient
-import play.api.libs.iteratee.{ Enumerator, Iteratee }
 
 import com.zengularity.storage.{ Bucket, Object }
 import com.zengularity.google.{ GoogleStorage, GoogleTransport }
@@ -45,24 +52,26 @@ val appName = "Foo"
 def credential = GoogleCredential.fromStream(
   new java.io.FileInputStream("/path/to/google-credential.json"))
 
-// WSClient must be available to init the GoogleTransport
-implicit def ws: WSClient = com.zengularity.ws.WS.client()
+def sample1(implicit m: Materializer): Future[Unit] = {
+  implicit def ec: ExecutionContext = m.executionContext
 
-implicit def gt: GoogleTransport =
-  GoogleTransport(credential, projectId, appName)
+  // WSClient must be available to init the GoogleTransport
+  implicit def ws: WSClient = com.zengularity.ws.WS.client()
 
-def sample1(implicit ec: ExecutionContext): Unit = {
+  implicit def gt: GoogleTransport =
+    GoogleTransport(credential, projectId, appName)
+
   val gcs = GoogleStorage()
   val buckets: Future[List[Bucket]] = gcs.buckets.collect[List]
 
   buckets.flatMap {
     _.headOption.fold(Future.successful(println("No found"))) { firstBucket =>
       val bucketRef = gcs.bucket(firstBucket.name)
-      val objects: Enumerator[Object] = bucketRef.objects()
+      val objects: Source[Object, NotUsed] = bucketRef.objects()
 
-      objects |>>> Iteratee.foreach { obj =>
+      objects.runWith(Sink.foreach[Object] { obj =>
         println(s"- ${obj.name}")
-      }
+      }).map(_ => {})
     }
   }
 }

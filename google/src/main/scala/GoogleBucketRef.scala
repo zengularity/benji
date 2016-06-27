@@ -4,7 +4,9 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 import org.joda.time.DateTime
 
-import play.api.libs.iteratee.Enumerator
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.Source
 
 import com.zengularity.storage.{ BucketRef, Bytes, Object }
 
@@ -20,19 +22,24 @@ final class GoogleBucketRef private[google] (
   @inline private def requestTimeout = storage.requestTimeout
 
   object objects extends ref.ListRequest {
-    def apply()(implicit ec: ExecutionContext, gt: GoogleTransport): Enumerator[Object] = Enumerator.flatten(Future {
-      def req = gt.client.objects().list(name).execute()
-      // TODO: Usage pagination + new withChunkSize
+    def apply()(implicit m: Materializer, gt: GoogleTransport): Source[Object, NotUsed] = {
+      implicit def ec: ExecutionContext = m.executionContext
 
-      Enumerator.enumerate(Option(req.getItems).map(collectionAsScalaIterable).
-        getOrElse(List.empty[StorageObject]).map { obj =>
-          Object(
-            obj.getName,
-            Bytes(obj.getSize.longValue),
-            new DateTime(obj.getUpdated.getValue)
-          )
-        })
-    })
+      Source.fromFuture(Future {
+        def req = gt.client.objects().list(name).execute()
+        // TODO: Usage pagination + new withChunkSize
+
+        Source[Object](Option(req.getItems).
+          map(collectionAsScalaIterable(_).toList).
+          getOrElse(List.empty[StorageObject]).map { obj =>
+            Object(
+              obj.getName,
+              Bytes(obj.getSize.longValue),
+              new DateTime(obj.getUpdated.getValue)
+            )
+          })
+      }).flatMapMerge(1, identity)
+    }
   }
 
   def exists(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = Future {

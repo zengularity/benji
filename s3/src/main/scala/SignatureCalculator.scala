@@ -5,15 +5,13 @@ import java.net.URL
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-import com.ning.http.util.Base64
-
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 
 import play.api.Logger
 import play.api.libs.ws.WSSignatureCalculator
 
-import com.ning.http.client.{ Request, RequestBuilderBase }
+import org.asynchttpclient.{ Request, RequestBuilderBase }
 
 import scala.collection.JavaConversions._
 import scala.util.Try
@@ -44,17 +42,17 @@ class SignatureCalculator(
   secretKey: String,
   serverHost: String
 ) extends WSSignatureCalculator
-    with com.ning.http.client.SignatureCalculator {
+    with org.asynchttpclient.SignatureCalculator {
 
   val logger = Logger("com.zengularity.s3")
-  type HeaderMap = java.util.Map[String, java.util.List[String]]
+  type HeaderMap = io.netty.handler.codec.http.HttpHeaders
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
    */
   override def calculateAndAddSignature(request: Request, requestBuilder: RequestBuilderBase[_]): Unit = {
     @inline def header(name: String): Option[String] = {
-      Option(request.getHeaders.getFirstValue(name))
+      Option(request.getHeaders.get(name))
     }
 
     val date = header("x-amz-date").orElse(header("Date")).getOrElse(
@@ -116,7 +114,7 @@ class SignatureCalculator(
       secretKey.getBytes("UTF8"), "HmacSHA1"
     ))
 
-    Base64.encode(mac.doFinal(data.getBytes("UTF8")))
+    org.asynchttpclient.util.Base64.encode(mac.doFinal(data.getBytes("UTF8")))
   }
 
   // Utility methods
@@ -125,10 +123,14 @@ class SignatureCalculator(
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#RESTAuthenticationConstructingCanonicalizedAmzHeaders
    */
   def canonicalizedAmzHeadersFor(allHeaders: HeaderMap): String = {
-    val amzHeaderNames = allHeaders.keySet().filter(_.toLowerCase.startsWith("x-amz-")).toList.sortBy(_.toLowerCase)
-    amzHeaderNames.map({ amzHeaderName =>
-      amzHeaderName.toLowerCase + ":" + allHeaders(amzHeaderName).mkString(",") + "\n"
-    }).mkString
+    val amzHeaderNames = allHeaders.names.filter(
+      _.toLowerCase.startsWith("x-amz-")
+    ).toList.sortBy(_.toLowerCase)
+
+    amzHeaderNames.map { amzHeaderName =>
+      amzHeaderName.toLowerCase + ":" +
+        allHeaders.getAll(amzHeaderName).mkString(",") + "\n"
+    }.mkString
   }
 
   def canonicalizedAmzHeadersFor(allHeaders: Map[String, Seq[String]]): String = {

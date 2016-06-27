@@ -1,24 +1,17 @@
 package com.zengularity.ws
 
-import com.ning.http.client.AsyncHttpClientConfig
+import akka.stream.Materializer
 
-import play.api.libs.ws.{ WSClientConfig, WSClient }
-import play.api.libs.ws.ning.{
-  NingAsyncHttpClientConfigBuilder,
-  NingWSClientConfigFactory,
-  NingWSClient
+import play.api.libs.ws.{ WSClient, WSClientConfig }
+import play.api.libs.ws.ahc.{
+  AhcWSClient,
+  AhcWSClientConfig,
+  AhcWSClientConfigFactory
 }
 
 object WS {
   /** Returns a WS client (take care to close it once used). */
-  def client(config: WSClientConfig = WSClientConfig()): WSClient =
-    ningClient(config)
+  def client(config: WSClientConfig = WSClientConfig())(implicit materializer: Materializer): WSClient = ningClient(AhcWSClientConfigFactory forClientConfig config)
 
-  def ningClient(config: WSClientConfig): NingWSClient = {
-    val wsconfig = NingWSClientConfigFactory forClientConfig config
-    val ningconfig = new NingAsyncHttpClientConfigBuilder(wsconfig).build
-    val builder = new AsyncHttpClientConfig.Builder(ningconfig)
-
-    new NingWSClient(builder.build)
-  }
+  def ningClient(config: AhcWSClientConfig)(implicit materializer: Materializer): AhcWSClient = AhcWSClient(config)
 }
