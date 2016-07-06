@@ -4,6 +4,8 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 import play.api.libs.ws.{ WSClient, WSRequest }
 
+import akka.stream.Materializer
+
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 
@@ -34,6 +36,8 @@ final class GoogleTransport(
     servicePath: String,
     requestTimeout: Option[Long] = None
 ) {
+  import scala.concurrent.duration._
+
   private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
 
   private lazy val cred = credential
@@ -75,19 +79,25 @@ final class GoogleTransport(
    * @param service the service name (e.g. `upload`)
    * @param path a path (after the base REST URL)
    */
-  private[google] def withWSRequest1[T](service: String, path: String)(f: WSRequest => Future[T])(implicit ec: ExecutionContext): Future[T] = withWSRequest2(s"$baseRestUrl/$service/$servicePath$path") { req =>
+  private[google] def withWSRequest1[T](service: String, path: String)(f: WSRequest => Future[T])(implicit m: Materializer): Future[T] = withWSRequest2(s"$baseRestUrl/$service/$servicePath$path") { req =>
     f(req.withHeaders("Content-Type" -> "application/json; charset=UTF-8"))
   }
 
   /**
    * @param url the full URL to be requested
    */
-  private[google] def withWSRequest2[T](url: String)(f: WSRequest => Future[T])(implicit ec: ExecutionContext): Future[T] = accessToken.flatMap { token =>
-    logger.trace(s"Prepare WS request: $url")
+  private[google] def withWSRequest2[T](url: String)(f: WSRequest => Future[T])(implicit m: Materializer): Future[T] = {
+    implicit def ec: ExecutionContext = m.executionContext
 
-    def req = ws.url(url).withHeaders("Authorization" -> s"Bearer $token")
+    accessToken.flatMap { token =>
+      logger.trace(s"Prepare WS request: $url")
 
-    f(requestTimeout.fold(req)(req.withRequestTimeout))
+      def req = ws.url(url).withHeaders("Authorization" -> s"Bearer $token")
+
+      f(requestTimeout.fold(req) { t =>
+        req.withRequestTimeout(t.milliseconds)
+      })
+    }
   }
 }
 

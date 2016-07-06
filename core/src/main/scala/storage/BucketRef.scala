@@ -3,7 +3,9 @@ package com.zengularity.storage
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.{ ExecutionContext, Future }
 
-import play.api.libs.iteratee.{ Enumerator, Iteratee }
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Sink, Source }
 
 /**
  * A bucket reference.
@@ -31,12 +33,18 @@ trait BucketRef[T <: ObjectStorage[T]] {
      *
      * @param tr $transportParam
      */
-    def apply()(implicit ec: ExecutionContext, tr: Transport): Enumerator[Object]
+    def apply()(implicit m: Materializer, tr: Transport): Source[Object, NotUsed]
 
     /**
      * Collects the bucket objects.
      */
-    def collect[M[_]]()(implicit ec: ExecutionContext, tr: Transport, builder: CanBuildFrom[M[_], Object, M[Object]]): Future[M[Object]] = (apply() |>>> Iteratee.fold(builder()) { _ += (_: Object) }).map(_.result())
+    def collect[M[_]]()(implicit m: Materializer, tr: Transport, builder: CanBuildFrom[M[_], Object, M[Object]]): Future[M[Object]] = {
+      implicit def ec: ExecutionContext = m.executionContext
+
+      apply() runWith Sink.fold(builder()) {
+        _ += (_: Object)
+      }.mapMaterializedValue(_.map(_.result()))
+    }
     // TODO: Support a max
   }
 

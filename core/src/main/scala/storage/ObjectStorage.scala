@@ -4,7 +4,9 @@ import scala.collection.generic.CanBuildFrom
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import play.api.libs.iteratee.{ Enumerator, Iteratee }
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Sink, Source }
 
 /**
  * Common API for Object storage.
@@ -27,7 +29,7 @@ trait ObjectStorage[T <: ObjectStorage[T]] { self =>
   val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
 
   /**
-   * Returns a WS/S3 instance with specified request timeout.
+   * Returns a storage instance with specified request timeout.
    *
    * @param timeout the request timeout in milliseconds
    */
@@ -42,12 +44,18 @@ trait ObjectStorage[T <: ObjectStorage[T]] { self =>
      *
      * @param tr the storage transport
      */
-    def apply()(implicit ec: ExecutionContext, tr: Pack#Transport): Enumerator[Bucket]
+    def apply()(implicit m: Materializer, tr: Pack#Transport): Source[Bucket, NotUsed]
 
     /**
      * Collects the bucket objects.
      */
-    def collect[M[_]]()(implicit ec: ExecutionContext, tr: Pack#Transport, builder: CanBuildFrom[M[_], Bucket, M[Bucket]]): Future[M[Bucket]] = (apply() |>>> Iteratee.fold(builder()) { _ += (_: Bucket) }).map(_.result())
+    def collect[M[_]]()(implicit m: Materializer, tr: Pack#Transport, builder: CanBuildFrom[M[_], Bucket, M[Bucket]]): Future[M[Bucket]] = {
+      implicit def ec: ExecutionContext = m.executionContext
+
+      apply() runWith Sink.fold(builder()) {
+        _ += (_: Bucket)
+      }.mapMaterializedValue(_.map(_.result()))
+    }
     // TODO: Support a max
   }
 

@@ -8,16 +8,24 @@ The project is using [SBT](http://www.scala-sbt.org/).
 
     sbt compile
 
-> A JDK 1.8+ is required.
+**Run the tests:** The integration tests can be executed with SBT, after having configured the required account with the appropriate [`src/test/resources/local.conf`](./src/test/resources/local.conf.sample).
+
+    sbt test
+
+**Requirements:**
+
+- A JDK 1.8+ is required.
+- [Play WS](https://www.playframework.com/documentation/latest/ScalaWS) must be provided; Tested with version 2.5.2.
 
 ## Usage
 
 In your `build.sbt` (or the `project/Build.scala`):
 
 ```
-libraryDependencies ++= Seq(
-  "com.zengularity" %% "cabinet-s3" % "VERSION"
-)
+libraryDependencies += "com.zengularity" %% "cabinet-s3" % "VERSION"
+
+// If Play WS is not yet provided:
+libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.2"
 ```
 
 Then, the S3 client can be used as following in your code.
@@ -26,14 +34,18 @@ Then, the S3 client can be used as following in your code.
 import java.io._
 
 import scala.concurrent.{ ExecutionContext, Future }
-// As the S3 operations are async, needs an ExecutionContext
+
+import akka.util.ByteString
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ FileIO, Sink, Source }
 
 import play.api.libs.ws.WSClient
-import play.api.libs.iteratee.{ Enumerator, Iteratee }
 
 import com.zengularity.s3._
 
-def sample1(implicit ec: ExecutionContext): Unit = {
+def sample1(implicit m: Materializer): Unit = {
+  implicit def ec: ExecutionContext = m.executionContext
+
   // WSClient must be available in the implicit scope;
   // Here a default/standalone instance is declared
   implicit val ws: WSClient = com.zengularity.ws.WS.client()
@@ -46,25 +58,24 @@ def sample1(implicit ec: ExecutionContext): Unit = {
   // Upload
 
   /* input */
-  lazy val fileIn = new FileInputStream("/path/to/local/file")
-  lazy val data: Enumerator[Array[Byte]] = Enumerator.fromStream(fileIn)
+  val file = new File("/path/to/local/file")
+  lazy val data: Source[ByteString, _] = FileIO.fromFile(file)
 
   /* target object */
   val newObj = bucket.obj("newObject.ext")
 
   /* declare the upload pipeline */
-  val upload: Iteratee[Array[Byte], Long] =
-    newObj.put[Array[Byte], Long](0L) { (acc, chunk) =>
+  val upload: Sink[ByteString, Future[Long]] =
+    newObj.put[ByteString, Long](0L) { (acc, chunk) =>
       println(s"uploading ${chunk.size} bytes")
       Future.successful(acc + chunk.size)
     }
 
-  (data |>>> upload).onComplete {
+  (data runWith upload).onComplete {
     case res => println(s"Upload result: $res")
   }
 
   // Take care to release the underlying resources
-  fileIn.close()
   ws.close()
 }
 ```

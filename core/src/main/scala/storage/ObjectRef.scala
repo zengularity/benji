@@ -2,7 +2,10 @@ package com.zengularity.storage
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import play.api.libs.iteratee.{ Enumerator, Iteratee }
+import akka.NotUsed
+import akka.util.ByteString
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Sink, Source }
 
 /**
  * A object reference.
@@ -61,22 +64,22 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
    * @tparam E $consumerInputTParam
    * @param tr $transportParam
    */
-  def put[E](implicit ec: ExecutionContext, tr: Transport, w: Writer[E]): Iteratee[E, Unit] = put[E, Unit]({})((_, _) => Future.successful({}))
+  def put[E](implicit m: Materializer, tr: Transport, w: Writer[E]): Sink[E, Future[NotUsed]] = put[E, NotUsed](NotUsed.getInstance)((_, _) => Future.successful(NotUsed.getInstance))
 
   /**
    * @tparam E $consumerInputTParam
    * @param size $putSizeParam
    * @param tr $transportParam
    */
-  def put[E](size: Long)(implicit ec: ExecutionContext, tr: Transport, w: Writer[E]): Iteratee[E, Unit] = put[E, Unit]({}, size = Some(size))((_, _) => Future.successful({}))
+  def put[E](size: Long)(implicit m: Materializer, tr: Transport, w: Writer[E]): Sink[E, Future[NotUsed]] = put[E, NotUsed](NotUsed.getInstance, size = Some(size))((_, _) => Future.successful(NotUsed.getInstance))
 
   /**
    * @tparam E $consumerInputTParam
    * @tparam A $consumerOutputTparam
    *
    * {{{
-   * def upload[T <: ObjectStorage[_]](obj: ObjectRef[T], data: Array[Byte]) =
-   *   obj.put[Array[Byte], Unit]({})((_, _) => Future.successful({}))
+   * def upload[T <: ObjectStorage[_]](obj: ObjectRef[T], data: ByteString) =
+   *   obj.put[ByteString, Unit](NotUsed.getInstance)((_, _) => Future.successful(NotUsed.getInstance))
    * }}}
    */
   def put[E, A]: PutRequest[E, A]
@@ -149,7 +152,7 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
      * @param range the optional request range
      * @param tr $transportParam
      */
-    def apply(range: Option[ByteRange] = None)(implicit ec: ExecutionContext, tr: Transport): Enumerator[Array[Byte]]
+    def apply(range: Option[ByteRange] = None)(implicit m: Materializer, tr: Transport): Source[ByteString, NotUsed]
   }
 
   /**
@@ -166,7 +169,7 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
      * @param size $putSizeParam
      * @param tr $transportParam
      */
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None)(f: (A, Array[Byte]) => Future[A])(implicit ec: ExecutionContext, tr: Transport, w: Writer[E]): Iteratee[E, A]
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None)(f: (A, Chunk) => Future[A])(implicit m: Materializer, tr: Transport, w: Writer[E]): Sink[E, Future[A]]
   }
 }
 

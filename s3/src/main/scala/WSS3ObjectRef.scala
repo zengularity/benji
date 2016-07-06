@@ -4,11 +4,22 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 import play.api.http.Status
 
-import play.api.libs.iteratee.{ Enumerator, Enumeratee, Input, Iteratee }
-import play.api.libs.ws.{ WSClient, WSRequest }
+import akka.NotUsed
+import akka.util.ByteString
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Flow, Sink, Source }
+
+import play.api.libs.ws.{ WSClient, WSRequest, StreamedResponse }
 
 import com.zengularity.ws.{ ContentMD5, Successful }
-import com.zengularity.storage.{ Bytes, ByteRange, ObjectRef, Streams }
+import com.zengularity.storage.{
+  Chunk,
+  Bytes,
+  ByteRange,
+  FoldAsync,
+  ObjectRef,
+  Streams
+}
 
 final class WSS3ObjectRef private[s3] (
     val storage: WSS3,
@@ -36,19 +47,21 @@ final class WSS3ObjectRef private[s3] (
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
    */
   final class RESTGetRequest(val target: ref.type) extends GetRequest {
-    def apply(range: Option[ByteRange] = None)(implicit ec: ExecutionContext, tr: Transport): Enumerator[Array[Byte]] = Enumerator.flatten {
-      val req = storage.request(
+    def apply(range: Option[ByteRange] = None)(implicit m: Materializer, tr: Transport): Source[ByteString, NotUsed] = {
+      implicit def ec: ExecutionContext = m.executionContext
+
+      def req = storage.request(
         Some(bucket), Some(name), requestTimeout = requestTimeout
       )
 
-      range.fold(req)(r => req.withHeaders(
+      Source.fromFuture(range.fold(req)(r => req.withHeaders(
         "Range" -> s"bytes=${r.start}-${r.end}"
-      )).getStream().map {
-        case (Successful(response), enumerator) => enumerator
-
-        case (response, _) =>
-          throw new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: ${response.status} - ${response.headers}")
-      }
+      )).withMethod("GET").stream().flatMap {
+        case StreamedResponse(response, body) => response match {
+          case Successful(_) => Future.successful(body)
+          case _             => Future.failed[Source[ByteString, _]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: ${response.status} - ${response.headers}"))
+        }
+      }).flatMapMerge(1, identity)
     }
   }
 
@@ -75,29 +88,32 @@ final class WSS3ObjectRef private[s3] (
     /**
      * If the `size` is known and if the partitioning according that and the `threshold` would exceed the `maxPart`, then `size / maxPart` is used instead of the given threshold for multipart upload.
      */
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None)(f: (A, Array[Byte]) => Future[A])(implicit ec: ExecutionContext, ws: Transport, w: Writer[E]): Iteratee[E, A] = {
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None)(f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: Transport, w: Writer[E]): Sink[E, Future[A]] = {
       val th = size.filter(_ > 0).fold(threshold) { sz =>
         val partCount = sz /: threshold
         if (partCount <= maxPart) threshold else Bytes(sz / maxPart)
       }
+      implicit def ec: ExecutionContext = m.executionContext
 
-      w.toEnumeratee &>> Streams.consumeAtLeast(th).flatMapM { bytes =>
-        if (th wasExceeded bytes) {
-          // Knowing that we have at least one chunk that
-          // is bigger than the threshold, it's safe to start
-          // a multi-part upload with everything we consumed so far.
-          putMulti(w.contentType, th, z, f).feed(Input.El(bytes))
-        } else {
-          // This one also needs to be fed Input.EOF to finish the upload,
-          // we know that we've received Input.EOF as otherwise the threshold
-          // would have been exceeded (or we wouldn't be in this function).
-          for {
-            a <- Future.successful(putSimple(w.contentType, z, f))
-            b <- a.feed(Input.El(bytes))
-            c <- b.feed(Input.EOF)
-          } yield c
+      def flowChunks = Flow.fromFunction[E, ByteString](w.transform).
+        via(Streams.consumeAtLeast(th))
+
+      flowChunks.prefixAndTail(1).flatMapMerge[A, NotUsed](1, {
+        case (Nil, _) => Source.empty[A]
+
+        case (head, tail) => head.toList match {
+          case (last @ Chunk.Last(_)) :: _ => // if first is last, single chunk
+            Source.single(last).via(putSimple(w.contentType, z, f))
+
+          case first :: _ => {
+            def chunks = Source.single(first) ++ tail // push back the first
+            def source = chunks.zip(initiateUpload.
+              flatMapConcat(Source.repeat /* same ID for all */ ))
+
+            source.via(putMulti(w.contentType, th, z, f))
+          }
         }
-      }
+      }).toMat(Sink.head[A]) { (_, mat) => mat }
     }
   }
 
@@ -175,11 +191,12 @@ final class WSS3ObjectRef private[s3] (
   // Utility methods
 
   /**
-   * Creates an Iteratee that will upload the bytes it consumes in one request,
+   * Creates an Flow that will upload the bytes it consumes in one request,
    * without streaming them.
    *
    * For this operation we need to know the overall content length
-   * (the server requires that), which is why we have to buffer everything upfront.
+   * (the server requires that), which is why we have to buffer
+   * everything upfront.
    *
    * If you already know that your upload will exceed the threshold,
    * then use multi-part uploads.
@@ -188,59 +205,71 @@ final class WSS3ObjectRef private[s3] (
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
    */
-  private def putSimple[A](contentType: Option[String], z: => A, f: (A, Array[Byte]) => Future[A])(implicit ec: ExecutionContext, ws: WSClient): Iteratee[Array[Byte], A] = Iteratee.consume[Array[Byte]]().mapM { bytes =>
-    val req = storage.request(Some(bucket), Some(name),
-      requestTimeout = requestTimeout).
-      withHeaders("Content-MD5" -> ContentMD5(bytes))
+  private def putSimple[A](contentType: Option[String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: WSClient): Flow[Chunk, A, NotUsed] = {
+    implicit def ec: ExecutionContext = m.executionContext
 
-    withContentTypeHeader(req, contentType).put(bytes).map {
-      case Successful(response) => logger.debug(
-        s"Completed the simple upload for $bucket/$name."
+    Flow[Chunk].limit(1).flatMapConcat { single =>
+      val req = storage.request(Some(bucket), Some(name),
+        requestTimeout = requestTimeout).
+        withHeaders("Content-MD5" -> ContentMD5(single.data))
+
+      Source.fromFuture(
+        withContentTypeHeader(req, contentType).put(single.data).map {
+          case Successful(response) => logger.debug(
+            s"Completed the simple upload for $bucket/$name."
+          )
+
+          case response =>
+            throw new IllegalStateException(s"Could not update the contents of the object $bucket/$name. Response: ${response.status} - ${response.statusText}; ${response.body}")
+        }.flatMap(_ => f(z, single))
       )
-
-      case response =>
-        throw new IllegalStateException(s"Could not update the contents of the object $bucket/$name. Response: ${response.status} - ${response.statusText}; ${response.body}")
-    }.flatMap(_ => f(z, bytes))
+    }
   }
 
   /**
-   * Creates an Iteratee that will upload the bytes.
-   * It consumes in multi-part uploads.
+   * Creates an Flow that will upload the bytes.
+   * It consumes of source of chunks (each tagged with the upload ID).
    *
    * @param contentType $contentTypeParam
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html
    */
-  private def putMulti[A](contentType: Option[String], threshold: Bytes, z: => A, f: (A, Array[Byte]) => Future[A])(implicit ec: ExecutionContext, ws: WSClient): Iteratee[Array[Byte], A] = {
-    Enumeratee.grouped(Streams.consumeAtLeast(threshold)) &>>
-      Iteratee.flatten(initiateUpload.map { id =>
-        Iteratee.foldM[Array[Byte], (List[String], A)](
-          List.empty[String] -> z
-        ) {
-            case ((etags, st), bytes) => for {
-              etag <- uploadPart(bytes, contentType, etags.size + 1, id)
-              nst <- f(st, bytes)
-            } yield (etag :: etags) -> nst
-          }.mapM[A] {
-            case (etags, res) =>
-              completeUpload(etags.reverse, id).map(_ => res)
-          }
-      })
+  private def putMulti[A](contentType: Option[String], threshold: Bytes, z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: WSClient): Flow[(Chunk, String), A, NotUsed] = {
+    implicit def ec: ExecutionContext = m.executionContext
+
+    @inline def zst = (Option.empty[String], List.empty[String], z)
+
+    FoldAsync[(Chunk, String), (Option[String], List[String], A)](zst) {
+      case ((_, etags, st), (chunk, id)) => for {
+        etag <- uploadPart(chunk.data, contentType, etags.size + 1, id)
+        nst <- f(st, chunk)
+      } yield (Some(id), (etag :: etags), nst)
+    }.mapAsync[A](1) {
+      case (Some(id), etags, res) =>
+        completeUpload(etags.reverse, id).map(_ => res)
+
+      case st => Future.failed[A](
+        new IllegalStateException(s"invalid upload state: $st")
+      )
+    }
   }
 
   /**
    * Initiates a multi-part upload and returns the upload ID we're supposed to include when uploading parts later on.
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
    */
-  private def initiateUpload(implicit ec: ExecutionContext, ws: WSClient): Future[String] = storage.request(Some(bucket), Some(name), Some("uploads"),
-    requestTimeout = requestTimeout).post("").map {
-    case Successful(response) =>
-      val xmlResponse = scala.xml.XML.loadString(response.body)
-      val uploadId = (xmlResponse \ "UploadId").text
+  private def initiateUpload(implicit ec: ExecutionContext, ws: WSClient): Source[String, NotUsed] = Source fromFuture {
+    storage.request(Some(bucket), Some(name), Some("uploads"),
+      requestTimeout = requestTimeout).post("").map {
+      case Successful(response) => {
+        val xmlResponse = scala.xml.XML.loadString(response.body)
+        val uploadId = (xmlResponse \ "UploadId").text
 
-      logger.debug(s"Initiated a multi-part upload for $bucket/$name using the ID $uploadId.")
-      uploadId
+        logger.debug(s"Initiated a multi-part upload for $bucket/$name using the ID $uploadId.")
+        uploadId
+      }
 
-    case response => throw new IllegalStateException(s"Could not initiate the upload for [$bucket/$name]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+      case response => throw new IllegalStateException(s"Could not initiate the upload for [$bucket/$name]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+    }
   }
 
   /**
@@ -256,7 +285,7 @@ final class WSS3ObjectRef private[s3] (
    * @param uploadId the unique ID of the current upload
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPart.html
    */
-  private def uploadPart(bytes: Array[Byte], contentType: Option[String], partNumber: Int, uploadId: String)(implicit ec: ExecutionContext, ws: WSClient): Future[String] = {
+  private def uploadPart(bytes: ByteString, contentType: Option[String], partNumber: Int, uploadId: String)(implicit ec: ExecutionContext, ws: WSClient): Future[String] = {
     val req = storage.request(
       Some(bucket), Some(name),
       query = Some(s"partNumber=$partNumber&uploadId=$uploadId"),

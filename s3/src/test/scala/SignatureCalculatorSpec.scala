@@ -1,8 +1,6 @@
 package tests
 
-import scala.concurrent.duration._
-
-import com.ning.http.client.FluentCaseInsensitiveStringsMap
+import io.netty.handler.codec.http.DefaultHttpHeaders
 
 import com.zengularity.s3.{
   PathRequest,
@@ -132,14 +130,12 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
         "x-amz-meta-reviewedby:joe@johnsmith.net,jane@johnsmith.net\n"
     }
 
-    "SignatureCalculator canonicalizedAmzHeadersFor with FluentCaseInsensitiveStringsMap" in {
-      val headers = new FluentCaseInsensitiveStringsMap()
+    "SignatureCalculator canonicalizedAmzHeadersFor with header map" in {
+      val headers = new DefaultHttpHeaders()
 
       headers.add("x-amz-acl", "public-read")
-      headers.add(
-        "X-Amz-Meta-ReviewedBy",
-        "joe@johnsmith.net", "jane@johnsmith.net"
-      )
+      headers.add("X-Amz-Meta-ReviewedBy", "joe@johnsmith.net")
+      headers.add("X-Amz-Meta-ReviewedBy", "jane@johnsmith.net")
       headers.add("X-Amz-Meta-FileChecksum", "0x02661779")
       headers.add("X-Amz-Meta-ChecksumAlgorithm", "crc32")
 
@@ -302,8 +298,8 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
 
   // ---
 
-  def headerMap(headers: (String, String)*): FluentCaseInsensitiveStringsMap =
-    headers.foldLeft(new FluentCaseInsensitiveStringsMap()) {
+  def headerMap(headers: (String, String)*): DefaultHttpHeaders =
+    headers.foldLeft(new DefaultHttpHeaders()) {
       case (hs, (n, v)) => hs.add(n, v); hs
     }
 

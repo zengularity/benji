@@ -3,15 +3,18 @@ package tests
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 
-import play.api.libs.iteratee.{ Enumerator, Iteratee }
+import scala.collection.immutable.Seq
+
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Sink, Source }
 
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 import org.specs2.matcher.MatchResult
 
-import com.zengularity.storage.{ Bucket, Bytes, ByteRange, Object }
+import com.zengularity.storage.{ Bucket, ByteRange, Object }
 import com.zengularity.google.GoogleObjectRef
 
-import Enumerators.repeat
+import Sources.repeat
 
 import TestUtils.{ google, googleTransport, consume }
 
@@ -19,6 +22,8 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
   "Google Cloud Storage" title
 
   sequential
+
+  implicit def materializer: Materializer = TestUtils.materializer
 
   "Google client" should {
     val bucketName = s"cabinet-test-${System identityHashCode this}"
@@ -37,13 +42,13 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
       val name = s"cabinet-test-${System identityHashCode google}"
       val objects = for {
         _ <- google.bucket(name).create()
-        _ <- Enumerator("Hello".getBytes) |>>> google.
+        _ <- Source.single("Hello".getBytes) runWith google.
           bucket(name).obj("testfile.txt").put[Array[Byte]]
-        _ <- (google.buckets() |>>> Iteratee.getChunks[Bucket])
-        o <- (google.bucket(name).objects() |>>> Iteratee.getChunks[Object])
+        _ <- (google.buckets() runWith Sink.seq[Bucket])
+        o <- (google.bucket(name).objects() runWith Sink.seq[Object])
       } yield o
 
-      objects must beLike[List[Object]] {
+      objects must beLike[Seq[Object]] {
         case list => list.find(_.name == "testfile.txt") must beSome
       }.await(1, 10.seconds)
     }
@@ -74,10 +79,11 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
             case req =>
               val upload = req({})((_, _) => Future.successful({}))
 
-              (repeat(partCount - 1)(body).andThen(Enumerator(
+              (repeat(partCount - 1)(body).++(Source.single(
                 body.drop(10) ++ "ZZZ".getBytes("UTF-8")
-              )) |>>> upload).
-                flatMap { _ => filetest.exists } must beTrue.await(1, 10.seconds)
+              )) runWith upload).
+                flatMap { _ => filetest.exists } must beTrue.
+                await(1, 10.seconds)
           }
     }
 
@@ -115,7 +121,7 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
       val objRef = google.bucket(bucketName).obj("testfile.txt")
 
       objRef.get must beLike[objRef.GoogleGetRequest] {
-        case req => (req() |>>> consume) aka "content" must beLike[String] {
+        case req => (req() runWith consume) aka "content" must beLike[String] {
           case resp => resp.isEmpty must beFalse and (
             resp.startsWith(fileStart) must beTrue
           )
@@ -125,14 +131,14 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
 
     "Get partial content of a file" in { implicit ee: EE =>
       (google.bucket(bucketName).obj("testfile.txt").
-        get(range = Some(ByteRange(4, 9))) |>>> consume).
+        get(range = Some(ByteRange(4, 9))) runWith consume).
         aka("partial content") must beEqualTo("o worl").await(1, 10.seconds)
     }
 
     "Fail to get contents of a non-existing file" in { implicit ee: EE =>
-      google.bucket(bucketName).obj("cabinet-test-folder/DoesNotExist.txt").
-        get() |>>> consume must throwA[IllegalStateException].like({
-          case e => e.getMessage must startWith(s"Could not get the contents of the object cabinet-test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
+      google.bucket(bucketName).obj("test-folder/DoesNotExist.txt").
+        get() runWith consume must throwA[IllegalStateException].like({
+          case e => e.getMessage must startWith(s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
         }).await(1, 10.seconds)
     }
 
@@ -142,10 +148,10 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
       val file2 = woGzip.bucket(bucketName).obj("testfile2.txt")
 
       file1.exists must beFalse.await(1, 10.seconds) and {
-        val iteratee = file1.put[Array[Byte]]
+        val put = file1.put[Array[Byte]]
         val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-        { repeat(20) { body } |>>> iteratee }.flatMap(_ => file1.exists).
+        { repeat(20) { body } runWith put }.flatMap(_ => file1.exists).
           aka("file1 exists") must beTrue.await(1, 10.seconds)
       } and {
         file1.copyTo(file2).flatMap(_ => file2.exists) must beTrue.
@@ -163,10 +169,10 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
       val file = google.bucket(bucketName).obj("removable.txt")
 
       file.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
-        val iteratee = file.put[Array[Byte]]
+        val put = file.put[Array[Byte]]
         val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-        { repeat(5) { body } |>>> iteratee }.flatMap(_ => file.exists).
+        { repeat(5) { body } runWith put }.flatMap(_ => file.exists).
           aka("exists") must beTrue.await(1, 10.seconds)
 
       } and {
@@ -191,7 +197,7 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
               val write = file3.put[Array[Byte]]
               val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-              { repeat(20) { body } |>>> write }.flatMap(_ => file3.exists).
+              { repeat(20) { body } runWith write }.flatMap(_ => file3.exists).
                 aka("exists") must beTrue.await(1, 10.seconds) and {
                   onMove(file3, file4, file3.moveTo(file4, preventOverwrite))
                 } and {
@@ -229,7 +235,7 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
         val write = target.put[Array[Byte]]
         val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-        { repeat(20) { body } |>>> write }.map(_ => target)
+        { repeat(20) { body } runWith write }.map(_ => target)
       }
 
       "if prevent overwrite when target doesn't exist" in {
