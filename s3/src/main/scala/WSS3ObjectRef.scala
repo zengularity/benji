@@ -106,7 +106,10 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
    */
-  def delete(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = {
+  def delete(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
+    delete(ignoreMissing = false)
+
+  private def delete(ignoreMissing: Boolean)(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = {
     def failMsg = s"Could not delete the object $bucket/$name"
 
     exists.flatMap {
@@ -118,6 +121,8 @@ final class WSS3ObjectRef private[s3] (
         case response =>
           throw new IllegalStateException(s"$failMsg. Response: ${response.status} - ${response.statusText}; ${response.body}")
       }
+
+      case _ if (ignoreMissing) => Future.successful({})
 
       case _ => Future.failed[Unit](new IllegalArgumentException(
         s"$failMsg. Response: 404 - Object not found"
@@ -145,10 +150,10 @@ final class WSS3ObjectRef private[s3] (
       }
       _ <- copyTo(targetBucketName, targetObjectName).recoverWith {
         case reason =>
-          targetObj.delete.filter(_ => false).
+          targetObj.delete(ignoreMissing = true).filter(_ => false).
             recoverWith { case _ => Future.failed[Unit](reason) }
       }
-      _ <- delete // the previous reference
+      _ <- delete(ignoreMissing = false /* the previous reference */ )
     } yield ()
   }
 
