@@ -42,7 +42,15 @@ final class GoogleBucketRef private[google] (
     case err                  => Future.failed[Boolean](err)
   }
 
-  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = Future {
+  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = {
+    if (!checkBefore) create
+    else exists.flatMap {
+      case true => Future.successful(false)
+      case _    => create
+    }
+  }
+
+  private def create(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = Future {
     val nb = new model.Bucket()
     nb.setName(name)
 
