@@ -5,9 +5,11 @@ import scala.concurrent.duration.{ Duration, FiniteDuration }
 
 import akka.util.ByteString
 import akka.stream.Materializer
-import akka.stream.scaladsl.{ Source, Sink }
+import akka.stream.scaladsl.{ Flow, Source, Sink }
 
 import com.zengularity.storage.{ Chunk, Bytes, Streams }
+
+import org.specs2.concurrent.{ ExecutionEnv => EE }
 
 class StreamSpec extends org.specs2.mutable.Specification {
   "Streams" title
@@ -143,9 +145,69 @@ class StreamSpec extends org.specs2.mutable.Specification {
     }
   }
 
+  "Use cases" >> {
+    import com.zengularity.storage.FoldAsync
+
+    "Folding consumer" should {
+      val chunkCount = 5
+      def source1 = repeat(chunkCount) {
+        List.fill(1000)("qwerty").mkString(" ").getBytes
+      }
+
+      def expectedSize(implicit ee: EE) =
+        source1.runWith(Sink.fold(0) { _ + _.size })
+
+      "process chunks of at most 8192" in { implicit ee: EE =>
+        val flow = Flow.fromFunction[Array[Byte], ByteString](ByteString(_)).
+          via(Streams.consumeAtMost(Bytes(8192L)))
+
+        val folder = FoldAsync[Chunk, Int](0) { (a, chunk) =>
+          Future[Chunk] {
+            // Do something with the chunk
+            chunk
+          }.flatMap { chunk => Future.successful(a + chunk.size) }
+        }
+
+        def run = source1.runWith(
+          flow.via(folder).toMat(Sink.head) { (_, mat) => mat }
+        )
+
+        (for { ex <- expectedSize; sz <- run } yield ex -> sz).
+          aka("fold result") must beLike[(Int, Int)] {
+            case (expected, result) => result must_== expected
+          }.await(0, timeout)
+      }
+
+      "process chunks of at least 8192" in { implicit ee: EE =>
+        val flow = Flow.fromFunction[Array[Byte], ByteString](ByteString(_)).
+          via(Streams.consumeAtLeast(Bytes(8192L)))
+
+        val folder = FoldAsync[Chunk, Int](0) { (a, chunk) =>
+          Future[Chunk] {
+            // Do something with the chunk
+            chunk
+          }.flatMap { chunk => Future.successful(a + chunk.size) }
+        }
+
+        def run = source1.runWith(
+          flow.via(folder).toMat(Sink.head) { (_, mat) => mat }
+        )
+
+        (for { ex <- expectedSize; sz <- run } yield ex -> sz).
+          aka("fold result") must beLike[(Int, Int)] {
+            case (expected, result) => result must_== expected
+          }.await(0, timeout)
+      }
+    }
+  }
+
   // ---
 
-  type EE = org.specs2.concurrent.ExecutionEnv
+  def repeat[E](numberOfTimes: Int)(element: => E): Source[E, akka.NotUsed] =
+    Source.unfold(numberOfTimes) {
+      case remaining if remaining > 0 => Some((remaining - 1, element))
+      case _                          => None
+    }
 
   /**
    * @param count the number of chunks
