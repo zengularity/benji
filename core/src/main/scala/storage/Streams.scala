@@ -57,11 +57,13 @@ object Streams {
           def onPush(): Unit = {
             inbuf ++= grab(in)
 
-            val wasWaiting = downstreamWaiting
+            var hasPushed = false
 
             if (downstreamWaiting) outbuf.foreach { previous =>
               downstreamWaiting = false
               outbuf = None
+
+              hasPushed = true
 
               push(out, Chunk(previous))
             }
@@ -74,7 +76,7 @@ object Streams {
               inbuf ++= rem
             }
 
-            if (wasWaiting) pull(in)
+            if (!hasPushed) pull(in)
           }
 
           override def onUpstreamFinish(): Unit = {
@@ -96,7 +98,7 @@ object Streams {
           def onPull(): Unit = {
             downstreamWaiting = true
 
-            if (outbuf.isEmpty && !hasBeenPulled(in)) pull(in)
+            if ( /*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
           }
         })
       }
@@ -125,11 +127,13 @@ object Streams {
           def onPush(): Unit = {
             inbuf ++= grab(in)
 
-            val wasWaiting = downstreamWaiting
+            var hasPushed = false
 
             if (downstreamWaiting) outbuf.foreach { previous =>
               downstreamWaiting = false
               outbuf = None
+
+              hasPushed = true
 
               push(out, Chunk(previous))
             }
@@ -139,7 +143,7 @@ object Streams {
               inbuf.clear()
             }
 
-            if (wasWaiting) pull(in)
+            if (!hasPushed) pull(in)
           }
 
           override def onUpstreamFinish(): Unit = {
@@ -157,7 +161,7 @@ object Streams {
           def onPull(): Unit = {
             downstreamWaiting = true
 
-            if (outbuf.isEmpty && !hasBeenPulled(in)) pull(in)
+            if ( /*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
           }
         })
       }

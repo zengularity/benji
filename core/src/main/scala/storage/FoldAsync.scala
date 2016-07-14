@@ -60,7 +60,9 @@ class FoldAsync[In, Out](
       })
 
       setHandler(out, new OutHandler {
-        def onPull(): Unit = if (!hasBeenPulled(in)) pull(in)
+        def onPull(): Unit = {
+          if (!hasBeenPulled(in)) pull(in)
+        }
       })
     }
 }

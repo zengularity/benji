@@ -108,7 +108,9 @@ final class GoogleObjectRef private[google] (
     delete(ignoreMissing = false)
 
   private def delete(ignoreMissing: Boolean)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = exists.flatMap {
-    case true                 => Future { gt.client.objects().delete(bucket, name).execute() }
+    case true => Future {
+      gt.client.objects().delete(bucket, name).execute()
+    }
 
     case _ if (ignoreMissing) => Future.successful({})
 
