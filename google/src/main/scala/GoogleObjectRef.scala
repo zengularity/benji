@@ -338,6 +338,8 @@ final class GoogleObjectRef private[google] (
 
     case _ => Future.failed[String](new scala.RuntimeException(s"missing upload range: ${response.status} - ${response.statusText}: ${response.allHeaders}"))
   }
+
+  override lazy val toString = s"GoogleObjectRef($bucket, $name)"
 }
 
 object GoogleObjectRef {

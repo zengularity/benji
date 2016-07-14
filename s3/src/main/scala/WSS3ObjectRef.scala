@@ -334,4 +334,6 @@ final class WSS3ObjectRef private[s3] (
   }
 
   @inline private def withContentTypeHeader(req: WSRequest, contentType: Option[String]): WSRequest = contentType.fold(req)(c => req.withHeaders("Content-Type" -> c))
+
+  override lazy val toString = s"WSS3ObjectRef($bucket, $name)"
 }

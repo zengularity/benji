@@ -113,7 +113,7 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
    *
    * @param targetBucketName $targetBucketNameParam
    * @param targetObjectName $targetObjectNameParam
-   * @param preventOverwrite $preventOverwrite
+   * @param preventOverwrite $preventOverwriteParam
    * @param tr $transportParam
    */
   def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, tr: Transport): Future[Unit]

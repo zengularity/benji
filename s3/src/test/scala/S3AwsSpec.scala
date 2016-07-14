@@ -43,7 +43,10 @@ sealed trait AwsTests { specs: Specification =>
       implicit ee: EE =>
         val bucket = s3f.bucket(bucketName)
 
-        bucket.exists must beFalse.await(1, 10.seconds)
+        bucket.toString.
+          aka("string representation") must_== s"WSS3BucketRef($bucketName)" and (
+            bucket.exists must beFalse.await(1, 10.seconds)
+          )
     }
 
     s"Creating bucket $bucketName and get a list of all buckets" in withMatEx {
@@ -75,9 +78,13 @@ sealed trait AwsTests { specs: Specification =>
       }
       val body = List.fill(1000)("hello world !!!").mkString(" ").getBytes
 
-      (repeat(20)(body) runWith upload).
-        flatMap(sz => filetest.exists.map(sz -> _)).
-        aka("exists") must beEqualTo(319980 -> true).await(1, 10.seconds)
+      filetest.toString must beEqualTo(
+        s"WSS3ObjectRef($bucketName, testfile.txt)"
+      ) and {
+          (repeat(20)(body) runWith upload).
+            flatMap(sz => filetest.exists.map(sz -> _)).
+            aka("exists") must beEqualTo(319980 -> true).await(1, 10.seconds)
+        }
     }
 
     s"Get contents of $bucketName bucket after first upload" in withMatEx {

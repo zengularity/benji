@@ -71,4 +71,6 @@ final class GoogleBucketRef private[google] (
 
   def obj(objectName: String): GoogleObjectRef =
     new GoogleObjectRef(storage, name, objectName)
+
+  override lazy val toString = s"GoogleBucketRef($name)"
 }

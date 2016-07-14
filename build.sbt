@@ -3,7 +3,7 @@ import Dependencies._
 
 organization in ThisBuild := "com.zengularity"
 
-version in ThisBuild := "1.3.0-SNAPSHOT"
+version in ThisBuild := "1.3.1-SNAPSHOT"
 
 scalaVersion in ThisBuild := "2.11.8"
 
@@ -31,6 +31,14 @@ lazy val google = project.in(file("google")).
       "com.google.apis" % "google-api-services-storage" % "v1-rev68-1.21.0")
   ).dependsOn(core)
 
+lazy val vfs = project.in(file("vfs")).
+  settings(Common.settings: _*).settings(
+    name := "cabinet-vfs",
+    libraryDependencies ++= Seq(
+      "org.apache.commons" % "commons-vfs2" % "2.1",
+      "commons-io" % "commons-io" % "2.4" % Test)
+  ).dependsOn(core)
+
 lazy val cabinet = (project in file(".")).
   settings(unidocSettings: _*).
   settings(
@@ -38,8 +46,8 @@ lazy val cabinet = (project in file(".")).
     scalacOptions ++= Seq("-Ywarn-unused-import", "-unchecked"),
     scalacOptions in (Compile, doc) ++= List(
       "-skip-packages", "highlightextractor")).
-  dependsOn(s3, google).
-  aggregate(core, s3, google)
+  dependsOn(s3, google, vfs).
+  aggregate(core, s3, google, vfs)
 
 publishTo in ThisBuild := Some {
   import Resolver.mavenStylePatterns
