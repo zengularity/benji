@@ -2,6 +2,8 @@ import sbt.Keys._
 import sbt._
 import sbt.plugins.JvmPlugin
 
+// See http://github.com/cchantep/sbt-hl-compiler/
+
 // !! 1 doc file = n sample in 1 package (with package object)
 // highlightStartToken [in ThisBuild] := "..." // default "```scala"
 // highlightEndToken [in ThisBuild] := "..." // default "```"

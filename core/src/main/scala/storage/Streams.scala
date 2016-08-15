@@ -37,13 +37,14 @@ object Streams {
   private class ChunkOfAtMost(limit: Int)
       extends GraphStage[FlowShape[ByteString, Chunk]] {
 
-    val in = Inlet[ByteString]("ChunkOfAtMost.in")
-    val out = Outlet[Chunk]("ChunkOfAtMost.out")
+    override val toString = "ChunkOfAtMost"
+    val in = Inlet[ByteString](s"${toString}.in")
+    val out = Outlet[Chunk](s"${toString}.out")
 
     val shape = FlowShape.of(in, out)
 
     def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
-      new GraphStageLogic(shape) {
+      new GraphStageLogic(shape) with InHandler with OutHandler {
         private val inbuf = new ByteStringBuilder()
         private var outbuf = Option.empty[ByteString]
         private var downstreamWaiting = false
@@ -53,67 +54,68 @@ object Streams {
           super.preStart()
         }
 
-        setHandler(in, new InHandler {
-          def onPush(): Unit = {
-            inbuf ++= grab(in)
+        def onPush(): Unit = {
+          inbuf ++= grab(in)
 
-            var hasPushed = false
+          var hasPushed = false
 
-            if (downstreamWaiting) outbuf.foreach { previous =>
-              downstreamWaiting = false
-              outbuf = None
+          if (downstreamWaiting) outbuf.foreach { previous =>
+            downstreamWaiting = false
+            outbuf = None
 
-              hasPushed = true
+            hasPushed = true
 
-              push(out, Chunk(previous))
-            }
-
-            if (outbuf.isEmpty && inbuf.length >= limit) {
-              val (chunk, rem) = inbuf.result().splitAt(limit)
-              outbuf = Some(chunk)
-
-              inbuf.clear()
-              inbuf ++= rem
-            }
-
-            if (!hasPushed) pull(in)
+            push(out, Chunk(previous))
           }
 
-          override def onUpstreamFinish(): Unit = {
-            val rem = outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
+          if (outbuf.isEmpty && inbuf.length >= limit) {
+            val (chunk, rem) = inbuf.result().splitAt(limit)
+            outbuf = Some(chunk)
 
-            if (rem.nonEmpty) { // Emit the remaining/last chunk(s)
-              if (rem.size <= limit) {
-                emit(out, Chunk.last(rem))
-              } else rem.splitAt(limit) match {
-                case (a, b) => emitMultiple(out, List(Chunk(a), Chunk.last(b)))
-              }
+            inbuf.clear()
+            inbuf ++= rem
+          }
+
+          if (!hasPushed) pull(in)
+        }
+
+        override def onUpstreamFinish(): Unit = {
+          val rem = outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
+
+          if (rem.nonEmpty) { // Emit the remaining/last chunk(s)
+            if (rem.size <= limit) {
+              emit(out, Chunk.last(rem))
+            } else rem.splitAt(limit) match {
+              case (a, b) => emitMultiple(out, List(Chunk(a), Chunk.last(b)))
             }
-
-            completeStage()
           }
-        })
 
-        setHandler(out, new OutHandler {
-          def onPull(): Unit = {
-            downstreamWaiting = true
+          completeStage()
+        }
 
-            if ( /*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
-          }
-        })
+        def onPull(): Unit = {
+          downstreamWaiting = true
+
+          if ( /*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
+        }
+
+        setHandlers(in, out, this)
+
+        override val toString = "ChunkOfAtMost.Logic"
       }
   }
 
   private class ChunkOfAtLeast(limit: Int)
       extends GraphStage[FlowShape[ByteString, Chunk]] {
 
-    val in = Inlet[ByteString]("ChunkOfAtLeast.in")
-    val out = Outlet[Chunk]("ChunkOfAtLeast.out")
+    override val toString = "ChunkOfAtLeast"
+    val in = Inlet[ByteString](s"${toString}.in")
+    val out = Outlet[Chunk](s"${toString}.out")
 
     val shape = FlowShape.of(in, out)
 
     def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
-      new GraphStageLogic(shape) {
+      new GraphStageLogic(shape) with InHandler with OutHandler {
         private val inbuf = new ByteStringBuilder()
         private var outbuf = Option.empty[ByteString]
         private var downstreamWaiting = false
@@ -123,47 +125,47 @@ object Streams {
           super.preStart()
         }
 
-        setHandler(in, new InHandler {
-          def onPush(): Unit = {
-            inbuf ++= grab(in)
+        def onPush(): Unit = {
+          inbuf ++= grab(in)
 
-            var hasPushed = false
+          var hasPushed = false
 
-            if (downstreamWaiting) outbuf.foreach { previous =>
-              downstreamWaiting = false
-              outbuf = None
+          if (downstreamWaiting) outbuf.foreach { previous =>
+            downstreamWaiting = false
+            outbuf = None
 
-              hasPushed = true
+            hasPushed = true
 
-              push(out, Chunk(previous))
-            }
-
-            if (outbuf.isEmpty && inbuf.length >= limit) {
-              outbuf = Some(inbuf.result())
-              inbuf.clear()
-            }
-
-            if (!hasPushed) pull(in)
+            push(out, Chunk(previous))
           }
 
-          override def onUpstreamFinish(): Unit = {
-            val rem = outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
-
-            if (rem.nonEmpty) { // Emit the remaining/last chunk(s)
-              emit(out, Chunk.last(rem))
-            }
-
-            completeStage()
+          if (outbuf.isEmpty && inbuf.length >= limit) {
+            outbuf = Some(inbuf.result())
+            inbuf.clear()
           }
-        })
 
-        setHandler(out, new OutHandler {
-          def onPull(): Unit = {
-            downstreamWaiting = true
+          if (!hasPushed) pull(in)
+        }
 
-            if ( /*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
+        override def onUpstreamFinish(): Unit = {
+          val rem = outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
+
+          if (rem.nonEmpty) { // Emit the remaining/last chunk(s)
+            emit(out, Chunk.last(rem))
           }
-        })
+
+          completeStage()
+        }
+
+        def onPull(): Unit = {
+          downstreamWaiting = true
+
+          if ( /*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
+        }
+
+        setHandlers(in, out, this)
+
+        override val toString = "ChunkOfAtLeast.Logic"
       }
   }
 }

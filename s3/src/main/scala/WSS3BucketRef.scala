@@ -84,4 +84,6 @@ final class WSS3BucketRef private[s3] (
 
   def obj(objectName: String): WSS3ObjectRef =
     new WSS3ObjectRef(storage, name, objectName)
+
+  override val toString = s"WSS3BucketRef($name)"
 }

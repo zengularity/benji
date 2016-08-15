@@ -1,5 +1,9 @@
 # Changelog
 
+## Release 1.3.1
+
+New VFS module
+
 ## Release 1.3.0
 
 Akka Stream migration (see Play [Migration guide](https://www.playframework.com/documentation/2.5.x/StreamsMigration25)).

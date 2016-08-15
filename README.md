@@ -14,6 +14,7 @@ According your Object Storage, the following modules are available.
 
 - [S3](./s3/README.md) for Amazon (or compliant Object Storage, like CEPH).
 - [Google Cloud Storage](./google/README.md).
+- [Apache VFS](./vfs/README.md)
 
 These modules can be configured as dependencies in your `build.sbt` (or `project/Build.scala`):
 
