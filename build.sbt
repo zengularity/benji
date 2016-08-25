@@ -3,7 +3,7 @@ import Dependencies._
 
 organization in ThisBuild := "com.zengularity"
 
-version in ThisBuild := "1.3.1-SNAPSHOT"
+version in ThisBuild := "1.3.2-SNAPSHOT"
 
 scalaVersion in ThisBuild := "2.11.8"
 
@@ -11,7 +11,9 @@ resolvers ++= Seq(
   // For Akka Stream TestKit 'tests' (see akka/akka#21028)
   "Tatami Releases" at "https://raw.github.com/cchantep/tatami/master/releases")
 
-def akkaStreamTestKit = "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.8"
+val akkaVer = "2.4.9"
+
+def akkaStreamTestKit = "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer
 
 lazy val core = project.in(file("core")).
   settings(Common.settings: _*).settings(

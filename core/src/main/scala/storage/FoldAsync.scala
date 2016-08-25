@@ -18,7 +18,7 @@ import akka.stream.stage.{
 }
 
 final class FoldAsync[In, Out](
-  z: Out, f: (Out, In) => Future[Out]
+  zero: Out, f: (Out, In) => Future[Out]
 )(implicit ec: ExecutionContext)
     extends GraphStage[FlowShape[In, Out]] {
 
@@ -33,39 +33,42 @@ final class FoldAsync[In, Out](
       val decider = inheritedAttributes.get[SupervisionStrategy].
         map(_.decider).getOrElse(Supervision.stoppingDecider)
 
-      private var inFlight = 0
+      private var aggregator: Out = zero
+      private var aggregating: Future[Out] = Future.successful(aggregator)
 
-      private var aggregated: Out = z
-      private var aggregating: Future[Out] = Future.successful(aggregated)
-
-      private def onResume(t: Throwable): Unit = {
-        aggregated = z
+      private def onRestart(t: Throwable): Unit = {
+        aggregator = zero
       }
 
-      private val futureCB = getAsyncCallback[Try[Out]]((result: Try[Out]) ⇒ {
-        inFlight -= 1
-
+      private val futureCB = getAsyncCallback[Try[Out]]((result: Try[Out]) => {
         result match {
-          case Success(update) if update != null ⇒ {
-            aggregated = update
+          case Success(update) if update != null => {
+            aggregator = update
 
-            if (isAvailable(out) && !hasBeenPulled(in)) tryPull(in)
+            if (isClosed(in)) {
+              push(out, update)
+              completeStage()
+            } else if (isAvailable(out) && !hasBeenPulled(in)) tryPull(in)
           }
 
-          case other ⇒ {
+          case other => {
             val ex = other match {
-              case Failure(t) ⇒ t
-              case Success(s) if s == null ⇒
+              case Failure(t) => t
+              case Success(s) if s == null =>
                 throw new IllegalArgumentException(
                   "Stream element must not be null"
                 )
             }
+            val supervision = decider(ex)
 
-            if (decider(ex) == Supervision.Stop) failStage(ex)
-            else if (isClosed(in) && inFlight == 0) completeStage()
-            else if (!hasBeenPulled(in)) {
-              onResume(ex)
-              tryPull(in)
+            if (supervision == Supervision.Stop) failStage(ex)
+            else {
+              if (supervision == Supervision.Restart) onRestart(ex)
+
+              if (isClosed(in)) {
+                push(out, aggregator)
+                completeStage()
+              } else if (isAvailable(out) && !hasBeenPulled(in)) tryPull(in)
             }
           }
         }
@@ -73,54 +76,35 @@ final class FoldAsync[In, Out](
 
       def onPush(): Unit = {
         try {
-          aggregating = f(aggregated, grab(in))
-          inFlight += 1
+          aggregating = f(aggregator, grab(in))
 
           aggregating.value match {
             case Some(result) => futureCB(result) // already completed
             case _            => aggregating.onComplete(futureCB)(ec)
           }
         } catch {
-          case NonFatal(ex) ⇒ decider(ex) match {
+          case NonFatal(ex) => decider(ex) match {
             case Supervision.Stop => failStage(ex)
-            case _                => onResume(ex) // Resume or Restart
+            case supervision => {
+              supervision match {
+                case Supervision.Restart => onRestart(ex)
+                case _                   => () // just ignore on Resume
+              }
+
+              tryPull(in)
+            }
           }
         }
-
-        if (inFlight < 1) tryPull(in)
       }
 
-      override def onUpstreamFinish(): Unit = {
-        def watchTermination = getAsyncCallback[Try[Out]]((result: Try[Out]) ⇒ {
-          result match {
-            case Failure(ex) => {
-              if (decider(ex) == Supervision.Stop) failStage(ex)
-              else {
-                emit(out, z)
-                completeStage()
-              }
-            }
+      override def onUpstreamFinish(): Unit = {}
 
-            case Success(folded) => {
-              emit(out, folded)
-              completeStage()
-            }
-          }
-        }).invoke _
-
-        if (inFlight == 0) completeStage()
-        else aggregating.onComplete(watchTermination)(ec)
-      }
-
-      def onPull(): Unit = {
-        if (isClosed(in) && inFlight == 0) completeStage()
-
-        if (!hasBeenPulled(in)) tryPull(in)
-      }
+      def onPull(): Unit = if (!hasBeenPulled(in)) tryPull(in)
 
       setHandlers(in, out, this)
 
-      override def toString = s"FoldAsync.Logic(inFlight=$inFlight)"
+      override def toString =
+        s"FoldAsync.Logic(completed=${aggregating.isCompleted})"
     }
 }
 
