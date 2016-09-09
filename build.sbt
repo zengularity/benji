@@ -1,19 +1,15 @@
 import sbtunidoc.Plugin.UnidocKeys._
-import Dependencies._
+import Common._
 
 organization in ThisBuild := "com.zengularity"
 
-version in ThisBuild := "1.3.2-SNAPSHOT"
+version in ThisBuild := "1.3.3-SNAPSHOT"
 
 scalaVersion in ThisBuild := "2.11.8"
 
-resolvers ++= Seq(
-  // For Akka Stream TestKit 'tests' (see akka/akka#21028)
-  "Tatami Releases" at "https://raw.github.com/cchantep/tatami/master/releases")
-
-val akkaVer = "2.4.9"
-
-def akkaStreamTestKit = "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer
+resolvers in ThisBuild ++= Seq(
+  // For Akka Stream Contrib TestKit
+  "Tatami Releases" at "https://raw.github.com/cchantep/tatami/master/snapshots")
 
 lazy val core = project.in(file("core")).
   settings(Common.settings: _*).settings(
@@ -22,9 +18,7 @@ lazy val core = project.in(file("core")).
       "joda-time" % "joda-time" % "2.9.3",
       "commons-codec" % "commons-codec" % "1.10",
       "org.slf4j" % "slf4j-api" % "1.7.21" % "provided"
-    ),
-    libraryDependencies ++= Seq(
-      akkaStreamTestKit.classifier("tests") % Test)
+    )
   )
 
 lazy val s3 = project.in(file("s3")).
@@ -52,7 +46,7 @@ lazy val vfs = project.in(file("vfs")).
 lazy val cabinet = (project in file(".")).
   settings(unidocSettings: _*).
   settings(
-    libraryDependencies += playWS % "provided",
+    libraryDependencies ++= wsStream,
     scalacOptions ++= Seq("-Ywarn-unused-import", "-unchecked"),
     scalacOptions in (Compile, doc) ++= List(
       "-skip-packages", "highlightextractor")).

@@ -1,0 +1,12 @@
+<FindBugsFilter>
+  <Match>
+    <Class name="com.zengularity.s3.SignatureCalculator" />
+    <Bug pattern="NM_SAME_SIMPLE_NAME_AS_INTERFACE" />
+  </Match>
+
+  <Match>
+    <Class name="com.zengularity.s3.WSS3ObjectRef" />
+    <Field name="toString" />
+    <Bug pattern="IS2_INCONSISTENT_SYNC" />
+  </Match>
+</FindBugsFilter>

@@ -16,7 +16,6 @@ import com.zengularity.storage.{
   Chunk,
   Bytes,
   ByteRange,
-  FoldAsync,
   ObjectRef,
   Streams
 }
@@ -238,19 +237,20 @@ final class WSS3ObjectRef private[s3] (
 
     @inline def zst = (Option.empty[String], List.empty[String], z)
 
-    FoldAsync[(Chunk, String), (Option[String], List[String], A)](zst) {
-      case ((_, etags, st), (chunk, id)) => for {
-        etag <- uploadPart(chunk.data, contentType, etags.size + 1, id)
-        nst <- f(st, chunk)
-      } yield (Some(id), (etag :: etags), nst)
-    }.mapAsync[A](1) {
-      case (Some(id), etags, res) =>
-        completeUpload(etags.reverse, id).map(_ => res)
+    Flow.apply[(Chunk, String)].
+      foldAsync[(Option[String], List[String], A)](zst) {
+        case ((_, etags, st), (chunk, id)) => for {
+          etag <- uploadPart(chunk.data, contentType, etags.size + 1, id)
+          nst <- f(st, chunk)
+        } yield (Some(id), (etag :: etags), nst)
+      }.mapAsync[A](1) {
+        case (Some(id), etags, res) =>
+          completeUpload(etags.reverse, id).map(_ => res)
 
-      case st => Future.failed[A](
-        new IllegalStateException(s"invalid upload state: $st")
-      )
-    }
+        case st => Future.failed[A](
+          new IllegalStateException(s"invalid upload state: $st")
+        )
+      }
   }
 
   /**

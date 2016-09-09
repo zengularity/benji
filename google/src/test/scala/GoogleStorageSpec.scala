@@ -7,6 +7,7 @@ import scala.collection.immutable.Seq
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
+import akka.stream.contrib.TestKit.assertAllStagesStopped
 
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 import org.specs2.matcher.MatchResult
@@ -40,7 +41,7 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
       )
     }
 
-    "Create buckets and files" in { implicit ee: EE =>
+    "Create buckets and files" in assertAllStagesStopped { implicit ee: EE =>
       val name = s"cabinet-test-${System identityHashCode google}"
       val objects = for {
         _ <- google.bucket(name).create()
@@ -119,36 +120,38 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
         } and (bucket.exists aka "exists #3" must beFalse.await(1, 10.seconds))
     }
 
-    "Get content of a file" in { implicit ee: EE =>
+    "Get content of a file" in assertAllStagesStopped { implicit ee: EE =>
       val objRef = google.bucket(bucketName).obj("testfile.txt")
 
       objRef.toString must beEqualTo(
         s"GoogleObjectRef($bucketName, testfile.txt)"
       ) and {
           objRef.get must beLike[objRef.GoogleGetRequest] {
-            case req => (req() runWith consume) aka "content" must beLike[String] {
-              case resp => resp.isEmpty must beFalse and (
-                resp.startsWith(fileStart) must beTrue
-              )
-            }.await(1, 10.seconds)
+            case req =>
+              (req() runWith consume) aka "content" must beLike[String] {
+                case resp => resp.isEmpty must beFalse and (
+                  resp.startsWith(fileStart) must beTrue
+                )
+              }.await(1, 10.seconds)
           }
         }
     }
 
-    "Get partial content of a file" in { implicit ee: EE =>
-      (google.bucket(bucketName).obj("testfile.txt").
-        get(range = Some(ByteRange(4, 9))) runWith consume).
-        aka("partial content") must beEqualTo("o worl").await(1, 10.seconds)
+    "Get partial content of a file" in assertAllStagesStopped {
+      implicit ee: EE =>
+        (google.bucket(bucketName).obj("testfile.txt").
+          get(range = Some(ByteRange(4, 9))) runWith consume).
+          aka("partial content") must beEqualTo("o worl").await(1, 10.seconds)
     }
 
-    "Fail to get contents of a non-existing file" in { implicit ee: EE =>
+    "Fail to get contents of a non-existing file" in assertAllStagesStopped { implicit ee: EE =>
       google.bucket(bucketName).obj("test-folder/DoesNotExist.txt").
         get() runWith consume must throwA[IllegalStateException].like({
           case e => e.getMessage must startWith(s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
         }).await(1, 10.seconds)
     }
 
-    "Write and copy files (w/o GZip compression)" in { implicit ee: EE =>
+    "Write and copy files (w/o GZip compression)" in assertAllStagesStopped { implicit ee: EE =>
       val woGzip = google.withDisabledGZip(true)
       val file1 = woGzip.bucket(bucketName).obj("testfile1.txt")
       val file2 = woGzip.bucket(bucketName).obj("testfile2.txt")
@@ -171,7 +174,7 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
       }
     }
 
-    "Write and delete file" in { implicit ee: EE =>
+    "Write and delete file" in assertAllStagesStopped { implicit ee: EE =>
       val file = google.bucket(bucketName).obj("removable.txt")
 
       file.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
@@ -244,19 +247,20 @@ class GoogleStorageSpec extends org.specs2.mutable.Specification {
         { repeat(20) { body } runWith write }.map(_ => target)
       }
 
-      "if prevent overwrite when target doesn't exist" in {
+      "if prevent overwrite when target doesn't exist" in assertAllStagesStopped { implicit ee: EE =>
+        moveSpec(
+          Future.successful(google.bucket(bucketName).obj("testfile4.txt"))
+        )(successful)
+      }
+
+      "if prevent overwrite when target exists" in assertAllStagesStopped {
         implicit ee: EE =>
-          moveSpec(
-            Future.successful(google.bucket(bucketName).obj("testfile4.txt"))
-          )(successful)
+          moveSpec(existingTarget)(failed)
       }
 
-      "if prevent overwrite when target exists" in { implicit ee: EE =>
-        moveSpec(existingTarget)(failed)
-      }
-
-      "if overwrite when target exists" in { implicit ee: EE =>
-        moveSpec(existingTarget, preventOverwrite = false)(successful)
+      "if overwrite when target exists" in assertAllStagesStopped {
+        implicit ee: EE =>
+          moveSpec(existingTarget, preventOverwrite = false)(successful)
       }
     }
   }

@@ -6,6 +6,7 @@ import scala.concurrent.duration.Duration
 import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
+import akka.stream.contrib.TestKit
 
 import com.zengularity.ws.{ WS => TestWS }
 import com.zengularity.s3.S3
@@ -48,7 +49,7 @@ object TestUtils {
   implicit lazy val WS: play.api.libs.ws.WSClient =
     TestWS.client()(materializer)
 
-  def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
+  def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = TestKit.assertAllStagesStopped(f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext)))
 
   def consume(implicit m: Materializer): Sink[ByteString, Future[String]] = {
     implicit def ec: ExecutionContext = m.executionContext

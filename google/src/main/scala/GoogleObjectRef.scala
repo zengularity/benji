@@ -19,7 +19,6 @@ import com.zengularity.storage.{
   Bytes,
   ByteRange,
   Chunk,
-  FoldAsync,
   ObjectRef,
   Streams
 }
@@ -213,36 +212,37 @@ final class GoogleObjectRef private[google] (
 
     @inline def zst = (Option.empty[String], 0L, firstChunk, z)
 
-    FoldAsync[(Chunk, String), (Option[String], Long, Chunk, A)](zst) {
-      case ((_, offset, prev, st), (chunk, url)) =>
-        uploadPart(url, prev.data, offset, contentType).flatMap { _ =>
-          chunk match {
-            case last @ Chunk.Last(data) => f(st, prev).flatMap { tmp =>
-              val off = offset + prev.size
-              val sz = off + data.size.toLong
+    Flow.apply[(Chunk, String)].
+      foldAsync[(Option[String], Long, Chunk, A)](zst) {
+        case ((_, offset, prev, st), (chunk, url)) =>
+          uploadPart(url, prev.data, offset, contentType).flatMap { _ =>
+            chunk match {
+              case last @ Chunk.Last(data) => f(st, prev).flatMap { tmp =>
+                val off = offset + prev.size
+                val sz = off + data.size.toLong
 
-              for {
-                _ <- uploadPart(url, data, off, contentType, Some(sz))
-                nst <- f(tmp, last)
-              } yield (Some(url), sz, Chunk.last(ByteString.empty), nst)
-            }
+                for {
+                  _ <- uploadPart(url, data, off, contentType, Some(sz))
+                  nst <- f(tmp, last)
+                } yield (Some(url), sz, Chunk.last(ByteString.empty), nst)
+              }
 
-            case ne @ Chunk.NonEmpty(_) => f(st, prev).map { nst =>
-              (Some(url), (offset + prev.size), ne, nst)
-            }
+              case ne @ Chunk.NonEmpty(_) => f(st, prev).map { nst =>
+                (Some(url), (offset + prev.size), ne, nst)
+              }
 
-            case _ => f(st, prev).map {
-              (Some(url), offset, Chunk.last(ByteString.empty), _)
+              case _ => f(st, prev).map {
+                (Some(url), offset, Chunk.last(ByteString.empty), _)
+              }
             }
           }
-        }
-    }.mapAsync[A](1) {
-      case (Some(_), _, _, res) => Future.successful(res)
+      }.mapAsync[A](1) {
+        case (Some(_), _, _, res) => Future.successful(res)
 
-      case st => Future.failed[A](
-        new IllegalStateException(s"invalid upload state: $st")
-      )
-    }
+        case st => Future.failed[A](
+          new IllegalStateException(s"invalid upload state: $st")
+        )
+      }
   }
 
   /**

@@ -1,0 +1,7 @@
+<FindBugsFilter>
+  <Match>
+    <Class name="~com\.zengularity\.google\.(GoogleBucketRef|GoogleObjectRef)" />
+    <Field name="toString" />
+    <Bug pattern="IS2_INCONSISTENT_SYNC" />
+  </Match>
+</FindBugsFilter>
