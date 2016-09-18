@@ -2,14 +2,50 @@ import sbt.Keys._
 import sbt._
 
 object Common {
+  val akkaVer = "2.4.10"
+
   val settings = Seq(
     scalacOptions ++= Seq("-Ywarn-unused-import", "-unchecked"),
     autoAPIMappings := true,
-    libraryDependencies ++= Seq(Dependencies.playWS % "provided") ++ Seq(
+    libraryDependencies ++= wsStream ++ Seq(
       "specs2-core", "specs2-junit").map(
-      "org.specs2" %% _ % "3.7.3" % Test)
-  ) ++ Format.settings
+      "org.specs2" %% _ % "3.7.3" % Test) ++ Seq(
+      "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer,
+        "com.typesafe.akka" %% "akka-stream-contrib" % "0.3-9-gaeac7b2"
+    ).map(_ % Test)
+  ) ++ Format.settings ++ Findbugs.settings
 
+  val wsStream = Seq(
+    Dependencies.playWS % "provided",
+    "com.typesafe.akka" %% "akka-stream" % akkaVer % "provided")
+
+}
+
+object Findbugs {
+  import scala.xml.{ NodeSeq, XML }, XML.{ loadFile => loadXML }
+
+  import de.johoop.findbugs4sbt.{ FindBugs, ReportType }, FindBugs.{
+    findbugsExcludeFilters, findbugsReportPath, findbugsReportType,
+    findbugsSettings
+  }
+
+  val settings = findbugsSettings ++ Seq(
+    findbugsReportType := Some(ReportType.PlainHtml),
+    findbugsReportPath := Some(target.value / "findbugs.html"),
+    findbugsExcludeFilters := {
+      val commonFilters = loadXML(baseDirectory.value / ".." / "project" / (
+        "findbugs-exclude-filters.xml"))
+
+      val filters = {
+        val f = baseDirectory.value / "findbugs-exclude-filters.xml"
+        if (!f.exists) NodeSeq.Empty else loadXML(f).child
+      }
+
+      Some(
+        <FindBugsFilter>${commonFilters.child}${filters}</FindBugsFilter>
+      )
+    }
+  )
 }
 
 object Format {
@@ -38,5 +74,5 @@ object Format {
 }  
 
 object Dependencies {
-  val playWS = "com.typesafe.play" %% "play-ws" % "2.5.4"
+  val playWS = "com.typesafe.play" %% "play-ws" % "2.5.6"
 }

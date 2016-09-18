@@ -18,7 +18,6 @@ import com.zengularity.storage.{
   Bytes,
   ByteRange,
   Chunk,
-  FoldAsync,
   ObjectRef,
   Streams
 }
@@ -77,7 +76,7 @@ final class VFSObjectRef private[vfs] (
 
       Flow.fromFunction[E, ByteString](w.transform(_)).
         via(Streams.consumeAtMost(threshold)).
-        via(FoldAsync[Chunk, A](z) { (a, chunk) =>
+        via(Flow.apply[Chunk].foldAsync[A](z) { (a, chunk) =>
           Future[Chunk] {
             st.write(chunk.data.toArray)
             st.flush()

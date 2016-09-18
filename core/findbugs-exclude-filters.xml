@@ -1,0 +1,12 @@
+<FindBugsFilter>
+  <Match>
+    <Class name="~com\.zengularity\.storage\.Chunk\$(Last|NonEmpty)" />
+    <Field name="toString" />
+    <Bug pattern="IS2_INCONSISTENT_SYNC" />
+  </Match>
+
+  <Match>
+    <Class name="com.zengularity.storage.Bytes" />
+    <Bug pattern="EQ_UNUSUAL" /><!-- Value class -->
+  </Match>
+</FindBugsFilter>

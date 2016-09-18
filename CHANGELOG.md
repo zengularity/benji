@@ -1,5 +1,10 @@
 # Changelog
 
+## Release 1.3.4
+
+- Upgrade to Akka Stream 2.4.10 (with the provided `Flow.foldAsync`).
+- Apply the Akka Stream TestKit in the tests.
+
 ## Release 1.3.1
 
 New VFS module
