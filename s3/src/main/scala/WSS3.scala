@@ -32,9 +32,8 @@ object WSS3StoragePack extends StoragePack {
  * @define contentTypeParam the MIME type of content
  */
 class WSS3(
-    requestBuilder: WSRequestBuilder,
-    val requestTimeout: Option[Long] = None
-) extends ObjectStorage[WSS3] { self =>
+  requestBuilder: WSRequestBuilder,
+  val requestTimeout: Option[Long] = None) extends ObjectStorage[WSS3] { self =>
   import scala.concurrent.duration._
 
   type Pack = WSS3StoragePack.type
@@ -59,8 +58,7 @@ class WSS3(
       Source(buckets.map { bucket =>
         Bucket(
           name = (bucket \ "Name").text,
-          creationTime = DateTime.parse((bucket \ "CreationDate").text)
-        )
+          creationTime = DateTime.parse((bucket \ "CreationDate").text))
       })
     }, { response => s"Could not get a list of all buckets. Response: ${response.status} - $response" })
 
@@ -108,12 +106,10 @@ object S3 {
             fold(StringBuilder.newBuilder) { _ ++= _.utf8String }.
             flatMapConcat { buf =>
               f(scala.xml.XML.loadString(buf.result()))
-            }
-        )
+            })
 
         case _ => Future.failed[Source[T, NotUsed]](
-          new IllegalStateException(err(response))
-        )
+          new IllegalStateException(err(response)))
       }
     }).flatMapConcat(identity)
   }

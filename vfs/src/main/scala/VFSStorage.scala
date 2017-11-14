@@ -22,7 +22,7 @@ import com.zengularity.storage.{ Bucket, ObjectStorage }
  * @param requestTimeout the optional timeout for the prepared requests
  */
 class VFSStorage(val requestTimeout: Option[Long])
-    extends ObjectStorage[VFSStorage] { self =>
+  extends ObjectStorage[VFSStorage] { self =>
 
   type Pack = VFSStoragePack.type
   type ObjectRef = VFSObjectRef
@@ -45,8 +45,7 @@ class VFSStorage(val requestTimeout: Option[Long])
           if (items.isEmpty) Iterator.empty
           else items.filter(!_.getName.getBaseName.isEmpty).map { b =>
             Bucket(b.getName.getBaseName, new DateTime(
-              b.getContent.getLastModifiedTime
-            ))
+              b.getContent.getLastModifiedTime))
           }.iterator
         }
       }).flatMapMerge(1, identity)

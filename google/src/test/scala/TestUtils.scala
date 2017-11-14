@@ -50,8 +50,7 @@ object TestUtils {
     GoogleTransport(
       googleCredential,
       config.getString("google.storage.projectId"),
-      s"cabinet-tests-${System identityHashCode this}"
-    )
+      s"cabinet-tests-${System identityHashCode this}")
 
   lazy val google = GoogleStorage()
 

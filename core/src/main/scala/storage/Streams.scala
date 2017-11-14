@@ -35,7 +35,7 @@ object Streams {
   }
 
   private class ChunkOfAtMost(limit: Int)
-      extends GraphStage[FlowShape[ByteString, Chunk]] {
+    extends GraphStage[FlowShape[ByteString, Chunk]] {
 
     override val toString = "ChunkOfAtMost"
     val in = Inlet[ByteString](s"${toString}.in")
@@ -106,7 +106,7 @@ object Streams {
   }
 
   private class ChunkOfAtLeast(limit: Int)
-      extends GraphStage[FlowShape[ByteString, Chunk]] {
+    extends GraphStage[FlowShape[ByteString, Chunk]] {
 
     override val toString = "ChunkOfAtLeast"
     val in = Inlet[ByteString](s"${toString}.in")

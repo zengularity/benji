@@ -21,11 +21,9 @@ import com.zengularity.storage.{
 }
 
 final class WSS3ObjectRef private[s3] (
-    val storage: WSS3,
-    val bucket: String,
-    val name: String,
-    val headers: List[(String, String)] = Nil
-) extends ObjectRef[WSS3] { ref =>
+  val storage: WSS3,
+  val bucket: String,
+  val name: String) extends ObjectRef[WSS3] { ref =>
 
   /** The maximum number of part (10,000) for a multipart upload to S3/AWS. */
   val defaultMaxPart = 10000
@@ -50,21 +48,32 @@ final class WSS3ObjectRef private[s3] (
       implicit def ec: ExecutionContext = m.executionContext
 
       def req = storage.request(
-        Some(bucket), Some(name), requestTimeout = requestTimeout
-      )
+        Some(bucket), Some(name), requestTimeout = requestTimeout)
 
       Source.fromFuture(range.fold(req)(r => req.withHeaders(
-        "Range" -> s"bytes=${r.start}-${r.end}"
-      )).withMethod("GET").stream().flatMap {
+        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap {
         case StreamedResponse(response, body) => response match {
           case Successful(_) => Future.successful(body)
-          case _             => Future.failed[Source[ByteString, _]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: ${response.status} - ${response.headers}"))
+          case _ => Future.failed[Source[ByteString, _]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: ${response.status} - ${response.headers}"))
         }
       }).flatMapMerge(1, identity)
     }
   }
 
   def get = new RESTGetRequest(this)
+
+  def headers()(implicit ec: ExecutionContext, tr: Transport): Future[Map[String, Seq[String]]] = {
+    def req = storage.request(
+      Some(bucket), Some(name), requestTimeout = requestTimeout)
+
+    req.head().flatMap { response =>
+      if (response.status != Status.OK) {
+        Future.failed[Map[String, Seq[String]]](new IllegalArgumentException(s"Could not get the head of the object $name in the bucket $bucket. Response: ${response.status} - ${response.statusText}"))
+      } else {
+        Future(response.allHeaders)
+      }
+    }
+  }
 
   /**
    * A S3 PUT request.
@@ -73,9 +82,8 @@ final class WSS3ObjectRef private[s3] (
    * @define maxPartParam the maximum number of part
    * @param maxPart $maxPartParam
    */
-  final class RESTPutRequest[E, A](
-      val maxPart: Int
-  ) extends ref.PutRequest[E, A] {
+  final class RESTPutRequest[E, A] private[s3] (val maxPart: Int)
+    extends ref.PutRequest[E, A] {
 
     /**
      * Returns an updated request with the given maximum number of part.
@@ -85,9 +93,13 @@ final class WSS3ObjectRef private[s3] (
     def withMaxPart(max: Int) = new RESTPutRequest[E, A](max)
 
     /**
-     * If the `size` is known and if the partitioning according that and the `threshold` would exceed the `maxPart`, then `size / maxPart` is used instead of the given threshold for multipart upload.
+     * If the `size` is known and if the partitioning according that,
+     * and the `threshold` would exceed the `maxPart`, then `size / maxPart`
+     * is used instead of the given threshold for multipart upload.
+     *
+     * @param metadata (without the `x-amz-meta-` prefix for the keys)
      */
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None)(f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: Transport, w: Writer[E]): Sink[E, Future[A]] = {
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: Transport, w: Writer[E]): Sink[E, Future[A]] = {
       val th = size.filter(_ > 0).fold(threshold) { sz =>
         val partCount = sz /: threshold
         if (partCount <= maxPart) threshold else Bytes(sz / maxPart)
@@ -97,16 +109,20 @@ final class WSS3ObjectRef private[s3] (
       def flowChunks = Flow.fromFunction[E, ByteString](w.transform).
         via(Streams.consumeAtLeast(th))
 
+      val amzHeaders = metadata.map {
+        case (key, value) => s"x-amz-meta-${key}" -> value
+      }
+
       flowChunks.prefixAndTail(1).flatMapMerge[A, NotUsed](1, {
         case (Nil, _) => Source.empty[A]
 
         case (head, tail) => head.toList match {
           case (last @ Chunk.Last(_)) :: _ => // if first is last, single chunk
-            Source.single(last).via(putSimple(w.contentType, z, f))
+            Source.single(last).via(putSimple(w.contentType, amzHeaders, z, f))
 
           case first :: _ => {
             def chunks = Source.single(first) ++ tail // push back the first
-            def source = chunks.zip(initiateUpload.
+            def source = chunks.zip(initiateUpload(amzHeaders).
               flatMapConcat(Source.repeat /* same ID for all */ ))
 
             source.via(putMulti(w.contentType, th, z, f))
@@ -140,8 +156,7 @@ final class WSS3ObjectRef private[s3] (
       case _ if (ignoreMissing) => Future.successful({})
 
       case _ => Future.failed[Unit](new IllegalArgumentException(
-        s"$failMsg. Response: 404 - Object not found"
-      ))
+        s"$failMsg. Response: 404 - Object not found"))
     }
   }
 
@@ -157,8 +172,7 @@ final class WSS3ObjectRef private[s3] (
         if (!preventOverwrite) Future.successful({})
         else targetObj.exists.flatMap {
           case true => Future.failed[Unit](new IllegalStateException(
-            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"
-          ))
+            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"))
 
           case _ => Future.successful({})
         }
@@ -204,24 +218,23 @@ final class WSS3ObjectRef private[s3] (
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
    */
-  private def putSimple[A](contentType: Option[String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: WSClient): Flow[Chunk, A, NotUsed] = {
+  private def putSimple[A](contentType: Option[String], metadata: Map[String, String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: WSClient): Flow[Chunk, A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     Flow[Chunk].limit(1).flatMapConcat { single =>
       val req = storage.request(Some(bucket), Some(name),
         requestTimeout = requestTimeout).
-        withHeaders("Content-MD5" -> ContentMD5(single.data))
+        withHeaders((("Content-MD5" -> ContentMD5(single.data)) +: (
+          metadata.toSeq)): _*)
 
       Source.fromFuture(
         withContentTypeHeader(req, contentType).put(single.data).map {
-          case Successful(response) => logger.debug(
-            s"Completed the simple upload for $bucket/$name."
-          )
+          case Successful(response) =>
+            logger.debug(s"Completed the simple upload for $bucket/$name.")
 
           case response =>
             throw new IllegalStateException(s"Could not update the contents of the object $bucket/$name. Response: ${response.status} - ${response.statusText}; ${response.body}")
-        }.flatMap(_ => f(z, single))
-      )
+        }.flatMap(_ => f(z, single)))
     }
   }
 
@@ -239,37 +252,41 @@ final class WSS3ObjectRef private[s3] (
 
     Flow.apply[(Chunk, String)].
       foldAsync[(Option[String], List[String], A)](zst) {
-        case ((_, etags, st), (chunk, id)) => for {
-          etag <- uploadPart(chunk.data, contentType, etags.size + 1, id)
-          nst <- f(st, chunk)
-        } yield (Some(id), (etag :: etags), nst)
+        case ((_, etags, st), (chunk, id)) =>
+          (for {
+            etag <- uploadPart(chunk.data, contentType, etags.size + 1, id)
+            nst <- f(st, chunk)
+          } yield (Some(id), (etag :: etags), nst))
       }.mapAsync[A](1) {
         case (Some(id), etags, res) =>
           completeUpload(etags.reverse, id).map(_ => res)
 
         case st => Future.failed[A](
-          new IllegalStateException(s"invalid upload state: $st")
-        )
+          new IllegalStateException(s"invalid upload state: $st"))
       }
   }
+
+  //private val debugLogger = org.slf4j.LoggerFactory.getLogger("foo")
 
   /**
    * Initiates a multi-part upload and returns the upload ID we're supposed to include when uploading parts later on.
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
    */
-  private def initiateUpload(implicit ec: ExecutionContext, ws: WSClient): Source[String, NotUsed] = Source fromFuture {
+  private def initiateUpload(metadata: Map[String, String])(implicit ec: ExecutionContext, ws: WSClient): Source[String, NotUsed] = Source fromFuture {
     storage.request(Some(bucket), Some(name), Some("uploads"),
-      requestTimeout = requestTimeout).post("").map {
-      case Successful(response) => {
-        val xmlResponse = scala.xml.XML.loadString(response.body)
-        val uploadId = (xmlResponse \ "UploadId").text
+      requestTimeout = requestTimeout).withHeaders(metadata.toSeq: _*).
+      post("").map {
+        case Successful(response) => {
+          val xmlResponse = scala.xml.XML.loadString(response.body)
+          val uploadId = (xmlResponse \ "UploadId").text
 
-        logger.debug(s"Initiated a multi-part upload for $bucket/$name using the ID $uploadId.")
-        uploadId
+          logger.debug(s"Initiated a multi-part upload for $bucket/$name using the ID $uploadId.")
+          uploadId
+        }
+
+        case response =>
+          throw new IllegalStateException(s"Could not initiate the upload for [$bucket/$name]. Response: ${response.status} - ${response.statusText}; ${response.body}")
       }
-
-      case response => throw new IllegalStateException(s"Could not initiate the upload for [$bucket/$name]. Response: ${response.status} - ${response.statusText}; ${response.body}")
-    }
   }
 
   /**
@@ -285,24 +302,27 @@ final class WSS3ObjectRef private[s3] (
    * @param uploadId the unique ID of the current upload
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPart.html
    */
-  private def uploadPart(bytes: ByteString, contentType: Option[String], partNumber: Int, uploadId: String)(implicit ec: ExecutionContext, ws: WSClient): Future[String] = {
+  private def uploadPart(
+    bytes: ByteString,
+    contentType: Option[String],
+    partNumber: Int, uploadId: String)(implicit ec: ExecutionContext, ws: WSClient): Future[String] = {
     val req = storage.request(
       Some(bucket), Some(name),
       query = Some(s"partNumber=$partNumber&uploadId=$uploadId"),
-      requestTimeout = requestTimeout
-    ).withHeaders("Content-MD5" -> ContentMD5(bytes))
+      requestTimeout = requestTimeout).withHeaders("Content-MD5" -> ContentMD5(bytes))
 
-    withContentTypeHeader(req, contentType).put(bytes).map {
-      case Successful(response) =>
-        logger.trace(s"Uploaded part $partNumber with ${bytes.length} bytes of the upload $uploadId for $bucket/$name.")
+    withContentTypeHeader(req, contentType).
+      put(bytes).map {
+        case Successful(response) => {
+          logger.trace(s"Uploaded part $partNumber with ${bytes.length} bytes of the upload $uploadId for $bucket/$name.")
 
-        response.header("ETag").getOrElse(throw new IllegalStateException(
-          s"Response for the upload [$bucket/$name, $uploadId, part: $partNumber] did not include an ETag header: ${response.allHeaders}."
-        ))
+          response.header("ETag").getOrElse(throw new IllegalStateException(
+            s"Response for the upload [$bucket/$name, $uploadId, part: $partNumber] did not include an ETag header: ${response.allHeaders}."))
+        }
 
-      case response =>
-        throw new IllegalStateException(s"Could not upload a part for [$bucket/$name, $uploadId, part: $partNumber]. Response: ${response.status} - ${response.statusText}; ${response.body}")
-    }
+        case response =>
+          throw new IllegalStateException(s"Could not upload a part for [$bucket/$name, $uploadId, part: $partNumber]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+      }
   }
 
   /**
@@ -320,16 +340,13 @@ final class WSS3ObjectRef private[s3] (
                 <Part><PartNumber>{ partNumber + 1 }</PartNumber><ETag>{ etag }</ETag></Part>
             })
           }
-        </CompleteMultipartUpload>
-      ).map {
+        </CompleteMultipartUpload>).map {
           case Successful(_) => logger.debug(
-            s"Completed the upload $uploadId for $bucket/$name."
-          )
+            s"Completed the upload $uploadId for $bucket/$name.")
 
           case response =>
             throw new IllegalStateException(
-              s"Could not complete the upload for [$bucket/$name, $uploadId]. Response: ${response.status} - ${response.statusText}; ${response.body}"
-            )
+              s"Could not complete the upload for [$bucket/$name, $uploadId]. Response: ${response.status} - ${response.statusText}; ${response.body}")
         }
   }
 

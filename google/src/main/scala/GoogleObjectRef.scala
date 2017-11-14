@@ -1,5 +1,7 @@
 package com.zengularity.google
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import scala.concurrent.{ ExecutionContext, Future }
 
 import play.utils.UriEncoding.{ encodePathSegment => encPathSeg }
@@ -10,6 +12,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
 
 import play.api.libs.ws.WSResponse
+import play.api.libs.json.{ Json, JsObject, JsString }
 
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.services.storage.model.StorageObject
@@ -24,22 +27,40 @@ import com.zengularity.storage.{
 }
 
 final class GoogleObjectRef private[google] (
-    val storage: GoogleStorage,
-    val bucket: String,
-    val name: String
-) extends ObjectRef[GoogleStorage] { ref =>
+  val storage: GoogleStorage,
+  val bucket: String,
+  val name: String) extends ObjectRef[GoogleStorage] { ref =>
   import GoogleObjectRef.ResumeIncomplete
 
   @inline def defaultThreshold = GoogleObjectRef.defaultThreshold
 
   @inline private def logger = storage.logger
-  @inline private def requestTimeout = storage.requestTimeout
 
   def exists(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = Future {
     gt.client.objects().get(bucket, name).executeUsingHead()
   }.map(_ => true).recoverWith {
     case HttpResponse(404, _) => Future.successful(false)
-    case err                  => Future.failed[Boolean](err)
+    case err => Future.failed[Boolean](err)
+  }
+
+  def headers()(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Map[String, Seq[String]]] = Future {
+    val resp = gt.client.objects().get(bucket, name).executeUnparsed()
+
+    resp.parseAsString
+  }.flatMap {
+    Json.parse(_) match {
+      case JsObject(fields) => Future(fields.toMap.flatMap {
+        case (key, JsString(value)) => Some(key -> Seq(value))
+
+        case ("metadata", JsObject(metadata)) => metadata.collect {
+          case (key, JsString(value)) => s"metadata.${key}" -> Seq(value)
+        }
+
+        case _ => Option.empty[(String, Seq[String])] // unsupported
+      })
+
+      case js => Future.failed[Map[String, Seq[String]]](new IllegalStateException(s"Could not get the metadata of the object $name in the bucket $bucket. JSON response: ${Json stringify js}"))
+    }
   }
 
   val get = new GoogleGetRequest()
@@ -60,7 +81,7 @@ final class GoogleObjectRef private[google] (
 
         req.setDisableGZipContent(storage.disableGZip)
 
-        req.executeMediaAsInputStream()
+        req.executeMediaAsInputStream() // using alt=media
       }.map(in => StreamConverters.fromInputStream(() => in)).recoverWith {
         case HttpResponse(status, msg) =>
           Future.failed[Source[ByteString, NotUsed]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: $status - $msg"))
@@ -75,11 +96,9 @@ final class GoogleObjectRef private[google] (
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload
    */
   final class RESTPutRequest[E, A] private[google] ()
-      extends ref.PutRequest[E, A] {
+    extends ref.PutRequest[E, A] {
 
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None)(f: (A, Chunk) => Future[A])(implicit m: Materializer, tr: Transport, w: Writer[E]): Sink[E, Future[A]] = {
-      implicit def ec: ExecutionContext = m.executionContext
-
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, tr: Transport, w: Writer[E]): Sink[E, Future[A]] = {
       def flowChunks = Flow.fromFunction[E, ByteString](w.transform).
         via(Streams.consumeAtMost(threshold))
 
@@ -88,10 +107,10 @@ final class GoogleObjectRef private[google] (
 
         case (head, tail) => head.toList match {
           case (last @ Chunk.Last(_)) :: _ => // if first is last, single chunk
-            Source.single(last).via(putSimple(w.contentType, z, f))
+            Source.single(last).via(putSimple(w.contentType, metadata, z, f))
 
           case first :: _ => {
-            def source = tail.zip(initiateUpload(w.contentType).
+            def source = tail.zip(initiateUpload(w.contentType, metadata).
               flatMapConcat(Source.repeat /* same ID for all */ ))
 
             source.via(putMulti(first, w.contentType, threshold, z, f))
@@ -114,8 +133,7 @@ final class GoogleObjectRef private[google] (
     case _ if (ignoreMissing) => Future.successful({})
 
     case _ => Future.failed[Unit](new IllegalArgumentException(
-      s"Could not delete $bucket/$name: doesn't exist"
-    ))
+      s"Could not delete $bucket/$name: doesn't exist"))
   }
 
   def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = {
@@ -126,23 +144,17 @@ final class GoogleObjectRef private[google] (
         if (!preventOverwrite) Future.successful({})
         else targetObj.exists.flatMap {
           case true => Future.failed[Unit](new IllegalStateException(
-            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"
-          ))
+            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"))
 
           case _ => Future.successful({})
         }
       }
       _ <- Future {
-        val col = gt.client.objects()
-        //def obj = col.get(bucket, name)
-
-        col.copy(bucket, name,
+        gt.client.objects().copy(bucket, name,
           targetBucketName, targetObjectName, null).execute()
 
       }.recoverWith {
         case reason =>
-          reason.printStackTrace()
-
           targetObj.delete(ignoreMissing = true).filter(_ => false).
             recoverWith { case _ => Future.failed[Unit](reason) }
       }
@@ -172,7 +184,7 @@ final class GoogleObjectRef private[google] (
    *
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#simple
    */
-  private def putSimple[A](contentType: Option[String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, gt: GoogleTransport): Flow[Chunk, A, NotUsed] = {
+  private def putSimple[A](contentType: Option[String], metadata: Map[String, String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, gt: GoogleTransport): Flow[Chunk, A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     Flow[Chunk].limit(1).flatMapConcat { single =>
@@ -185,6 +197,7 @@ final class GoogleObjectRef private[google] (
         so.setName(name)
         so.setContentType(typ)
         so.setSize(new java.math.BigInteger(single.size.toString))
+        so.setMetadata(metadata.asJava)
 
         so
       }
@@ -240,8 +253,7 @@ final class GoogleObjectRef private[google] (
         case (Some(_), _, _, res) => Future.successful(res)
 
         case st => Future.failed[A](
-          new IllegalStateException(s"invalid upload state: $st")
-        )
+          new IllegalStateException(s"invalid upload state: $st"))
       }
   }
 
@@ -252,16 +264,20 @@ final class GoogleObjectRef private[google] (
    * @param contentType $contentTypeParam
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#start-resumable
    */
-  private def initiateUpload(contentType: Option[String])(implicit m: Materializer, gt: GoogleTransport): Source[String, NotUsed] = {
+  private def initiateUpload(contentType: Option[String], metadata: Map[String, String])(implicit m: Materializer, gt: GoogleTransport): Source[String, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     Source.fromFuture(gt.withWSRequest1(
-      "upload", s"/b/${encPathSeg(bucket, "UTF-8")}/o"
-    ) { req =>
+      "upload", s"/b/${encPathSeg(bucket, "UTF-8")}/o") { req =>
         contentType.fold(req) { typ =>
-          req.withHeaders("Content-Type" -> "0", "X-Upload-Content-Type" -> typ)
+          req.withHeaders(
+            "Content-Type" -> "application/json",
+            "X-Upload-Content-Type" -> typ)
         }.withQueryString("uploadType" -> "resumable", "name" -> name).
-          post(Array.empty[Byte]).flatMap {
+          post(Json.obj(
+            "name" -> name,
+            "contentType" -> contentType,
+            "metadata" -> metadata)).flatMap {
             case Successful(response) => response.header("Location") match {
               case Some(url) => Future.successful {
                 logger.debug(s"Initiated a resumable upload for $bucket/$name: $url")
@@ -300,8 +316,7 @@ final class GoogleObjectRef private[google] (
 
       val uploadReq = req.withHeaders(
         "Content-Length" -> bytes.size.toString,
-        "Content-Range" -> reqRange
-      )
+        "Content-Range" -> reqRange)
 
       logger.debug(s"Prepare upload part: $reqRange; size = ${bytes.size}")
 

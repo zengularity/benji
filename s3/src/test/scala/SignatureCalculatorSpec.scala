@@ -23,8 +23,7 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
         "GET\n\n\n\n" +
           "x-amz-date:Thu, 17 Nov 2005 18:49:58 GMT\n" +
           "x-amz-magic:abracadabra\n" +
-          "/quotes/nelson"
-      ).get aka "signature" must_== signature1
+          "/quotes/nelson").get aka "signature" must_== signature1
     }
 
     val signature2 = "jZNOcbfWmD/A/f3hSvVzXZjM2HU="
@@ -36,15 +35,13 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
           "Thu, 17 Nov 2005 18:49:58 GMT\n" +
           "x-amz-magic:abracadabra\n" +
           "x-amz-meta-author:foo@bar.com\n" +
-          "/quotes/nelson"
-      ).get aka "signature" must_== signature2
+          "/quotes/nelson").get aka "signature" must_== signature2
     }
 
     val signature3 = "vjbyPxybdZaNmGa+yT272YEAiv4="
     s"be '$signature3' for request #3" in {
       calculator.calculateFor(
-        "GET\n\n\n1141889120\n/quotes/nelson"
-      ).get aka "signature" must_== signature3
+        "GET\n\n\n1141889120\n/quotes/nelson").get aka "signature" must_== signature3
     }
   }
 
@@ -66,52 +63,44 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
     vhResTest("http://johnsmith.10.192.8.62/photos/puppy.jpg", ipHost, path)
 
     pathResTest(
-      "https://s3.amazonaws.com/johnsmith/photos/puppy.jpg", awsHost, path
-    )
+      "https://s3.amazonaws.com/johnsmith/photos/puppy.jpg", awsHost, path)
 
     vhResTest(
-      "https://johnsmith.s3.amazonaws.com/photos/puppy.jpg", awsHost, path
-    )
+      "https://johnsmith.s3.amazonaws.com/photos/puppy.jpg", awsHost, path)
 
     vhResTest(
       "http://com.domain.bucket.10.192.8.62/photos/puppy.jpg",
-      ipHost, "/com.domain.bucket/photos/puppy.jpg"
-    )
+      ipHost, "/com.domain.bucket/photos/puppy.jpg")
 
     pathResTest(
       "http://10.192.8.62/com.domain.bucket/photos/puppy.jpg",
-      ipHost, "/com.domain.bucket/photos/puppy.jpg"
-    )
+      ipHost, "/com.domain.bucket/photos/puppy.jpg")
 
     vhResTest("http://johnsmith.s3.amazonaws.com/?prefix=photos&max-keys=50&marker=puppy", awsHost, "/johnsmith/?prefix=photos&max-keys=50&marker=puppy")
 
     vhResTest(
       "http://johnsmith.s3.amazonaws.com/?acl",
-      awsHost, "/johnsmith/?acl"
-    )
+      awsHost, "/johnsmith/?acl")
 
     "required to list objects within a bucket with /" in {
       calculator.canonicalizedResourceFor(
         VirtualHostRequest,
         "https://bucket-name.s3.amazonaws.com/",
-        host = "s3.amazonaws.com"
-      ) must_== "/bucket-name/"
+        host = "s3.amazonaws.com") must_== "/bucket-name/"
     }
 
     "required to list objects within a bucket" in {
       calculator.canonicalizedResourceFor(
         VirtualHostRequest,
         "https://bucket-name.s3.amazonaws.com",
-        host = "s3.amazonaws.com"
-      ) must_== "/bucket-name/"
+        host = "s3.amazonaws.com") must_== "/bucket-name/"
     }
 
     "required to do multi-part object uploads" in {
       calculator.canonicalizedResourceFor(
         VirtualHostRequest,
         "https://bucket-name.s3.amazonaws.com/object?uploads",
-        host = "s3.amazonaws.com"
-      ) must_== "/bucket-name/object?uploads"
+        host = "s3.amazonaws.com") must_== "/bucket-name/object?uploads"
     }
   }
 
@@ -120,11 +109,9 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
       calculator.canonicalizedAmzHeadersFor(Map(
         "x-amz-acl" -> Seq("public-read"),
         "X-Amz-Meta-ReviewedBy" -> Seq(
-          "joe@johnsmith.net", "jane@johnsmith.net"
-        ),
+          "joe@johnsmith.net", "jane@johnsmith.net"),
         "X-Amz-Meta-FileChecksum" -> Seq("0x02661779"),
-        "X-Amz-Meta-ChecksumAlgorithm" -> Seq("crc32")
-      )) must_== "x-amz-acl:public-read\n" +
+        "X-Amz-Meta-ChecksumAlgorithm" -> Seq("crc32"))) must_== "x-amz-acl:public-read\n" +
         "x-amz-meta-checksumalgorithm:crc32\n" +
         "x-amz-meta-filechecksum:0x02661779\n" +
         "x-amz-meta-reviewedby:joe@johnsmith.net,jane@johnsmith.net\n"
@@ -172,8 +159,7 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
           "Content-Type" -> contentType,
           "Content-Length" -> "94328",
           "Host" -> host,
-          "Date" -> date
-        )
+          "Date" -> date)
 
         val expected = "PUT\n\nimage/jpeg\nTue, 27 Mar 2007 21:15:45 +0000\n/johnsmith/photos/puppy.jpg"
 
@@ -188,8 +174,7 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
         val headers = headerMap(
           "Content-Type" -> contentType,
           "Host" -> s"bucket-1005827192.$serverHost",
-          "Date" -> date
-        )
+          "Date" -> date)
 
         val expected = "PUT\n\ntext/plain; charset=utf-8\nSun, 24 Jan 2016 17:27:45 +0000\n/bucket-1005827192/"
 
@@ -204,8 +189,7 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
       val headers = headerMap(
         "User-Agent" -> "Mozilla/5.0",
         "Host" -> host,
-        "Date" -> date
-      )
+        "Date" -> date)
 
       val expected = "GET\n\n\nTue, 27 Mar 2007 19:42:41 +0000\n/johnsmith/?prefix=photos&max-keys=50&marker=puppy"
 
@@ -229,8 +213,7 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
       val headers = headerMap(
         "User-Agent" -> "dotnet",
         "Host" -> serverHost,
-        "Date" -> "Tue, 27 Mar 2007 21:20:27 +0000"
-      )
+        "Date" -> "Tue, 27 Mar 2007 21:20:27 +0000")
 
       val expected = "DELETE\n\n\nTue, 27 Mar 2007 21:20:26 +0000\n/johnsmith/photos/puppy.jpg"
 
@@ -244,8 +227,7 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
       val headers = headerMap(
         "User-Agent" -> "dotnet",
         "Host" -> host,
-        "Date" -> "Tue, 27 Mar 2007 21:20:27 +0000"
-      )
+        "Date" -> "Tue, 27 Mar 2007 21:20:27 +0000")
 
       val expected = "DELETE\n\n\nTue, 27 Mar 2007 21:20:26 +0000\n/johnsmith/photos/puppy.jpg"
 
@@ -306,6 +288,5 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
   lazy val calculator = new SignatureCalculator(
     accessKey = "44CF9590006BF252F707",
     secretKey = "OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV",
-    "s3.amazonaws.com"
-  )
+    "s3.amazonaws.com")
 }

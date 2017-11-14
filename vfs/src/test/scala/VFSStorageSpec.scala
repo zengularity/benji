@@ -34,11 +34,9 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
 
       bucket.toString must_== s"VFSBucketRef($bucketName)" and {
         bucket.create().flatMap(_ => vfs.buckets.collect[List]()).map(
-          _.exists(_.name == bucketName)
-        ) must beTrue.await(1, 10.seconds)
+          _.exists(_.name == bucketName)) must beTrue.await(1, 10.seconds)
       } and (
-        bucket.create(checkBefore = true) must beFalse.await(1, 10.seconds)
-      )
+        bucket.create(checkBefore = true) must beFalse.await(1, 10.seconds))
     }
 
     "Create buckets and files" in assertAllStagesStopped { implicit ee: EE =>
@@ -73,8 +71,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
       }
 
       def body = fileStart.getBytes("UTF-8") ++ Array.fill(
-        VFSObjectRef.defaultThreshold.bytes.toInt - 3
-      )(nextByte) ++ "XXX".getBytes("UTF-8")
+        VFSObjectRef.defaultThreshold.bytes.toInt - 3)(nextByte) ++ "XXX".getBytes("UTF-8")
 
       filetest.put[Array[Byte], Unit].
         aka("request") must beLike[filetest.RESTPutRequest[Array[Byte], Unit]] {
@@ -82,8 +79,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
             val upload = req({})((_, _) => Future.successful({}))
 
             (repeat(partCount - 1)(body).++(Source.single(
-              body.drop(10) ++ "ZZZ".getBytes("UTF-8")
-            )) runWith upload).
+              body.drop(10) ++ "ZZZ".getBytes("UTF-8"))) runWith upload).
               flatMap { _ => filetest.exists } must beTrue.
               await(1, 10.seconds)
         }
@@ -91,8 +87,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
 
     s"Get contents of $bucketName bucket" in { implicit ee: EE =>
       vfs.bucket(bucketName).objects.collect[List]().map(
-        _.exists(_.name == "testfile.txt")
-      ) must beTrue.await(1, 10.seconds)
+        _.exists(_.name == "testfile.txt")) must beTrue.await(1, 10.seconds)
     }
 
     "Create & delete buckets" in { implicit ee: EE =>
@@ -105,8 +100,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
             bucket.create().flatMap(_ => vfs.buckets.collect[List]())
 
           bucketsWithTestRemovable.map(
-            _.exists(_.name == name)
-          ) aka "exists #2" must beTrue.await(1, 10.seconds)
+            _.exists(_.name == name)) aka "exists #2" must beTrue.await(1, 10.seconds)
         } and {
           val existsAfterDelete = (for {
             _ <- bucket.exists
@@ -123,14 +117,12 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
       val objRef = vfs.bucket(bucketName).obj("testfile.txt")
 
       objRef.toString must beEqualTo(
-        s"VFSObjectRef($bucketName, testfile.txt)"
-      ) and {
+        s"VFSObjectRef($bucketName, testfile.txt)") and {
           objRef.get must beLike[objRef.VFSGetRequest] {
             case req =>
               (req() runWith consume) aka "content" must beLike[String] {
                 case resp => resp.isEmpty must beFalse and (
-                  resp.startsWith(fileStart) must beTrue
-                )
+                  resp.startsWith(fileStart) must beTrue)
               }.await(1, 10.seconds)
           }
         }
@@ -188,7 +180,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
           _ <- file.delete
           _ <- file.delete.filter(_ => false).recoverWith {
             case _: IllegalArgumentException => Future.successful({})
-            case err                         => Future.failed[Unit](err)
+            case err => Future.failed[Unit](err)
           }
           x <- file.exists
         } yield x) must beFalse.await(1, 10.seconds)
@@ -221,8 +213,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
                   } yield a -> b) must beEqualTo(false -> false).
                     await(1, 10.seconds)
                 }
-          }.await(1, 10.seconds)
-        )
+          }.await(1, 10.seconds))
       }
 
       @inline def successful(file3: VFSObjectRef, file4: VFSObjectRef, res: Future[Unit])(implicit ee: EE) = (for {
@@ -248,8 +239,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
 
       "if prevent overwrite when target doesn't exist" in assertAllStagesStopped { implicit ee: EE =>
         moveSpec(
-          Future.successful(vfs.bucket(bucketName).obj("testfile4.txt"))
-        )(successful)
+          Future.successful(vfs.bucket(bucketName).obj("testfile4.txt")))(successful)
       }
 
       "if prevent overwrite when target exists" in assertAllStagesStopped {

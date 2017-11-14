@@ -26,15 +26,13 @@ object TestUtils {
     config.getString("aws.s3.accessKey"),
     config.getString("aws.s3.secretKey"),
     config.getString("aws.s3.host"),
-    config.getString("aws.s3.protocol")
-  )
+    config.getString("aws.s3.protocol"))
 
   lazy val (cephAccessKey, cephSecretKey, cephHost, cephProtocol) = (
     config.getString("ceph.s3.accessKey"),
     config.getString("ceph.s3.secretKey"),
     config.getString("ceph.s3.host"),
-    config.getString("ceph.s3.protocol")
-  )
+    config.getString("ceph.s3.protocol"))
 
   lazy val aws = S3(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
 

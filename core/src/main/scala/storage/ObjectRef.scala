@@ -56,6 +56,13 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
   def exists(implicit ec: ExecutionContext, tr: Transport): Future[Boolean]
 
   /**
+   * Returns the headers associated with the currently referenced object.
+   *
+   * @param tr $transportParam
+   */
+  def headers()(implicit ec: ExecutionContext, tr: Transport): Future[Map[String, Seq[String]]]
+
+  /**
    * Prepares the request to get the contents of this object.
    */
   def get: GetRequest
@@ -104,8 +111,7 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
 
     case otherwise =>
       throw new IllegalArgumentException(
-        s"Target object you specified [$target] is unknown."
-      )
+        s"Target object you specified [$target] is unknown.")
   }
 
   /**
@@ -130,8 +136,7 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
 
     case otherwise =>
       throw new IllegalArgumentException(
-        s"Target object you specified [$target] is unknown."
-      )
+        s"Target object you specified [$target] is unknown.")
   }
 
   /**
@@ -162,14 +167,18 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
    * @tparam A $consumerOutputTparam
    */
   trait PutRequest[E, A] {
+    @deprecated("Use [[apply]] with metadata", "1.3.1")
+    final def apply(z: => A, threshold: Bytes, size: Option[Long])(f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: Transport, w: Writer[E]): Sink[E, Future[A]] = apply(z, threshold, size, Map.empty)(f)
+
     /**
      * Applies this request to the specified object.
      *
      * @param threshold $thresholdParam
      * @param size $putSizeParam
+     * @param metadata the object metadata
      * @param tr $transportParam
      */
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None)(f: (A, Chunk) => Future[A])(implicit m: Materializer, tr: Transport, w: Writer[E]): Sink[E, Future[A]]
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, tr: Transport, w: Writer[E]): Sink[E, Future[A]]
   }
 }
 

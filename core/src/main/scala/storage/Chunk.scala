@@ -27,7 +27,7 @@ object Chunk {
 
     override def equals(that: Any): Boolean = that match {
       case NonEmpty(other) => data.equals(other)
-      case _               => false
+      case _ => false
     }
   }
 
@@ -35,7 +35,7 @@ object Chunk {
   object NonEmpty {
     def unapply(that: Any): Option[ByteString] = that match {
       case c: NonEmpty => Some(c.data)
-      case _           => None
+      case _ => None
     }
   }
 
@@ -45,7 +45,7 @@ object Chunk {
 
     override def equals(that: Any): Boolean = that match {
       case Last(bytes) => data.equals(bytes)
-      case _           => false
+      case _ => false
     }
   }
 
@@ -53,7 +53,7 @@ object Chunk {
   object Last {
     def unapply(that: Any): Option[ByteString] = that match {
       case last: Last => Some(last.data)
-      case _          => None
+      case _ => None
     }
   }
 }

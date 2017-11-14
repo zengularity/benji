@@ -28,14 +28,13 @@ import com.zengularity.storage.StoragePack
  *
  */
 final class GoogleTransport(
-    credential: => GoogleCredential,
-    val projectId: String,
-    builder: GoogleCredential => Storage,
-    ws: WSClient,
-    baseRestUrl: String,
-    servicePath: String,
-    requestTimeout: Option[Long] = None
-) {
+  credential: => GoogleCredential,
+  val projectId: String,
+  builder: GoogleCredential => Storage,
+  ws: WSClient,
+  baseRestUrl: String,
+  servicePath: String,
+  requestTimeout: Option[Long] = None) {
   import scala.concurrent.duration._
 
   private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
@@ -66,8 +65,7 @@ final class GoogleTransport(
       cred.getAccessToken()
     }.flatMap {
       case null => Future.failed(new scala.RuntimeException(
-        s"fails to get access token: $projectId"
-      ))
+        s"fails to get access token: $projectId"))
 
       case token =>
         logger.trace("Google Access Token refreshed")

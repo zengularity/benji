@@ -45,13 +45,9 @@ object TestUtils {
   // ---
 
   def close(): Unit = if (inited) {
-    implicit def m: Materializer = materializer
-    implicit def ec: ExecutionContext = m.executionContext
-
     try {
       org.apache.commons.io.FileUtils.deleteDirectory(
-        new java.io.File(rootPath)
-      )
+        new java.io.File(rootPath))
 
     } catch {
       case e: Throwable => logger.warn("fails to cleanup GCS", e)

@@ -13,13 +13,9 @@ import com.zengularity.storage.{ BucketRef, Bytes, Object }
 import com.google.api.services.storage.model, model.StorageObject
 
 final class GoogleBucketRef private[google] (
-    val storage: GoogleStorage,
-    val name: String
-) extends BucketRef[GoogleStorage] { ref =>
+  val storage: GoogleStorage,
+  val name: String) extends BucketRef[GoogleStorage] { ref =>
   import scala.collection.JavaConversions.collectionAsScalaIterable
-
-  @inline private def logger = storage.logger
-  @inline private def requestTimeout = storage.requestTimeout
 
   object objects extends ref.ListRequest {
     def apply()(implicit m: Materializer, gt: GoogleTransport): Source[Object, NotUsed] = {
@@ -35,8 +31,7 @@ final class GoogleBucketRef private[google] (
             Object(
               obj.getName,
               Bytes(obj.getSize.longValue),
-              new DateTime(obj.getUpdated.getValue)
-            )
+              new DateTime(obj.getUpdated.getValue))
           })
       }).flatMapMerge(1, identity)
     }
@@ -46,14 +41,14 @@ final class GoogleBucketRef private[google] (
     gt.client.buckets().get(name).executeUsingHead()
   }.map(_ => true).recoverWith {
     case HttpResponse(404, _) => Future.successful(false)
-    case err                  => Future.failed[Boolean](err)
+    case err => Future.failed[Boolean](err)
   }
 
   def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = {
     if (!checkBefore) create
     else exists.flatMap {
       case true => Future.successful(false)
-      case _    => create
+      case _ => create
     }
   }
 
@@ -64,7 +59,7 @@ final class GoogleBucketRef private[google] (
     gt.client.buckets().insert(gt.projectId, nb).execute()
   }.map(_ => true).recoverWith {
     case HttpResponse(409, "Conflict") => Future.successful(false)
-    case err                           => Future.failed[Boolean](err)
+    case err => Future.failed[Boolean](err)
   }
 
   def delete()(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = Future { gt.client.buckets().delete(name).execute() }

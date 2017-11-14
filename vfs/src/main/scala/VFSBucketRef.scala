@@ -4,8 +4,6 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 import org.joda.time.DateTime
 
-import org.apache.commons.vfs2.{ FileType, FileTypeSelector }
-
 import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
@@ -13,12 +11,9 @@ import akka.stream.scaladsl.Source
 import com.zengularity.storage.{ BucketRef, Bytes, Object }
 
 final class VFSBucketRef private[vfs] (
-    val storage: VFSStorage,
-    val name: String
-) extends BucketRef[VFSStorage] { ref =>
+  val storage: VFSStorage,
+  val name: String) extends BucketRef[VFSStorage] { ref =>
   object objects extends ref.ListRequest {
-    private val selector = new FileTypeSelector(FileType.FILE)
-
     def apply()(implicit m: Materializer, t: VFSTransport): Source[Object, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
@@ -32,8 +27,7 @@ final class VFSBucketRef private[vfs] (
             Object(
               o.getName.getBaseName,
               Bytes(content.getSize),
-              new DateTime(content.getLastModifiedTime)
-            )
+              new DateTime(content.getLastModifiedTime))
           }.iterator
         }
       }).flatMapMerge(1, identity)

@@ -7,10 +7,9 @@ package object vfs {
    * @param limit the maximum number of bytes that can be read
    */
   class LimitedInputStream(
-      underlying: InputStream,
-      limit: Int,
-      bufferSize: Int = 8192
-  ) extends BufferedInputStream(underlying, bufferSize) {
+    underlying: InputStream,
+    limit: Int,
+    bufferSize: Int = 8192) extends BufferedInputStream(underlying, bufferSize) {
     private var index = 0
 
     override def read(): Int = {

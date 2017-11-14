@@ -66,8 +66,7 @@ class StreamSpec extends org.specs2.mutable.Specification {
                 map(_.toList) must beLike[List[Chunk]] {
                   case _1 :: _2 :: Nil =>
                     _1 must beEqualTo(Chunk(ByteString(1, 1, 1, 1, 1))) and (
-                      _2 must beEqualTo(Chunk.last(ByteString(2, 2, 2)))
-                    )
+                      _2 must beEqualTo(Chunk.last(ByteString(2, 2, 2))))
                 }.await(1, timeout)
             }
           }
@@ -121,8 +120,7 @@ class StreamSpec extends org.specs2.mutable.Specification {
             _.runWith(consumer5).map(_.toList) must beLike[List[Chunk]] {
               case _1 :: _2 :: Nil =>
                 _1 must_== Chunk(ByteString(1, 1, 1, 1, 1)) and (
-                  _2 must_== Chunk.last(ByteString(1, 1))
-                )
+                  _2 must_== Chunk.last(ByteString(1, 1)))
 
             }.await(1, timeout)
           }
@@ -136,8 +134,7 @@ class StreamSpec extends org.specs2.mutable.Specification {
                 runWith(consumer5).map(_.toList) must beLike[List[Chunk]] {
                   case _1 :: _2 :: Nil =>
                     _1 must_== Chunk(ByteString(1, 1, 1, 1, 1)) and (
-                      _2 must_== Chunk.last(ByteString(2, 2, 2))
-                    )
+                      _2 must_== Chunk.last(ByteString(2, 2, 2)))
                 }.await(1, timeout)
             }
           }
@@ -151,8 +148,7 @@ class StreamSpec extends org.specs2.mutable.Specification {
                 runWith(consumer5).map(_.toList) must beLike[List[Chunk]] {
                   case _1 :: _2 :: Nil =>
                     _1 must_== Chunk(ByteString(1, 1, 1, 2, 2)) and (
-                      _2 must_== Chunk.last(ByteString(2, 2, 2))
-                    )
+                      _2 must_== Chunk.last(ByteString(2, 2, 2)))
                 }.await(1, timeout)
             }
           }
@@ -165,7 +161,7 @@ class StreamSpec extends org.specs2.mutable.Specification {
   def repeat[E](numberOfTimes: Int)(element: => E): Source[E, akka.NotUsed] =
     Source.unfold(numberOfTimes) {
       case remaining if remaining > 0 => Some((remaining - 1, element))
-      case _                          => None
+      case _ => None
     }
 
   /**

@@ -25,8 +25,7 @@ object WSRequestBuilder {
    */
   private[s3] def build(ws: WSClient, calculator: SignatureCalculator, url: String, hostHeader: String, style: String): WSRequest = ws.url(url).withHeaders(
     "Host" -> hostHeader,
-    "X-Request-Style" -> style
-  ).sign(calculator)
+    "X-Request-Style" -> style).sign(calculator)
 
 }
 
@@ -47,8 +46,7 @@ private[s3] object URLInformation {
  * (e.g. https://s3.amazonaws.com/bucket-name/object?uploads).
  */
 class PathStyleWSRequestBuilder private[s3] (
-    calculator: SignatureCalculator, serverUrl: URL
-) extends WSRequestBuilder {
+  calculator: SignatureCalculator, serverUrl: URL) extends WSRequestBuilder {
 
   def apply(ws: WSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): WSRequest = {
     val url = new StringBuilder()
@@ -69,8 +67,7 @@ class PathStyleWSRequestBuilder private[s3] (
     }
 
     WSRequestBuilder.build(
-      ws, calculator, url.toString, serverUrl.getHost, "path"
-    )
+      ws, calculator, url.toString, serverUrl.getHost, "path")
   }
 }
 
@@ -85,8 +82,7 @@ class PathStyleWSRequestBuilder private[s3] (
  * for the other ones you might be better off using path style requests.
  */
 class VirtualHostWSRequestBuilder private[s3] (
-    calculator: SignatureCalculator, serverUrl: URL
-) extends WSRequestBuilder {
+  calculator: SignatureCalculator, serverUrl: URL) extends WSRequestBuilder {
 
   def apply(ws: WSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): WSRequest = {
     val url = new StringBuilder()
@@ -111,7 +107,6 @@ class VirtualHostWSRequestBuilder private[s3] (
     val serverHost = bucketName.fold(host) { b => s"$b.$host" }
 
     WSRequestBuilder.build(
-      ws, calculator, url.toString, serverHost, "virtualhost"
-    )
+      ws, calculator, url.toString, serverHost, "virtualhost")
   }
 }

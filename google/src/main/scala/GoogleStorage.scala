@@ -17,9 +17,8 @@ import com.zengularity.storage.{ Bucket, ObjectStorage }
  * @param disableGZip if true, disables the GZip compression for upload and download (automatically disabled for multi-part upload)
  */
 class GoogleStorage(
-    val requestTimeout: Option[Long],
-    val disableGZip: Boolean
-) extends ObjectStorage[GoogleStorage] { self =>
+  val requestTimeout: Option[Long],
+  val disableGZip: Boolean) extends ObjectStorage[GoogleStorage] { self =>
   import scala.collection.JavaConversions.collectionAsScalaIterable
 
   type Pack = GoogleStoragePack.type
@@ -46,8 +45,7 @@ class GoogleStorage(
         Source(
           if (items == null) List.empty[Bucket] else items.map { b =>
             Bucket(b.getName, new DateTime(b.getTimeCreated.getValue))
-          }.toList
-        )
+          }.toList)
       }).flatMapMerge(1, identity)
     }
 

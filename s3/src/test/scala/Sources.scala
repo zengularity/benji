@@ -12,6 +12,6 @@ object Sources {
   def repeat[E](numberOfTimes: Int)(element: => E): Source[E, akka.NotUsed] =
     Source.unfold(numberOfTimes) {
       case remaining if remaining > 0 => Some((remaining - 1, element))
-      case _                          => None
+      case _ => None
     }
 }

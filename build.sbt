@@ -15,9 +15,9 @@ lazy val core = project.in(file("core")).
   settings(Common.settings: _*).settings(
     name := "cabinet-core",
     libraryDependencies ++= Seq(
-      "joda-time" % "joda-time" % "2.9.3",
+      "joda-time" % "joda-time" % "2.9.9",
       "commons-codec" % "commons-codec" % "1.10",
-      "org.slf4j" % "slf4j-api" % "1.7.21" % "provided"
+      "org.slf4j" % "slf4j-api" % "1.7.21" % Provided
     )
   )
 
@@ -25,14 +25,15 @@ lazy val s3 = project.in(file("s3")).
   settings(Common.settings: _*).settings(
     name := "cabinet-s3",
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" % "scala-xml_2.11" % "1.0.5" % "provided")
+      "org.scala-lang.modules" %% "scala-xml" % "1.0.5" % Provided)
   ).dependsOn(core)
 
 lazy val google = project.in(file("google")).
   settings(Common.settings: _*).settings(
     name := "cabinet-google",
     libraryDependencies ++= Seq(
-      "com.google.apis" % "google-api-services-storage" % "v1-rev68-1.21.0")
+      Dependencies.playJson,
+      "com.google.apis" % "google-api-services-storage" % "v1-rev112-1.23.0")
   ).dependsOn(core)
 
 lazy val vfs = project.in(file("vfs")).

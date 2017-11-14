@@ -24,7 +24,7 @@ object VirtualHostRequest extends RequestStyle
 object RequestStyle {
   def apply(raw: String): RequestStyle = raw match {
     case "virtualhost" => VirtualHostRequest
-    case _             => PathRequest
+    case _ => PathRequest
   }
 }
 
@@ -40,9 +40,8 @@ object RequestStyle {
 class SignatureCalculator(
   accessKey: String,
   secretKey: String,
-  serverHost: String
-) extends WSSignatureCalculator
-    with org.asynchttpclient.SignatureCalculator {
+  serverHost: String) extends WSSignatureCalculator
+  with org.asynchttpclient.SignatureCalculator {
 
   val logger = Logger("com.zengularity.s3")
   type HeaderMap = io.netty.handler.codec.http.HttpHeaders
@@ -56,8 +55,7 @@ class SignatureCalculator(
     }
 
     val date = header("x-amz-date").orElse(header("Date")).getOrElse(
-      RFC1123_DATE_TIME_FORMATTER print DateTime.now()
-    )
+      RFC1123_DATE_TIME_FORMATTER print DateTime.now())
     val style = RequestStyle(header("X-Request-Style").getOrElse("path"))
 
     requestBuilder.setHeader("Date", date)
@@ -65,8 +63,7 @@ class SignatureCalculator(
     val str = stringToSign(
       request.getMethod, style,
       header("Content-MD5"), header("Content-Type"),
-      date, request.getHeaders, serverHost, request.getUrl
-    )
+      date, request.getHeaders, serverHost, request.getUrl)
 
     calculateFor(str).map { signature =>
       requestBuilder.setHeader("Authorization", s"AWS $accessKey:$signature")
@@ -103,16 +100,16 @@ class SignatureCalculator(
    * `Authorization: AWS AWSAccessKeyId:Signature`
    * where the signature is calculated in the following way:
    *
-   * ``
+   * ```
    * Signature = Base64(HMAC-SHA1(YourSecretAccessKeyID, UTF-8-Encoding-Of(StringToSign)))
-   * ``
+   * ```
+   *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
    */
   def calculateFor(data: String): Try[String] = Try {
     val mac = Mac.getInstance("HmacSHA1")
     mac.init(new SecretKeySpec(
-      secretKey.getBytes("UTF8"), "HmacSHA1"
-    ))
+      secretKey.getBytes("UTF8"), "HmacSHA1"))
 
     org.asynchttpclient.util.Base64.encode(mac.doFinal(data.getBytes("UTF8")))
   }
@@ -124,8 +121,7 @@ class SignatureCalculator(
    */
   def canonicalizedAmzHeadersFor(allHeaders: HeaderMap): String = {
     val amzHeaderNames = allHeaders.names.filter(
-      _.toLowerCase.startsWith("x-amz-")
-    ).toList.sortBy(_.toLowerCase)
+      _.toLowerCase.startsWith("x-amz-")).toList.sortBy(_.toLowerCase)
 
     amzHeaderNames.map { amzHeaderName =>
       amzHeaderName.toLowerCase + ":" +
@@ -135,8 +131,7 @@ class SignatureCalculator(
 
   def canonicalizedAmzHeadersFor(allHeaders: Map[String, Seq[String]]): String = {
     val amzHeaderNames = allHeaders.keys.filter(
-      _.toLowerCase.startsWith("x-amz-")
-    ).toList.sortBy(_.toLowerCase)
+      _.toLowerCase.startsWith("x-amz-")).toList.sortBy(_.toLowerCase)
 
     amzHeaderNames.map { amzHeaderName =>
       amzHeaderName.toLowerCase + ":" +

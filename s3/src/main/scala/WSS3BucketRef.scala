@@ -15,9 +15,8 @@ import com.zengularity.ws.Successful
 import com.zengularity.storage.{ BucketRef, Bytes, Object }
 
 final class WSS3BucketRef private[s3] (
-    val storage: WSS3,
-    val name: String
-) extends BucketRef[WSS3] { ref =>
+  val storage: WSS3,
+  val name: String) extends BucketRef[WSS3] { ref =>
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
 
@@ -27,8 +26,7 @@ final class WSS3BucketRef private[s3] (
   object objects extends ref.ListRequest {
     def apply()(implicit m: Materializer, ws: WSClient): Source[Object, NotUsed] = {
       S3.getXml[Object](
-        storage.request(Some(name), requestTimeout = requestTimeout)
-      )({ xml =>
+        storage.request(Some(name), requestTimeout = requestTimeout))({ xml =>
           val contents = xml \ "Contents"
 
           Source(contents.map { content =>
@@ -36,8 +34,7 @@ final class WSS3BucketRef private[s3] (
               name = (content \ "Key").text,
               size = Bytes((content \ "Size").text.toLong),
               lastModifiedAt =
-                DateTime.parse((content \ "LastModified").text)
-            )
+                DateTime.parse((content \ "LastModified").text))
           })
         }, { response => s"Could not list all objects within the bucket $name. Response: ${response.status} - $response" })
     }
@@ -57,7 +54,7 @@ final class WSS3BucketRef private[s3] (
     if (!checkBefore) create.map(_ => true)
     else exists.flatMap {
       case true => Future.successful(false)
-      case _    => create.map(_ => true)
+      case _ => create.map(_ => true)
     }
   }
 
