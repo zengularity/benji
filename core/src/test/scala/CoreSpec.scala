@@ -1,8 +1,8 @@
-package tests
+package tests.benji
 
 import akka.util.ByteString
 
-import com.zengularity.ws.ContentMD5
+import com.zengularity.benji.ws.ContentMD5
 
 class CoreSpec extends org.specs2.mutable.Specification {
   "Core" title

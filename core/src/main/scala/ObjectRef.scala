@@ -1,11 +1,11 @@
-package com.zengularity.storage
+package com.zengularity.benji
 
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
-import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
+import akka.util.ByteString
 
 /**
  * A object reference.
@@ -109,7 +109,7 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
     case ObjectRef(targetBucketName, targetObjectName) =>
       moveTo(targetBucketName, targetObjectName, preventOverwrite)
 
-    case otherwise =>
+    case _ =>
       throw new IllegalArgumentException(
         s"Target object you specified [$target] is unknown.")
   }
@@ -134,7 +134,7 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
     case ObjectRef(targetBucketName, targetObjectName) =>
       copyTo(targetBucketName, targetObjectName)
 
-    case otherwise =>
+    case _ =>
       throw new IllegalArgumentException(
         s"Target object you specified [$target] is unknown.")
   }

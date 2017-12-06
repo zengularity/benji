@@ -1,26 +1,15 @@
-package com.zengularity.vfs
+package com.zengularity.benji.vfs
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import org.apache.commons.vfs2.{
-  FileName,
-  FileNotFoundException,
-  FileType,
-  FileTypeSelector
-}
-
 import akka.NotUsed
-import akka.util.ByteString
 import akka.stream.Materializer
-import akka.stream.scaladsl.{ Flow, Source, Sink, StreamConverters }
+import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
+import akka.util.ByteString
 
-import com.zengularity.storage.{
-  Bytes,
-  ByteRange,
-  Chunk,
-  ObjectRef,
-  Streams
-}
+import org.apache.commons.vfs2.{ FileName, FileNotFoundException, FileType, FileTypeSelector }
+
+import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams }
 
 final class VFSObjectRef private[vfs] (
   val storage: VFSStorage,
@@ -72,9 +61,8 @@ final class VFSObjectRef private[vfs] (
       lazy val st = of.getContent.getOutputStream
       @volatile var closed = false
 
-      Flow.fromFunction[E, ByteString](w.transform(_)).
-        via(Streams.consumeAtMost(threshold)).
-        via(Flow.apply[Chunk].foldAsync[A](z) { (a, chunk) =>
+      Streams.chunker[E].via(Streams.consumeAtMost(threshold)).via(
+        Flow.apply[Chunk].foldAsync[A](z) { (a, chunk) =>
           Future[Chunk] {
             st.write(chunk.data.toArray)
             st.flush()
@@ -85,13 +73,13 @@ final class VFSObjectRef private[vfs] (
           of.close()
           closed = true
           a
-        }.recoverWith {
+        }.recoverWithRetries(3, {
           case reason if !closed =>
             reason.printStackTrace()
             of.close()
             Source.failed[A](reason)
 
-        }.toMat(Sink.head[A]) { (_, mat) => mat }
+        }).toMat(Sink.head[A]) { (_, mat) => mat }
     }
   }
 
@@ -101,7 +89,7 @@ final class VFSObjectRef private[vfs] (
     delete(ignoreMissing = false)
 
   private def delete(ignoreMissing: Boolean)(implicit ec: ExecutionContext, tr: VFSTransport): Future[Unit] = exists.flatMap {
-    case true => Future(file.delete())
+    case true => Future { file.delete(); () }
 
     case _ if (ignoreMissing) => Future.successful({})
 

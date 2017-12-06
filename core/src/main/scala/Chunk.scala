@@ -1,4 +1,4 @@
-package com.zengularity.storage
+package com.zengularity.benji
 
 import akka.util.ByteString
 

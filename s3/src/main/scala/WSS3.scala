@@ -1,6 +1,7 @@
-package com.zengularity.s3
+package com.zengularity.benji.s3
 
-import org.joda.time.DateTime
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -8,20 +9,14 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import play.api.http.Writeable
-import play.api.libs.ws.{
-  WSClient,
-  WSRequest,
-  WSResponseHeaders,
-  StreamedResponse
-}
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.api.libs.ws.{ BodyWritable, StandaloneWSRequest, StandaloneWSResponse }
 
-import com.zengularity.ws.Successful
-import com.zengularity.storage.{ Bucket, ObjectStorage, StoragePack }
+import com.zengularity.benji.{ Bucket, ObjectStorage, StoragePack }
 
 object WSS3StoragePack extends StoragePack {
-  type Transport = WSClient
-  type Writer[T] = Writeable[T]
+  type Transport = StandaloneAhcWSClient
+  type Writer[T] = BodyWritable[T]
 }
 
 /**
@@ -33,13 +28,15 @@ object WSS3StoragePack extends StoragePack {
  */
 class WSS3(
   requestBuilder: WSRequestBuilder,
-  val requestTimeout: Option[Long] = None) extends ObjectStorage[WSS3] { self =>
+  val requestTimeout: Option[Long] = None) extends ObjectStorage[WSS3] {
+  self =>
+
   import scala.concurrent.duration._
 
   type Pack = WSS3StoragePack.type
   type ObjectRef = WSS3ObjectRef
 
-  private[s3] def request(bucketName: Option[String] = None, objectName: Option[String] = None, query: Option[String] = None, requestTimeout: Option[Long] = None)(implicit tr: WSClient): WSRequest = {
+  private[s3] def request(bucketName: Option[String] = None, objectName: Option[String] = None, query: Option[String] = None, requestTimeout: Option[Long] = None)(implicit tr: StandaloneAhcWSClient): StandaloneWSRequest = {
     val req = requestBuilder(tr, bucketName, objectName, query)
 
     requestTimeout.fold(req) { t => req.withRequestTimeout(t.milliseconds) }
@@ -52,15 +49,16 @@ class WSS3(
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html
    */
   object buckets extends self.BucketsRequest {
-    def apply()(implicit m: Materializer, tr: WSClient): Source[Bucket, NotUsed] = S3.getXml[Bucket](request(requestTimeout = requestTimeout))({ xml =>
-      def buckets = xml \ "Buckets" \ "Bucket"
+    def apply()(implicit m: Materializer, tr: StandaloneAhcWSClient): Source[Bucket, NotUsed] =
+      S3.getXml[Bucket](request(requestTimeout = requestTimeout))({ xml =>
+        def buckets = xml \ "Buckets" \ "Bucket"
 
-      Source(buckets.map { bucket =>
-        Bucket(
-          name = (bucket \ "Name").text,
-          creationTime = DateTime.parse((bucket \ "CreationDate").text))
-      })
-    }, { response => s"Could not get a list of all buckets. Response: ${response.status} - $response" })
+        Source(buckets.map { bucket =>
+          Bucket(
+            name = (bucket \ "Name").text,
+            creationTime = LocalDateTime.parse((bucket \ "CreationDate").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+        })
+      }, { response => s"Could not get a list of all buckets. Response: ${response.status} - $response" })
 
     // TODO: Use pagination
   }
@@ -96,21 +94,22 @@ object S3 {
 
   // Utility functions
 
-  private[s3] def getXml[T](req: => WSRequest)(f: scala.xml.Elem => Source[T, NotUsed], err: WSResponseHeaders => String)(implicit m: Materializer, tr: WSClient): Source[T, NotUsed] = {
+  private[s3] def getXml[T](req: => StandaloneWSRequest)(
+    f: scala.xml.Elem => Source[T, NotUsed],
+    err: StandaloneWSResponse => String)(implicit m: Materializer): Source[T, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
-    Source.fromFuture(req.withMethod("GET").stream().flatMap {
-      case StreamedResponse(response, body) => response match {
-        case Successful(_) => Future.successful[Source[T, NotUsed]](
-          body.mapMaterializedValue(_ => NotUsed.getInstance).
-            fold(StringBuilder.newBuilder) { _ ++= _.utf8String }.
-            flatMapConcat { buf =>
-              f(scala.xml.XML.loadString(buf.result()))
-            })
+    Source.fromFuture(req.withMethod("GET").stream().flatMap { response =>
+      if (response.status == 200 || response.status == 206) {
 
-        case _ => Future.failed[Source[T, NotUsed]](
-          new IllegalStateException(err(response)))
-      }
+        Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed.getInstance).
+          fold(StringBuilder.newBuilder) {
+            _ ++= _.utf8String
+          }.
+          flatMapConcat { buf =>
+            f(scala.xml.XML.loadString(buf.result()))
+          })
+      } else Future.failed[Source[T, NotUsed]](new IllegalStateException(err(response)))
     }).flatMapConcat(identity)
   }
 }

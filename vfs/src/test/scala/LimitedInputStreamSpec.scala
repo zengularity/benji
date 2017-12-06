@@ -1,8 +1,8 @@
-package tests
+package tests.benji.vfs
 
 import java.io.ByteArrayInputStream
 
-import com.zengularity.vfs.LimitedInputStream
+import com.zengularity.benji.vfs.LimitedInputStream
 
 class LimitedInputStreamSpec extends org.specs2.mutable.Specification {
   "LimitedInputStream" title

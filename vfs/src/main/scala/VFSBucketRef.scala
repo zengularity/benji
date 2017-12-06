@@ -1,14 +1,14 @@
-package com.zengularity.vfs
+package com.zengularity.benji.vfs
+
+import java.time.{ Instant, LocalDateTime, ZoneOffset }
 
 import scala.concurrent.{ ExecutionContext, Future }
-
-import org.joda.time.DateTime
 
 import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.storage.{ BucketRef, Bytes, Object }
+import com.zengularity.benji.{ BucketRef, Bytes, Object }
 
 final class VFSBucketRef private[vfs] (
   val storage: VFSStorage,
@@ -27,7 +27,8 @@ final class VFSBucketRef private[vfs] (
             Object(
               o.getName.getBaseName,
               Bytes(content.getSize),
-              new DateTime(content.getLastModifiedTime))
+              LocalDateTime.ofInstant(Instant.ofEpochMilli(content.getLastModifiedTime), ZoneOffset.UTC))
+
           }.iterator
         }
       }).flatMapMerge(1, identity)
@@ -48,7 +49,7 @@ final class VFSBucketRef private[vfs] (
   } yield before.map(!_).getOrElse(true)
 
   def delete()(implicit ec: ExecutionContext, tr: VFSTransport): Future[Unit] =
-    Future(dir.delete())
+    Future { dir.delete(); () }
 
   def obj(objectName: String): VFSObjectRef =
     new VFSObjectRef(storage, name, objectName)

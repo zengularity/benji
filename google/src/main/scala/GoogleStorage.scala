@@ -1,6 +1,6 @@
-package com.zengularity.google
+package com.zengularity.benji.google
 
-import org.joda.time.DateTime
+import java.time.{ Instant, LocalDateTime, ZoneOffset }
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -8,7 +8,7 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.storage.{ Bucket, ObjectStorage }
+import com.zengularity.benji.{ Bucket, ObjectStorage }
 
 /**
  * Implementation of the Google API for Cloud Storage.
@@ -19,7 +19,7 @@ import com.zengularity.storage.{ Bucket, ObjectStorage }
 class GoogleStorage(
   val requestTimeout: Option[Long],
   val disableGZip: Boolean) extends ObjectStorage[GoogleStorage] { self =>
-  import scala.collection.JavaConversions.collectionAsScalaIterable
+  import scala.collection.JavaConverters._
 
   type Pack = GoogleStoragePack.type
   type ObjectRef = GoogleObjectRef
@@ -43,8 +43,8 @@ class GoogleStorage(
         val items = gt.buckets().list(gt.projectId).execute().getItems
 
         Source(
-          if (items == null) List.empty[Bucket] else items.map { b =>
-            Bucket(b.getName, new DateTime(b.getTimeCreated.getValue))
+          if (items == null) List.empty[Bucket] else items.asScala.map { b =>
+            Bucket(b.getName, LocalDateTime.ofInstant(Instant.ofEpochMilli(b.getTimeCreated.getValue), ZoneOffset.UTC))
           }.toList)
       }).flatMapMerge(1, identity)
     }

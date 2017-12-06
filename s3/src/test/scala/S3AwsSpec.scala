@@ -1,4 +1,4 @@
-package tests
+package tests.benji.s3
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -6,15 +6,14 @@ import scala.concurrent.duration._
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 
-import org.specs2.mutable.Specification
-import org.specs2.matcher.MatchResult
+import play.api.libs.ws.DefaultBodyWritables._
+
 import org.specs2.concurrent.{ ExecutionEnv => EE }
+import org.specs2.matcher.MatchResult
+import org.specs2.mutable.Specification
 
-import com.zengularity.storage.{ Bucket, Object }
-import com.zengularity.s3.WSS3ObjectRef
-
-import Sources.repeat
-import TestUtils.{ WS, consume, withMatEx }
+import com.zengularity.benji.{ Bucket, Object }
+import com.zengularity.benji.s3.WSS3ObjectRef
 
 class S3AwsSpec extends Specification with AwsTests {
   "S3 Amazon" title
@@ -31,10 +30,13 @@ class S3AwsSpec extends Specification with AwsTests {
 }
 
 sealed trait AwsTests { specs: Specification =>
+  import Sources.repeat
+  import TestUtils.{ WS, consume, withMatEx }
+
   def awsSuite(
     label: String,
-    s3f: => com.zengularity.s3.WSS3)(implicit m: Materializer) = s"S3 client $label" should {
-    val bucketName = s"cabinet-test-${System identityHashCode s3f}"
+    s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer) = s"S3 client $label" should {
+    val bucketName = s"benji-test-${System identityHashCode s3f}"
 
     s"Not find bucket $bucketName before it's created" in withMatEx {
       implicit ee: EE =>
@@ -90,7 +92,7 @@ sealed trait AwsTests { specs: Specification =>
     }
 
     "Creating & deleting buckets" in withMatEx { implicit ee: EE =>
-      val name = s"cabinet-test-removable-${System identityHashCode s3f}"
+      val name = s"benji-test-removable-${System identityHashCode s3f}"
       val s3 = s3f
       val bucket = s3.bucket(name)
 
@@ -135,13 +137,13 @@ sealed trait AwsTests { specs: Specification =>
     "Get contents of a non-existing file" in withMatEx { implicit ee: EE =>
       val s3 = s3f
 
-      s3.bucket(bucketName).obj("cabinet-test-folder/DoesNotExist.txt").
+      s3.bucket(bucketName).obj("benji-test-folder/DoesNotExist.txt").
         get() runWith consume must throwA[IllegalStateException].like({
-          case e => e.getMessage must startWith(s"Could not get the contents of the object cabinet-test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
+          case e => e.getMessage must startWith(s"Could not get the contents of the object benji-test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
         }).await(retries = 1, timeout = 10.seconds)
     }
 
-    "Write and delete file" in { implicit ee: EE =>
+    "Write and delete file" in withMatEx { implicit ee: EE =>
       val s3 = s3f
       val file = s3.bucket(bucketName).obj("removable.txt")
 
@@ -239,17 +241,18 @@ sealed trait AwsTests { specs: Specification =>
         { repeat(20) { body } runWith write }.map(_ => target)
       }
 
-      "if prevent overwrite when target doesn't exist" in {
+      "if prevent overwrite when target doesn't exist" in withMatEx {
         implicit ee: EE =>
           moveSpec(
             Future.successful(s3.bucket(bucketName).obj("testfile4.txt")))(successful)
       }
 
-      "if prevent overwrite when target exists" in { implicit ee: EE =>
-        moveSpec(existingTarget)(failed)
+      "if prevent overwrite when target exists" in withMatEx {
+        implicit ee: EE =>
+          moveSpec(existingTarget)(failed)
       }
 
-      "if overwrite when target exists" in { implicit ee: EE =>
+      "if overwrite when target exists" in withMatEx { implicit ee: EE =>
         moveSpec(existingTarget, preventOverwrite = false)(successful)
       }
     }

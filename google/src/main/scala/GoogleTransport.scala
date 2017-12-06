@@ -1,19 +1,18 @@
-package com.zengularity.google
+package com.zengularity.benji.google
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import play.api.libs.ws.{ WSClient, WSRequest }
-
 import akka.stream.Materializer
 
-import com.google.api.client.http.HttpTransport
-import com.google.api.client.json.JsonFactory
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.api.libs.ws.{ BodyWritable, StandaloneWSRequest }
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
-
+import com.google.api.client.http.HttpTransport
+import com.google.api.client.json.JsonFactory
 import com.google.api.services.storage.Storage
 
-import com.zengularity.storage.StoragePack
+import com.zengularity.benji.StoragePack
 
 /**
  * @define wsParam the WS client
@@ -31,7 +30,7 @@ final class GoogleTransport(
   credential: => GoogleCredential,
   val projectId: String,
   builder: GoogleCredential => Storage,
-  ws: WSClient,
+  ws: StandaloneAhcWSClient,
   baseRestUrl: String,
   servicePath: String,
   requestTimeout: Option[Long] = None) {
@@ -77,20 +76,20 @@ final class GoogleTransport(
    * @param service the service name (e.g. `upload`)
    * @param path a path (after the base REST URL)
    */
-  private[google] def withWSRequest1[T](service: String, path: String)(f: WSRequest => Future[T])(implicit m: Materializer): Future[T] = withWSRequest2(s"$baseRestUrl/$service/$servicePath$path") { req =>
-    f(req.withHeaders("Content-Type" -> "application/json; charset=UTF-8"))
+  private[google] def withWSRequest1[T](service: String, path: String)(f: StandaloneWSRequest => Future[T])(implicit m: Materializer): Future[T] = withWSRequest2(s"$baseRestUrl/$service/$servicePath$path") { req =>
+    f(req.addHttpHeaders("Content-Type" -> "application/json; charset=UTF-8"))
   }
 
   /**
    * @param url the full URL to be requested
    */
-  private[google] def withWSRequest2[T](url: String)(f: WSRequest => Future[T])(implicit m: Materializer): Future[T] = {
+  private[google] def withWSRequest2[T](url: String)(f: StandaloneWSRequest => Future[T])(implicit m: Materializer): Future[T] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     accessToken.flatMap { token =>
       logger.trace(s"Prepare WS request: $url")
 
-      def req = ws.url(url).withHeaders("Authorization" -> s"Bearer $token")
+      def req = ws.url(url).addHttpHeaders("Authorization" -> s"Bearer $token")
 
       f(requestTimeout.fold(req) { t =>
         req.withRequestTimeout(t.milliseconds)
@@ -127,7 +126,7 @@ object GoogleTransport {
    * implicit val googleTransport = GoogleTransport(credential, "foo")
    * }}}
    */
-  def apply(credential: GoogleCredential, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: WSClient): GoogleTransport = {
+  def apply(credential: GoogleCredential, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: StandaloneAhcWSClient): GoogleTransport = {
     val build = new Storage.Builder(http, json, _: GoogleCredential).
       setApplicationName(application).build()
 
@@ -142,5 +141,5 @@ object GoogleTransport {
 
 object GoogleStoragePack extends StoragePack {
   type Transport = GoogleTransport
-  type Writer[T] = play.api.http.Writeable[T]
+  type Writer[T] = BodyWritable[T]
 }

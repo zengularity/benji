@@ -1,6 +1,6 @@
-# Cabinet VFS
+# Benji VFS
 
-Cabinet module for [Apache VFS](https://commons.apache.org/vfs/).
+Benji module for [Apache VFS](https://commons.apache.org/vfs/).
 
 ## Build
 
@@ -21,7 +21,7 @@ The project is using [SBT](http://www.scala-sbt.org/).
 In your `build.sbt` (or `project/Build.scala`):
 
 ```
-libraryDependencies += "com.zengularity" %% "cabinet-vfs" % "VERSION"
+libraryDependencies += "com.zengularity" %% "benji-vfs" % "VERSION"
 ```
 
 Then, the VFS can be used as ObjectStorage in your code, considering directories as buckets and files and objects.
@@ -35,7 +35,7 @@ The VFS transport can be inited with a [`FileSystemManager`](https://commons.apa
 A convenient factory is available for testing, to use a temporary directory as filesystem.
 
 ```scala
-import com.zengularity.vfs.VFSTransport
+import com.zengularity.benji.vfs.VFSTransport
 
 implicit def vfsTransport = VFSTransport.temporary("/tmp/foo")
 ```

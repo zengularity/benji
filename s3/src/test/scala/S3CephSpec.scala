@@ -1,18 +1,20 @@
-package tests
+package tests.benji.s3
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import akka.stream.scaladsl.{ Sink, Source }
 
+import play.api.libs.ws.DefaultBodyWritables._
+
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 
-import com.zengularity.storage.{ Bucket, ByteRange, Object }
-
-import Sources.repeat
-import TestUtils.{ WS, ceph, consume, withMatEx }
+import com.zengularity.benji.{ Bucket, ByteRange, Object }
 
 class S3CephSpec extends org.specs2.mutable.Specification {
+  import Sources.repeat
+  import TestUtils.{ WS, ceph, consume, withMatEx }
+
   "S3 Ceph" title
 
   sequential
@@ -20,7 +22,7 @@ class S3CephSpec extends org.specs2.mutable.Specification {
   @inline implicit def materializer = TestUtils.materializer
 
   "Client" should {
-    val bucketName = s"cabinet-test-${System identityHashCode this}"
+    val bucketName = s"benji-test-${System identityHashCode this}"
     val objName = "testfile.txt"
 
     "Access the system" in withMatEx { implicit ee: EE =>
@@ -33,7 +35,7 @@ class S3CephSpec extends org.specs2.mutable.Specification {
 
     "Create buckets and files" in withMatEx { implicit ee: EE =>
       val s3 = ceph
-      val name = s"cabinet-test-${System identityHashCode s3}"
+      val name = s"benji-test-${System identityHashCode s3}"
 
       val objects = for {
         _ <- s3.bucket(name).create()
@@ -150,9 +152,9 @@ class S3CephSpec extends org.specs2.mutable.Specification {
     }
 
     "Fail to get contents of a non-existing file" in withMatEx { implicit ee: EE =>
-      ceph.bucket(bucketName).obj("cabinet-test-folder/DoesNotExist.txt").
+      ceph.bucket(bucketName).obj("benji-test-folder/DoesNotExist.txt").
         get() runWith consume must throwA[IllegalStateException].like({
-          case e => e.getMessage must startWith(s"Could not get the contents of the object cabinet-test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
+          case e => e.getMessage must startWith(s"Could not get the contents of the object benji-test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
         }).await(1, 10.seconds)
     }
 

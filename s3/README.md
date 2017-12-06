@@ -1,4 +1,4 @@
-# S3 client
+# S3 Benji
 
 This library is a Scala client for object storage (e.g. S3/Amazon, S3/CEPH).
 
@@ -15,23 +15,25 @@ The project is using [SBT](http://www.scala-sbt.org/).
 **Requirements:**
 
 - A JDK 1.8+ is required.
-- [Play WS](https://www.playframework.com/documentation/latest/ScalaWS) must be provided; Tested with version 2.5.2.
+- [Play Standalone WS](https://github.com/playframework/play-ws) must be provided; Tested with version 1.1.3.
 
 ## Usage
 
 In your `build.sbt` (or the `project/Build.scala`):
 
 ```
-libraryDependencies += "com.zengularity" %% "cabinet-s3" % "VERSION"
+libraryDependencies += "com.zengularity" %% "benji-s3" % "VERSION"
 
 // If Play WS is not yet provided:
-libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.2"
+libraryDependencies ++= Seq(
+  "com.typesafe.play" %% "play-ahc-ws-standalone" % "1.1.3",
+  "com.typesafe.play" %% "play-ws-standalone-xml" % "1.1.3")
 ```
 
 Then, the S3 client can be used as following in your code.
 
 ```scala
-import java.io._
+import java.nio.file.Paths
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -39,16 +41,17 @@ import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ FileIO, Sink, Source }
 
-import play.api.libs.ws.WSClient
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.api.libs.ws.DefaultBodyWritables._
 
-import com.zengularity.s3._
+import com.zengularity.benji.s3._
 
 def sample1(implicit m: Materializer): Unit = {
   implicit def ec: ExecutionContext = m.executionContext
 
   // WSClient must be available in the implicit scope;
   // Here a default/standalone instance is declared
-  implicit val ws: WSClient = com.zengularity.ws.WS.client()
+  implicit val ws: StandaloneAhcWSClient = StandaloneAhcWSClient()
 
   val s3: WSS3 = S3("accessKey", "secretKey", "http", "hostAndPort")
   // or S3.virtualHost(...) for S3 in virtual-host style
@@ -58,8 +61,8 @@ def sample1(implicit m: Materializer): Unit = {
   // Upload
 
   /* input */
-  val file = new File("/path/to/local/file")
-  lazy val data: Source[ByteString, _] = FileIO.fromFile(file)
+  val path = Paths.get("/path/to/local/file")
+  lazy val data: Source[ByteString, _] = FileIO.fromPath(path)
 
   /* target object */
   val newObj = bucket.obj("newObject.ext")

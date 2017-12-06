@@ -1,6 +1,6 @@
-package com.zengularity.vfs
+package com.zengularity.benji.vfs
 
-import org.joda.time.DateTime
+import java.time.{ Instant, LocalDateTime, ZoneOffset }
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -8,13 +8,9 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import org.apache.commons.vfs2.{
-  FileName,
-  FileType,
-  FileTypeSelector
-}
+import org.apache.commons.vfs2.{ FileName, FileType, FileTypeSelector }
 
-import com.zengularity.storage.{ Bucket, ObjectStorage }
+import com.zengularity.benji.{ Bucket, ObjectStorage }
 
 /**
  * VFS Implementation for Object Storage.
@@ -44,8 +40,8 @@ class VFSStorage(val requestTimeout: Option[Long])
         Source.fromIterator[Bucket] { () =>
           if (items.isEmpty) Iterator.empty
           else items.filter(!_.getName.getBaseName.isEmpty).map { b =>
-            Bucket(b.getName.getBaseName, new DateTime(
-              b.getContent.getLastModifiedTime))
+            Bucket(b.getName.getBaseName, LocalDateTime.ofInstant(
+              Instant.ofEpochMilli(b.getContent.getLastModifiedTime), ZoneOffset.UTC))
           }.iterator
         }
       }).flatMapMerge(1, identity)

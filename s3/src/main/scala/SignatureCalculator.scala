@@ -1,20 +1,18 @@
-package com.zengularity.s3
+package com.zengularity.benji.s3
 
 import java.net.URL
-
+import java.time.format.DateTimeFormatter
+import java.time.{ Instant, ZoneOffset }
+import java.util.Base64
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-import org.joda.time.DateTime
-import org.joda.time.format.DateTimeFormat
-
-import play.api.Logger
-import play.api.libs.ws.WSSignatureCalculator
-
-import org.asynchttpclient.{ Request, RequestBuilderBase }
-
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.util.Try
+
+import play.api.libs.ws.WSSignatureCalculator
+import play.shaded.ahc.io.netty.handler.codec.http.HttpHeaders
+import play.shaded.ahc.org.asynchttpclient.{ Request, RequestBuilderBase }
 
 /** S3 [[http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html request style]]. */
 sealed trait RequestStyle
@@ -41,10 +39,9 @@ class SignatureCalculator(
   accessKey: String,
   secretKey: String,
   serverHost: String) extends WSSignatureCalculator
-  with org.asynchttpclient.SignatureCalculator {
+  with play.shaded.ahc.org.asynchttpclient.SignatureCalculator {
 
-  val logger = Logger("com.zengularity.s3")
-  type HeaderMap = io.netty.handler.codec.http.HttpHeaders
+  val logger = org.slf4j.LoggerFactory.getLogger("com.zengularity.s3")
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
@@ -55,7 +52,7 @@ class SignatureCalculator(
     }
 
     val date = header("x-amz-date").orElse(header("Date")).getOrElse(
-      RFC1123_DATE_TIME_FORMATTER print DateTime.now())
+      RFC1123_DATE_TIME_FORMATTER format Instant.now())
     val style = RequestStyle(header("X-Request-Style").getOrElse("path"))
 
     requestBuilder.setHeader("Date", date)
@@ -71,6 +68,8 @@ class SignatureCalculator(
       case e =>
         logger.error("Could not calculate the signature", e)
     }
+
+    ()
   }
 
   /**
@@ -79,14 +78,14 @@ class SignatureCalculator(
    * like 'Thu, 23 Apr 2015 15:49:35 +0000'
    */
   private val RFC1123_DATE_TIME_FORMATTER =
-    DateTimeFormat.forPattern("EEE, dd MMM yyyy HH:mm:ss Z").
-      withLocale(java.util.Locale.US).withZoneUTC()
+    DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z").
+      withLocale(java.util.Locale.US).withZone(ZoneOffset.UTC)
 
   /**
    * Computes the string-to-sign for request authentication.
    * @param serverHost the base host of the S3 server (without the bucket prefix in the virtual host style)
    */
-  def stringToSign(httpVerb: String, style: RequestStyle, contentMd5: Option[String], contentType: Option[String], date: String, headers: HeaderMap, serverHost: String, url: String): String = {
+  def stringToSign(httpVerb: String, style: RequestStyle, contentMd5: Option[String], contentType: Option[String], date: String, headers: HttpHeaders, serverHost: String, url: String): String = {
     httpVerb + "\n" +
       contentMd5.getOrElse("") + "\n" +
       contentType.getOrElse("") + s"\n$date\n" +
@@ -111,7 +110,7 @@ class SignatureCalculator(
     mac.init(new SecretKeySpec(
       secretKey.getBytes("UTF8"), "HmacSHA1"))
 
-    org.asynchttpclient.util.Base64.encode(mac.doFinal(data.getBytes("UTF8")))
+    Base64.getEncoder.encodeToString(mac.doFinal(data.getBytes("UTF8")))
   }
 
   // Utility methods
@@ -119,13 +118,13 @@ class SignatureCalculator(
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#RESTAuthenticationConstructingCanonicalizedAmzHeaders
    */
-  def canonicalizedAmzHeadersFor(allHeaders: HeaderMap): String = {
-    val amzHeaderNames = allHeaders.names.filter(
+  def canonicalizedAmzHeadersFor(allHeaders: HttpHeaders): String = {
+    val amzHeaderNames = allHeaders.names.asScala.filter(
       _.toLowerCase.startsWith("x-amz-")).toList.sortBy(_.toLowerCase)
 
     amzHeaderNames.map { amzHeaderName =>
       amzHeaderName.toLowerCase + ":" +
-        allHeaders.getAll(amzHeaderName).mkString(",") + "\n"
+        allHeaders.getAll(amzHeaderName).asScala.mkString(",") + "\n"
     }.mkString
   }
 
@@ -159,7 +158,7 @@ class SignatureCalculator(
       case PathRequest => path
       case _ => {
         val bucket = url.getHost.dropRight(host.size + 1)
-        if (bucket.isEmpty) path else s"/${bucket}$path"
+        if (bucket.isEmpty) path else s"/$bucket$path"
       }
     }
   }

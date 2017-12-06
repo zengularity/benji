@@ -1,8 +1,8 @@
-package tests
+package tests.benji.s3
 
-import io.netty.handler.codec.http.DefaultHttpHeaders
+import play.shaded.ahc.io.netty.handler.codec.http.DefaultHttpHeaders
 
-import com.zengularity.s3.{
+import com.zengularity.benji.s3.{
   PathRequest,
   RequestStyle,
   SignatureCalculator,

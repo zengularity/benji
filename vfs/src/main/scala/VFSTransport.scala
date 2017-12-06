@@ -1,29 +1,28 @@
-package com.zengularity.vfs
+package com.zengularity.benji.vfs
 
 import scala.util.Try
 
 import org.apache.commons.vfs2.{ FileSystemManager, VFS }
 
-import com.zengularity.storage.StoragePack
+import com.zengularity.benji.StoragePack
 
 /**
- * @define fsManagerParam the VFS manager
- *
- * @param fsManager $fsManagerParam
+ * @param fsManager the VFS manager
  */
 final class VFSTransport(val fsManager: FileSystemManager)
 
 /** Google transport factory. */
 object VFSTransport {
   import java.io.File
-  import org.apache.commons.vfs2.impl.DefaultFileSystemManager
-  import org.apache.commons.vfs2.provider.temp.TemporaryFileProvider
+
   import org.apache.commons.vfs2.CacheStrategy
   import org.apache.commons.vfs2.cache.NullFilesCache
+  import org.apache.commons.vfs2.impl.DefaultFileSystemManager
+  import org.apache.commons.vfs2.provider.temp.TemporaryFileProvider
 
   /**
    * Initializes a transport based on the given FS manager.
-   * @param fsManager $fsManagerParam
+   * @param fsManager the VFS manager
    *
    * {{{
    * import org.apache.commons.vfs2.{ FileSystemManager, VFS }
@@ -66,5 +65,5 @@ object VFSTransport {
 
 object VFSStoragePack extends StoragePack {
   type Transport = VFSTransport
-  type Writer[T] = play.api.http.Writeable[T]
+  type Writer[T] = play.api.libs.ws.BodyWritable[T]
 }

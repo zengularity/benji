@@ -1,21 +1,22 @@
-package com.zengularity.google
+package com.zengularity.benji.google
+
+import java.time.{ Instant, LocalDateTime, ZoneOffset }
 
 import scala.concurrent.{ ExecutionContext, Future }
-
-import org.joda.time.DateTime
 
 import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.storage.{ BucketRef, Bytes, Object }
+import com.google.api.services.storage.model
+import com.google.api.services.storage.model.StorageObject
 
-import com.google.api.services.storage.model, model.StorageObject
+import com.zengularity.benji.{ BucketRef, Bytes, Object }
 
 final class GoogleBucketRef private[google] (
   val storage: GoogleStorage,
   val name: String) extends BucketRef[GoogleStorage] { ref =>
-  import scala.collection.JavaConversions.collectionAsScalaIterable
+  import scala.collection.JavaConverters.collectionAsScalaIterable
 
   object objects extends ref.ListRequest {
     def apply()(implicit m: Materializer, gt: GoogleTransport): Source[Object, NotUsed] = {
@@ -31,7 +32,7 @@ final class GoogleBucketRef private[google] (
             Object(
               obj.getName,
               Bytes(obj.getSize.longValue),
-              new DateTime(obj.getUpdated.getValue))
+              LocalDateTime.ofInstant(Instant.ofEpochMilli(obj.getUpdated.getValue), ZoneOffset.UTC))
           })
       }).flatMapMerge(1, identity)
     }
@@ -62,7 +63,7 @@ final class GoogleBucketRef private[google] (
     case err => Future.failed[Boolean](err)
   }
 
-  def delete()(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = Future { gt.client.buckets().delete(name).execute() }
+  def delete()(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = Future { gt.client.buckets().delete(name).execute(); () }
 
   def obj(objectName: String): GoogleObjectRef =
     new GoogleObjectRef(storage, name, objectName)

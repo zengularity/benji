@@ -1,10 +1,11 @@
-package com.zengularity.s3
+package com.zengularity.benji.s3
 
 import java.net.URL
 
-import play.api.libs.ws.{ WSClient, WSRequest }
+import play.api.libs.ws.StandaloneWSRequest
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
-sealed trait WSRequestBuilder extends ((WSClient, Option[String], Option[String], Option[String]) => WSRequest) {
+sealed trait WSRequestBuilder extends ((StandaloneAhcWSClient, Option[String], Option[String], Option[String]) => StandaloneWSRequest) {
 
   /**
    * @param ws the WS client used to prepared the request
@@ -12,7 +13,7 @@ sealed trait WSRequestBuilder extends ((WSClient, Option[String], Option[String]
    * @param objectName the name of the initial object
    * @param query a query string representing URL optional parameters
    */
-  def apply(ws: WSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): WSRequest
+  def apply(ws: StandaloneAhcWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest
 }
 
 object WSRequestBuilder {
@@ -23,9 +24,10 @@ object WSRequestBuilder {
    * @param hostHeader the hostname for the `Host` header of the request HTTP
    * @param style the request style (actually `"path"` or `"virtualhost"`)
    */
-  private[s3] def build(ws: WSClient, calculator: SignatureCalculator, url: String, hostHeader: String, style: String): WSRequest = ws.url(url).withHeaders(
-    "Host" -> hostHeader,
-    "X-Request-Style" -> style).sign(calculator)
+  private[s3] def build(ws: StandaloneAhcWSClient, calculator: SignatureCalculator, url: String, hostHeader: String, style: String): StandaloneWSRequest =
+    ws.url(url).addHttpHeaders(
+      "Host" -> hostHeader,
+      "X-Request-Style" -> style).sign(calculator)
 
 }
 
@@ -48,7 +50,7 @@ private[s3] object URLInformation {
 class PathStyleWSRequestBuilder private[s3] (
   calculator: SignatureCalculator, serverUrl: URL) extends WSRequestBuilder {
 
-  def apply(ws: WSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): WSRequest = {
+  def apply(ws: StandaloneAhcWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {
     val url = new StringBuilder()
     val URLInformation(scheme, host) = serverUrl
 
@@ -84,7 +86,7 @@ class PathStyleWSRequestBuilder private[s3] (
 class VirtualHostWSRequestBuilder private[s3] (
   calculator: SignatureCalculator, serverUrl: URL) extends WSRequestBuilder {
 
-  def apply(ws: WSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): WSRequest = {
+  def apply(ws: StandaloneAhcWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {
     val url = new StringBuilder()
     val URLInformation(scheme, host) = serverUrl
 

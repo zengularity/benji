@@ -1,4 +1,4 @@
-package tests
+package tests.benji.s3
 
 import akka.stream.scaladsl.Source
 

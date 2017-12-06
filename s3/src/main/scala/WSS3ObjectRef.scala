@@ -1,24 +1,19 @@
-package com.zengularity.s3
+package com.zengularity.benji.s3
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import play.api.http.Status
-
 import akka.NotUsed
-import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Flow, Sink, Source }
+import akka.util.ByteString
 
-import play.api.libs.ws.{ WSClient, WSRequest, StreamedResponse }
+import play.api.libs.ws.DefaultBodyWritables._
+import play.api.libs.ws.XMLBodyWritables._
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.api.libs.ws.StandaloneWSRequest
 
-import com.zengularity.ws.{ ContentMD5, Successful }
-import com.zengularity.storage.{
-  Chunk,
-  Bytes,
-  ByteRange,
-  ObjectRef,
-  Streams
-}
+import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams }
+import com.zengularity.benji.ws.{ ContentMD5, Successful }
 
 final class WSS3ObjectRef private[s3] (
   val storage: WSS3,
@@ -36,9 +31,9 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
    */
-  def exists(implicit ec: ExecutionContext, ws: WSClient): Future[Boolean] =
+  def exists(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Boolean] =
     storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).
-      head().map(_.status == Status.OK)
+      head().map(_.status == 200)
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
@@ -50,13 +45,11 @@ final class WSS3ObjectRef private[s3] (
       def req = storage.request(
         Some(bucket), Some(name), requestTimeout = requestTimeout)
 
-      Source.fromFuture(range.fold(req)(r => req.withHeaders(
-        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap {
-        case StreamedResponse(response, body) => response match {
-          case Successful(_) => Future.successful(body)
-          case _ => Future.failed[Source[ByteString, _]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: ${response.status} - ${response.headers}"))
-        }
-      }).flatMapMerge(1, identity)
+      Source.fromFuture(range.fold(req)(r => req.addHttpHeaders(
+        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap { response =>
+        if (response.status == 200 || response.status == 206) Future.successful(response.bodyAsSource)
+        else Future.failed[Source[ByteString, _]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: ${response.status} - ${response.headers}"))
+      }).flatMapMerge(1, identity(_))
     }
   }
 
@@ -67,10 +60,10 @@ final class WSS3ObjectRef private[s3] (
       Some(bucket), Some(name), requestTimeout = requestTimeout)
 
     req.head().flatMap { response =>
-      if (response.status != Status.OK) {
+      if (response.status != 200) {
         Future.failed[Map[String, Seq[String]]](new IllegalArgumentException(s"Could not get the head of the object $name in the bucket $bucket. Response: ${response.status} - ${response.statusText}"))
       } else {
-        Future(response.allHeaders)
+        Future(response.headers)
       }
     }
   }
@@ -106,8 +99,7 @@ final class WSS3ObjectRef private[s3] (
       }
       implicit def ec: ExecutionContext = m.executionContext
 
-      def flowChunks = Flow.fromFunction[E, ByteString](w.transform).
-        via(Streams.consumeAtLeast(th))
+      def flowChunks = Streams.chunker[E].via(Streams.consumeAtLeast(th))
 
       val amzHeaders = metadata.map {
         case (key, value) => s"x-amz-meta-${key}" -> value
@@ -118,14 +110,14 @@ final class WSS3ObjectRef private[s3] (
 
         case (head, tail) => head.toList match {
           case (last @ Chunk.Last(_)) :: _ => // if first is last, single chunk
-            Source.single(last).via(putSimple(w.contentType, amzHeaders, z, f))
+            Source.single(last).via(putSimple(Option(w.contentType), amzHeaders, z, f))
 
           case first :: _ => {
             def chunks = Source.single(first) ++ tail // push back the first
             def source = chunks.zip(initiateUpload(amzHeaders).
               flatMapConcat(Source.repeat /* same ID for all */ ))
 
-            source.via(putMulti(w.contentType, th, z, f))
+            source.via(putMulti(Option(w.contentType), z, f))
           }
         }
       }).toMat(Sink.head[A]) { (_, mat) => mat }
@@ -137,16 +129,16 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
    */
-  def delete(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
+  def delete(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] =
     delete(ignoreMissing = false)
 
-  private def delete(ignoreMissing: Boolean)(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = {
+  private def delete(ignoreMissing: Boolean)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] = {
     def failMsg = s"Could not delete the object $bucket/$name"
 
     exists.flatMap {
       case true => storage.request(Some(bucket), Some(name),
         requestTimeout = requestTimeout).delete().map {
-        case Successful(response) =>
+        case Successful(_) =>
           logger.info(s"Successfully deleted the object $bucket/$name.")
 
         case response =>
@@ -164,7 +156,7 @@ final class WSS3ObjectRef private[s3] (
    * @see #copyTo
    * @see #delete
    */
-  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = {
+  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] = {
     val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
 
     for {
@@ -189,12 +181,12 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
    */
-  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
+  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] =
     storage.request(Some(targetBucketName), Some(targetObjectName),
       requestTimeout = requestTimeout).
-      withHeaders("x-amz-copy-source" -> s"/$bucket/$name").
+      addHttpHeaders("x-amz-copy-source" -> s"/$bucket/$name").
       put("").map {
-        case Successful(response) =>
+        case Successful(_) =>
           logger.info(s"Successfully copied the object [$bucket/$name] to [$targetBucketName/$targetObjectName].")
 
         case response =>
@@ -218,18 +210,18 @@ final class WSS3ObjectRef private[s3] (
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
    */
-  private def putSimple[A](contentType: Option[String], metadata: Map[String, String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: WSClient): Flow[Chunk, A, NotUsed] = {
+  private def putSimple[A](contentType: Option[String], metadata: Map[String, String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: StandaloneAhcWSClient): Flow[Chunk, A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     Flow[Chunk].limit(1).flatMapConcat { single =>
       val req = storage.request(Some(bucket), Some(name),
         requestTimeout = requestTimeout).
-        withHeaders((("Content-MD5" -> ContentMD5(single.data)) +: (
+        addHttpHeaders((("Content-MD5" -> ContentMD5(single.data)) +: (
           metadata.toSeq)): _*)
 
       Source.fromFuture(
         withContentTypeHeader(req, contentType).put(single.data).map {
-          case Successful(response) =>
+          case Successful(_) =>
             logger.debug(s"Completed the simple upload for $bucket/$name.")
 
           case response =>
@@ -245,7 +237,7 @@ final class WSS3ObjectRef private[s3] (
    * @param contentType $contentTypeParam
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html
    */
-  private def putMulti[A](contentType: Option[String], threshold: Bytes, z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: WSClient): Flow[(Chunk, String), A, NotUsed] = {
+  private def putMulti[A](contentType: Option[String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: StandaloneAhcWSClient): Flow[(Chunk, String), A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     @inline def zst = (Option.empty[String], List.empty[String], z)
@@ -266,15 +258,13 @@ final class WSS3ObjectRef private[s3] (
       }
   }
 
-  //private val debugLogger = org.slf4j.LoggerFactory.getLogger("foo")
-
   /**
    * Initiates a multi-part upload and returns the upload ID we're supposed to include when uploading parts later on.
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
    */
-  private def initiateUpload(metadata: Map[String, String])(implicit ec: ExecutionContext, ws: WSClient): Source[String, NotUsed] = Source fromFuture {
+  private def initiateUpload(metadata: Map[String, String])(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Source[String, NotUsed] = Source fromFuture {
     storage.request(Some(bucket), Some(name), Some("uploads"),
-      requestTimeout = requestTimeout).withHeaders(metadata.toSeq: _*).
+      requestTimeout = requestTimeout).addHttpHeaders(metadata.toSeq: _*).
       post("").map {
         case Successful(response) => {
           val xmlResponse = scala.xml.XML.loadString(response.body)
@@ -305,11 +295,11 @@ final class WSS3ObjectRef private[s3] (
   private def uploadPart(
     bytes: ByteString,
     contentType: Option[String],
-    partNumber: Int, uploadId: String)(implicit ec: ExecutionContext, ws: WSClient): Future[String] = {
+    partNumber: Int, uploadId: String)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[String] = {
     val req = storage.request(
       Some(bucket), Some(name),
       query = Some(s"partNumber=$partNumber&uploadId=$uploadId"),
-      requestTimeout = requestTimeout).withHeaders("Content-MD5" -> ContentMD5(bytes))
+      requestTimeout = requestTimeout).addHttpHeaders("Content-MD5" -> ContentMD5(bytes))
 
     withContentTypeHeader(req, contentType).
       put(bytes).map {
@@ -317,7 +307,7 @@ final class WSS3ObjectRef private[s3] (
           logger.trace(s"Uploaded part $partNumber with ${bytes.length} bytes of the upload $uploadId for $bucket/$name.")
 
           response.header("ETag").getOrElse(throw new IllegalStateException(
-            s"Response for the upload [$bucket/$name, $uploadId, part: $partNumber] did not include an ETag header: ${response.allHeaders}."))
+            s"Response for the upload [$bucket/$name, $uploadId, part: $partNumber] did not include an ETag header: ${response.headers}."))
         }
 
         case response =>
@@ -328,7 +318,7 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html
    */
-  private def completeUpload(etags: List[String], uploadId: String)(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = {
+  private def completeUpload(etags: List[String], uploadId: String)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] = {
     storage.request(Some(bucket), Some(name),
       query = Some(s"uploadId=$uploadId"),
       requestTimeout = requestTimeout).post(
@@ -350,7 +340,7 @@ final class WSS3ObjectRef private[s3] (
         }
   }
 
-  @inline private def withContentTypeHeader(req: WSRequest, contentType: Option[String]): WSRequest = contentType.fold(req)(c => req.withHeaders("Content-Type" -> c))
+  @inline private def withContentTypeHeader(req: StandaloneWSRequest, contentType: Option[String]): StandaloneWSRequest = contentType.fold(req)(c => req.addHttpHeaders("Content-Type" -> c))
 
   override lazy val toString = s"WSS3ObjectRef($bucket, $name)"
 }

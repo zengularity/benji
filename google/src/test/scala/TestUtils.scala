@@ -1,4 +1,4 @@
-package tests
+package tests.benji.google
 
 import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
@@ -7,8 +7,8 @@ import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 
-import com.zengularity.ws.{ WS => TestWS }
-import com.zengularity.google.{ GoogleStorage, GoogleTransport }
+import com.zengularity.benji.ws.{ WS => TestWS }
+import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport }
 
 object TestUtils {
   import com.typesafe.config.ConfigFactory
@@ -22,10 +22,10 @@ object TestUtils {
     ConfigFactory.load("tests.conf")
   }
 
-  lazy val system = akka.actor.ActorSystem("cabinet-google-tests")
+  lazy val system = akka.actor.ActorSystem("benji-google-tests")
   lazy val materializer = akka.stream.ActorMaterializer.create(system)
 
-  implicit lazy val WS: play.api.libs.ws.WSClient =
+  implicit lazy val WS: play.api.libs.ws.ahc.StandaloneAhcWSClient =
     TestWS.client()(materializer)
 
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
@@ -50,21 +50,21 @@ object TestUtils {
     GoogleTransport(
       googleCredential,
       config.getString("google.storage.projectId"),
-      s"cabinet-tests-${System identityHashCode this}")
+      s"benji-tests-${System identityHashCode this}")
 
   lazy val google = GoogleStorage()
 
   // ---
 
   def close(): Unit = if (inited) {
-    import com.zengularity.storage.ObjectStorage
+    import com.zengularity.benji.ObjectStorage
 
     implicit def m: Materializer = materializer
     implicit def ec: ExecutionContext = m.executionContext
 
     def storageCleanup[T <: ObjectStorage[T]](st: T)(implicit tr: st.Pack#Transport) = st.buckets.collect[List]().flatMap(bs =>
-      Future.sequence(bs.filter(_.name startsWith "cabinet-test-").map { b =>
-        val bucket: com.zengularity.storage.BucketRef[T] = st.bucket(b.name)
+      Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
+        val bucket: com.zengularity.benji.BucketRef[T] = st.bucket(b.name)
 
         bucket.objects.collect[List]().flatMap { os =>
           Future.sequence(os.map(o => bucket.obj(o.name).delete))

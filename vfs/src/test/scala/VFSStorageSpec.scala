@@ -1,25 +1,27 @@
-package tests
-
-import scala.concurrent.{ ExecutionContext, Future }
-import scala.concurrent.duration._
+package tests.benji.vfs
 
 import scala.collection.immutable.Seq
+import scala.concurrent.duration._
+import scala.concurrent.Future
 
 import akka.stream.Materializer
-import akka.stream.scaladsl.{ Sink, Source }
 import akka.stream.contrib.TestKit.assertAllStagesStopped
+import akka.stream.scaladsl.{ Sink, Source }
 
-import org.specs2.concurrent.{ ExecutionEnv => EE }
+import play.api.libs.ws.DefaultBodyWritables._
+
+import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.MatchResult
 
-import com.zengularity.storage.{ Bucket, ByteRange, Object }
-import com.zengularity.vfs.VFSObjectRef
+import com.zengularity.benji.{ Bucket, ByteRange, Object }
+import com.zengularity.benji.vfs.VFSObjectRef
 
-import Sources.repeat
+class VFSStorageSpec(implicit ee: ExecutionEnv)
+  extends org.specs2.mutable.Specification {
 
-import TestUtils.{ vfs, vfsTransport, consume }
+  import Sources.repeat
+  import TestUtils.{ consume, vfs, vfsTransport }
 
-class VFSStorageSpec extends org.specs2.mutable.Specification {
   "VFS Cloud Storage" title
 
   sequential
@@ -27,9 +29,9 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
   implicit def materializer: Materializer = TestUtils.materializer
 
   "VFS client" should {
-    val bucketName = s"cabinet-test-${System identityHashCode this}"
+    val bucketName = s"benji-test-${System identityHashCode this}"
 
-    "Access the system" in { implicit ee: EE =>
+    "Access the system" in {
       val bucket = vfs.bucket(bucketName)
 
       bucket.toString must_== s"VFSBucketRef($bucketName)" and {
@@ -39,8 +41,8 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
         bucket.create(checkBefore = true) must beFalse.await(1, 10.seconds))
     }
 
-    "Create buckets and files" in assertAllStagesStopped { implicit ee: EE =>
-      val name = s"cabinet-test-${System identityHashCode vfs}"
+    "Create buckets and files" in assertAllStagesStopped {
+      val name = s"benji-test-${System identityHashCode vfs}"
       val objects = for {
         _ <- vfs.bucket(name).create()
         _ <- Source.single("Hello".getBytes) runWith vfs.
@@ -54,7 +56,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
       }.await(1, 10.seconds)
     }
 
-    "List of all buckets" in { implicit ee: EE =>
+    "List of all buckets" in {
       vfs.buckets.collect[List]().
         map(_.exists(_.name == bucketName)) must beTrue.await(1, 10.seconds)
     }
@@ -62,7 +64,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
     val fileStart = "hello world !!!"
 
     val partCount = 3
-    s"Write file in $bucketName bucket using $partCount parts" in assertAllStagesStopped { implicit ee: EE =>
+    s"Write file in $bucketName bucket using $partCount parts" in assertAllStagesStopped {
       val filetest = vfs.bucket(bucketName).obj("testfile.txt")
       var b = 0.toByte
       def nextByte = {
@@ -85,13 +87,13 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
         }
     }
 
-    s"Get contents of $bucketName bucket" in { implicit ee: EE =>
+    s"Get contents of $bucketName bucket" in {
       vfs.bucket(bucketName).objects.collect[List]().map(
         _.exists(_.name == "testfile.txt")) must beTrue.await(1, 10.seconds)
     }
 
-    "Create & delete buckets" in { implicit ee: EE =>
-      val name = s"cabinet-test-2${System identityHashCode vfs}"
+    "Create & delete buckets" in {
+      val name = s"benji-test-2${System identityHashCode vfs}"
       val bucket = vfs.bucket(name)
 
       bucket.exists aka "exists #1" must beFalse.
@@ -113,7 +115,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
         } and (bucket.exists aka "exists #3" must beFalse.await(1, 10.seconds))
     }
 
-    "Get content of a file" in assertAllStagesStopped { implicit ee: EE =>
+    "Get content of a file" in assertAllStagesStopped {
       val objRef = vfs.bucket(bucketName).obj("testfile.txt")
 
       objRef.toString must beEqualTo(
@@ -129,21 +131,19 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
     }
 
     "Get partial content of a file" in assertAllStagesStopped {
-      implicit ee: EE =>
-        (vfs.bucket(bucketName).obj("testfile.txt"). // hello world !!!
-          get(range = Some(ByteRange(4, 9))) runWith consume).
-          aka("partial content") must beEqualTo("o worl").await(1, 10.seconds)
+      (vfs.bucket(bucketName).obj("testfile.txt"). // hello world !!!
+        get(range = Some(ByteRange(4, 9))) runWith consume).
+        aka("partial content") must beEqualTo("o worl").await(1, 10.seconds)
     }
 
     "Fail to get contents of a non-existing file" in assertAllStagesStopped {
-      implicit ee: EE =>
-        vfs.bucket(bucketName).obj("test-folder/DoesNotExist.txt").
-          get() runWith consume must throwA[IllegalStateException].like({
-            case e => e.getMessage must startWith(s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
-          }).await(1, 10.seconds)
+      vfs.bucket(bucketName).obj("test-folder/DoesNotExist.txt").
+        get() runWith consume must throwA[IllegalStateException].like({
+          case e => e.getMessage must startWith(s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
+        }).await(1, 10.seconds)
     }
 
-    "Write and copy files" in assertAllStagesStopped { implicit ee: EE =>
+    "Write and copy files" in assertAllStagesStopped {
       val file1 = vfs.bucket(bucketName).obj("testfile1.txt")
       val file2 = vfs.bucket(bucketName).obj("testfile2.txt")
 
@@ -165,7 +165,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
       }
     }
 
-    "Write and delete file" in assertAllStagesStopped { implicit ee: EE =>
+    "Write and delete file" in assertAllStagesStopped {
       val file = vfs.bucket(bucketName).obj("removable.txt")
 
       file.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
@@ -188,7 +188,7 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
     }
 
     "Write and move file" >> {
-      def moveSpec[T](target: => Future[VFSObjectRef], preventOverwrite: Boolean = true)(onMove: (VFSObjectRef, VFSObjectRef, Future[Unit]) => MatchResult[Future[T]])(implicit ee: EE) = {
+      def moveSpec[T](target: => Future[VFSObjectRef], preventOverwrite: Boolean = true)(onMove: (VFSObjectRef, VFSObjectRef, Future[Unit]) => MatchResult[Future[T]]) = {
         val file3 = vfs.bucket(bucketName).obj("testfile3.txt")
 
         file3.exists.aka("exists #3") must beFalse.await(1, 5.seconds) and (
@@ -216,20 +216,20 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
           }.await(1, 10.seconds))
       }
 
-      @inline def successful(file3: VFSObjectRef, file4: VFSObjectRef, res: Future[Unit])(implicit ee: EE) = (for {
+      @inline def successful(file3: VFSObjectRef, file4: VFSObjectRef, res: Future[Unit]) = (for {
         _ <- res
         a <- file3.exists
         b <- file4.exists
       } yield a -> b) must beEqualTo(false -> true).await(1, 10.seconds)
 
-      @inline def failed(file3: VFSObjectRef, file4: VFSObjectRef, res: Future[Unit])(implicit ee: EE) = (res.recoverWith {
+      @inline def failed(file3: VFSObjectRef, file4: VFSObjectRef, res: Future[Unit]) = (res.recoverWith {
         case _: IllegalStateException => for {
           a <- file3.exists
           b <- file4.exists
         } yield a -> b
       }) must beEqualTo(true -> true).await(1, 10.seconds)
 
-      @inline def existingTarget(implicit ec: ExecutionContext): Future[VFSObjectRef] = {
+      @inline def existingTarget: Future[VFSObjectRef] = {
         val target = vfs.bucket(bucketName).obj("testfile4.txt")
         val write = target.put[Array[Byte]]
         val body = List.fill(1000)("qwerty").mkString(" ").getBytes
@@ -237,19 +237,17 @@ class VFSStorageSpec extends org.specs2.mutable.Specification {
         { repeat(20) { body } runWith write }.map(_ => target)
       }
 
-      "if prevent overwrite when target doesn't exist" in assertAllStagesStopped { implicit ee: EE =>
+      "if prevent overwrite when target doesn't exist" in assertAllStagesStopped {
         moveSpec(
           Future.successful(vfs.bucket(bucketName).obj("testfile4.txt")))(successful)
       }
 
       "if prevent overwrite when target exists" in assertAllStagesStopped {
-        implicit ee: EE =>
-          moveSpec(existingTarget)(failed)
+        moveSpec(existingTarget)(failed)
       }
 
       "if overwrite when target exists" in assertAllStagesStopped {
-        implicit ee: EE =>
-          moveSpec(existingTarget, preventOverwrite = false)(successful)
+        moveSpec(existingTarget, preventOverwrite = false)(successful)
       }
     }
   }

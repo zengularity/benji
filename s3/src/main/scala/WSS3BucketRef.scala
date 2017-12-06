@@ -1,18 +1,18 @@
-package com.zengularity.s3
+package com.zengularity.benji.s3
+
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 import scala.concurrent.{ ExecutionContext, Future }
-
-import org.joda.time.DateTime
 
 import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import play.api.http.Status
-import play.api.libs.ws.WSClient
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
-import com.zengularity.ws.Successful
-import com.zengularity.storage.{ BucketRef, Bytes, Object }
+import com.zengularity.benji.{ BucketRef, Bytes, Object }
+import com.zengularity.benji.ws.Successful
 
 final class WSS3BucketRef private[s3] (
   val storage: WSS3,
@@ -24,7 +24,7 @@ final class WSS3BucketRef private[s3] (
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
   object objects extends ref.ListRequest {
-    def apply()(implicit m: Materializer, ws: WSClient): Source[Object, NotUsed] = {
+    def apply()(implicit m: Materializer, ws: StandaloneAhcWSClient): Source[Object, NotUsed] = {
       S3.getXml[Object](
         storage.request(Some(name), requestTimeout = requestTimeout))({ xml =>
           val contents = xml \ "Contents"
@@ -34,7 +34,7 @@ final class WSS3BucketRef private[s3] (
               name = (content \ "Key").text,
               size = Bytes((content \ "Size").text.toLong),
               lastModifiedAt =
-                DateTime.parse((content \ "LastModified").text))
+                LocalDateTime.parse((content \ "LastModified").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
           })
         }, { response => s"Could not list all objects within the bucket $name. Response: ${response.status} - $response" })
     }
@@ -43,14 +43,13 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html
    */
-  def exists(implicit ec: ExecutionContext, ws: WSClient): Future[Boolean] =
-    storage.request(Some(name), requestTimeout = requestTimeout).
-      head().map(_.status == Status.OK)
+  def exists(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Boolean] =
+    storage.request(Some(name), requestTimeout = requestTimeout).head().map(_.status == 200)
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
    */
-  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, ws: WSClient): Future[Boolean] = {
+  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Boolean] = {
     if (!checkBefore) create.map(_ => true)
     else exists.flatMap {
       case true => Future.successful(false)
@@ -58,21 +57,26 @@ final class WSS3BucketRef private[s3] (
     }
   }
 
-  private def create(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] = storage.request(Some(name), requestTimeout = requestTimeout).put("").map {
-    case Successful(response) =>
-      logger.info(s"Successfully created the bucket $name.")
+  private def create(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] = {
 
-    case response =>
-      throw new IllegalStateException(s"Could not create the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}")
+    import play.api.libs.ws.DefaultBodyWritables._
+    storage.request(Some(name), requestTimeout =
+      requestTimeout).put("").map {
+      case Successful(_) =>
+        logger.info(s"Successfully created the bucket $name.")
 
+      case response =>
+        throw new IllegalStateException(s"Could not create the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}")
+
+    }
   }
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
    */
-  def delete()(implicit ec: ExecutionContext, ws: WSClient): Future[Unit] =
+  def delete()(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] =
     storage.request(Some(name), requestTimeout = requestTimeout).delete().map {
-      case Successful(response) =>
+      case Successful(_) =>
         logger.info(s"Successfully deleted the bucket $name.")
 
       case response =>

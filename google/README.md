@@ -1,13 +1,12 @@
-# Google Cabinet
+# Google Benji
 
-Cabinet module for Google Cloud Storage.
+Benji module for Google Cloud Storage.
 
 ## Build
 
 The project is using [SBT](http://www.scala-sbt.org/).
 
     sbt compile
-
 
 **Run the tests:** The integration tests can be executed with SBT, after having configured the required account with the appropriate [`src/test/resources/local.conf`](./src/test/resources/local.conf.sample) and `src/test/resources/gcs-test.json` files.
 
@@ -16,17 +15,19 @@ The project is using [SBT](http://www.scala-sbt.org/).
 **Requirements:**
 
 - A JDK 1.8+ is required.
-- [Play WS](https://www.playframework.com/documentation/latest/ScalaWS) must be provided; Tested with version 2.5.4.
+- [Play Standalone WS](https://github.com/playframework/play-ws) must be provided; Tested with version 1.1.3.
 
 ## Usage
 
 In your `build.sbt` (or `project/Build.scala`):
 
 ```
-libraryDependencies += "com.zengularity" %% "cabinet-google" % "VERSION"
+libraryDependencies += "com.zengularity" %% "benji-google" % "VERSION"
 
 // If Play WS is not yet provided:
-libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.4"
+libraryDependencies ++= Seq(
+  "com.typesafe.play" %% "play-ahc-ws-standalone" % "1.1.3",
+  "com.typesafe.play" %% "play-ws-standalone-json" % "1.1.3")
 ```
 
 Then, the Google Storage client can be used as following in your code.
@@ -40,10 +41,10 @@ import akka.stream.scaladsl.{ Sink, Source }
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 
-import play.api.libs.ws.WSClient
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
-import com.zengularity.storage.{ Bucket, Object }
-import com.zengularity.google.{ GoogleStorage, GoogleTransport }
+import com.zengularity.benji.{ Bucket, Object }
+import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport }
 
 // Settings
 val projectId = "google-project-123456"
@@ -56,7 +57,7 @@ def sample1(implicit m: Materializer): Future[Unit] = {
   implicit def ec: ExecutionContext = m.executionContext
 
   // WSClient must be available to init the GoogleTransport
-  implicit def ws: WSClient = com.zengularity.ws.WS.client()
+  implicit def ws: StandaloneAhcWSClient = StandaloneAhcWSClient()
 
   implicit def gt: GoogleTransport =
     GoogleTransport(credential, projectId, appName)

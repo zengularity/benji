@@ -1,4 +1,4 @@
-package com.zengularity.storage
+package com.zengularity.benji
 
 /**
  * Use this value type when you want to specify a size

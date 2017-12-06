@@ -1,4 +1,4 @@
-package tests
+package tests.benji.google
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -7,18 +7,19 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
 import akka.stream.contrib.TestKit.assertAllStagesStopped
 
+import play.api.libs.ws.DefaultBodyWritables._
+
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.MatchResult
 
-import com.zengularity.storage.{ Bucket, ByteRange, Object }
-import com.zengularity.google.GoogleObjectRef
-
-import Sources.repeat
-
-import TestUtils.{ google, googleTransport, consume }
+import com.zengularity.benji.{ Bucket, ByteRange, Object }
+import com.zengularity.benji.google.GoogleObjectRef
 
 class GoogleStorageSpec(implicit ee: ExecutionEnv)
   extends org.specs2.mutable.Specification {
+
+  import TestUtils.{ google, googleTransport, consume }
+  import Sources.repeat
 
   "Google Cloud Storage" title
 
@@ -27,7 +28,7 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
   implicit def materializer: Materializer = TestUtils.materializer
 
   "Client" should {
-    val bucketName = s"cabinet-test-${System identityHashCode this}"
+    val bucketName = s"benji-test-${System identityHashCode this}"
     val objName = "testfile.txt"
 
     "Access the system" in {
@@ -41,11 +42,10 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
     }
 
     "Create buckets and files" in assertAllStagesStopped {
-      val name = s"cabinet-test-${System identityHashCode google}"
+      val name = s"benji-test-${System identityHashCode google}"
       val objects = for {
         _ <- google.bucket(name).create()
-        _ <- Source.single("Hello".getBytes) runWith google.
-          bucket(name).obj(objName).put[Array[Byte]]
+        _ <- Source.single("Hello".getBytes) runWith google.bucket(name).obj(objName).put[Array[Byte]]
         _ <- (google.buckets() runWith Sink.seq[Bucket])
         o <- (google.bucket(name).objects() runWith Sink.seq[Object])
       } yield o
@@ -95,7 +95,7 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
     }
 
     "Create & delete buckets" in {
-      val name = s"cabinet-test-2${System identityHashCode google}"
+      val name = s"benji-test-2${System identityHashCode google}"
       val bucket = google.bucket(name)
 
       bucket.exists aka "exists #1" must beFalse.

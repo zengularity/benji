@@ -2,13 +2,18 @@ resolvers ++= Seq(
   "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/"
 )
 
-addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.8.2")
+resolvers ++= Seq(
+  "Tatami Releases" at "https://raw.github.com/cchantep/tatami/master/releases")
 
-addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.7.1")
+addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.9.0")
 
-addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.3.3")
+addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.8.1")
 
-addSbtPlugin("de.johoop" % "findbugs4sbt" % "1.4.0")
+addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.4.1")
+
+addSbtPlugin("com.github.sbt" % "sbt-findbugs" % "2.0.0")
+
+addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.5")
 
 // For the the highlight extractor
 libraryDependencies += "commons-io" % "commons-io" % "2.4"

@@ -1,4 +1,6 @@
-package com.zengularity.storage
+package com.zengularity.benji
+
+import scala.language.higherKinds
 
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.{ ExecutionContext, Future }

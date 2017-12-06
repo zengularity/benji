@@ -1,8 +1,10 @@
-package com.zengularity.storage
+package com.zengularity.benji
 
 import akka.NotUsed
+import akka.stream.scaladsl.{ Flow, Source }
 import akka.util.{ ByteString, ByteStringBuilder }
-import akka.stream.scaladsl.Flow
+
+import play.api.libs.ws.{ BodyWritable, EmptyBody, InMemoryBody, SourceBody }
 
 /** Stream management utility. */
 object Streams {
@@ -23,16 +25,30 @@ object Streams {
   def consumeAtMost(size: Bytes): Flow[ByteString, Chunk, NotUsed] =
     Flow.fromGraph(new ChunkOfAtMost(size.bytes.toInt))
 
+  /**
+   * Transforms input `E`lements as byte chunks.
+   *
+   * @param entry content to consume
+   * @param bodyWritable body of a request
+   * @return Returns a flow to consume chunks of a body from a request
+   */
+  def chunker[E: BodyWritable]: Flow[E, ByteString, NotUsed] = {
+    val w = implicitly[BodyWritable[E]]
+
+    Flow[E].flatMapConcat {
+      w.transform(_) match {
+        case SourceBody(source) => source.mapMaterializedValue(_ => NotUsed)
+        case InMemoryBody(byteString) => Source.single(byteString)
+        case EmptyBody => Source.empty[ByteString]
+      }
+    }
+  }
+
   // Internal stages
 
-  import akka.util.ByteString
+  import akka.stream.stage.{ GraphStage, GraphStageLogic, InHandler, OutHandler }
   import akka.stream.{ Attributes, FlowShape, Inlet, Outlet }
-  import akka.stream.stage.{
-    GraphStage,
-    GraphStageLogic,
-    InHandler,
-    OutHandler
-  }
+  import akka.util.ByteString
 
   private class ChunkOfAtMost(limit: Int)
     extends GraphStage[FlowShape[ByteString, Chunk]] {
@@ -168,4 +184,5 @@ object Streams {
         override val toString = "ChunkOfAtLeast.Logic"
       }
   }
+
 }

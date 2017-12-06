@@ -1,13 +1,13 @@
-package tests
+package tests.benji.vfs
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
+import akka.util.ByteString
 
-import com.zengularity.ws.{ WS => TestWS }
-import com.zengularity.vfs.{ VFSStorage, VFSTransport }
+import com.zengularity.benji.ws.{ WS => TestWS }
+import com.zengularity.benji.vfs.{ VFSStorage, VFSTransport }
 
 object TestUtils {
   import com.typesafe.config.ConfigFactory
@@ -20,10 +20,10 @@ object TestUtils {
     ConfigFactory.load("tests.conf")
   }
 
-  lazy val system = akka.actor.ActorSystem("cabinet-vfs-tests")
+  lazy val system = akka.actor.ActorSystem("benji-vfs-tests")
   lazy val materializer = akka.stream.ActorMaterializer.create(system)
 
-  implicit lazy val WS: play.api.libs.ws.WSClient =
+  implicit lazy val WS: play.api.libs.ws.ahc.StandaloneAhcWSClient =
     TestWS.client()(materializer)
 
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))

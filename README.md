@@ -19,11 +19,11 @@ According your Object Storage, the following modules are available.
 These modules can be configured as dependencies in your `build.sbt` (or `project/Build.scala`):
 
 ```
-val cabinetVer = "VERSION"
+val benjiVer = "VERSION"
 
-libraryDependencies += "com.zengularity" %% "cabinet-s3" % cabinetVer
+libraryDependencies += "com.zengularity" %% "benji-s3" % benjiVer
 
-libraryDependencies += "com.zengularity" %% "cabinet-google" % cabinetVer
+libraryDependencies += "com.zengularity" %% "benji-google" % benjiVer
 
 // If Play WS is not yet provided:
 libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.4"
@@ -49,13 +49,13 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import play.api.libs.ws.WSClient
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
-import com.zengularity.storage.Bucket
-import com.zengularity.s3.WSS3
-import com.zengularity.google.{ GoogleStorage, GoogleTransport }
+import com.zengularity.benji.Bucket
+import com.zengularity.benji.s3.WSS3
+import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport }
 
-def listBuckets(s3: WSS3)(implicit m: Materializer, tr: WSClient): Future[List[Bucket]] = s3.buckets.collect[List]
+def listBuckets(s3: WSS3)(implicit m: Materializer, tr: StandaloneAhcWSClient): Future[List[Bucket]] = s3.buckets.collect[List]
 
 def enumerateBucket(gcs: GoogleStorage)(implicit m: Materializer, tr: GoogleTransport): Source[Bucket, NotUsed] = gcs.buckets()
 ```
@@ -69,8 +69,8 @@ In order to update a bucket, a `BucketRef` must be obtained (rather than the rea
 ```scala
 import scala.concurrent.ExecutionContext
 
-import com.zengularity.storage.{ BucketRef, ObjectStorage }
-import com.zengularity.google.{ GoogleBucketRef, GoogleStorage, GoogleTransport }
+import com.zengularity.benji.{ BucketRef, ObjectStorage }
+import com.zengularity.benji.google.{ GoogleBucketRef, GoogleStorage, GoogleTransport }
 
 def googleBucket(gcs: GoogleStorage, name: String)(implicit ec: ExecutionContext, tr: GoogleTransport): GoogleBucketRef = gcs.bucket(name)
 
@@ -98,12 +98,12 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import play.api.libs.ws.WSClient
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
-import com.zengularity.storage.{ BucketRef, Object, ObjectStorage }
-import com.zengularity.s3.WSS3BucketRef
+import com.zengularity.benji.{ BucketRef, Object, ObjectStorage }
+import com.zengularity.benji.s3.WSS3BucketRef
 
-def objectSet(bucket: WSS3BucketRef)(implicit m: Materializer, tr: WSClient): Future[Set[Object]] = bucket.objects.collect[Set]
+def objectSet(bucket: WSS3BucketRef)(implicit m: Materializer, tr: StandaloneAhcWSClient): Future[Set[Object]] = bucket.objects.collect[Set]
 
 def enumerateObjects[T <: ObjectStorage[T]](bucket: BucketRef[T])(implicit m: Materializer, tr: T#Pack#Transport): Source[Object, NotUsed] = bucket.objects()
 // Generic - Works with any kind of ObjectStorage[T]
@@ -118,8 +118,8 @@ In order to manage an object, an `ObjectRef` must be obtained (rather than the r
 ```scala
 import scala.concurrent.ExecutionContext
 
-import com.zengularity.storage.{ BucketRef, ObjectRef, ObjectStorage }
-import com.zengularity.google.{ GoogleBucketRef, GoogleObjectRef, GoogleTransport }
+import com.zengularity.benji.{ BucketRef, ObjectRef, ObjectStorage }
+import com.zengularity.benji.google.{ GoogleBucketRef, GoogleObjectRef, GoogleTransport }
 
 def obtainRef[T <: ObjectStorage[T]](bucket: BucketRef[T], name: String)(implicit ec: ExecutionContext, tr: T#Pack#Transport): ObjectRef[T] = bucket.obj(name)
 // Generic - Works with any kind of ObjectStorage[T]
@@ -142,7 +142,7 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
 
-import com.zengularity.storage.{ BucketRef, ObjectStorage }
+import com.zengularity.benji.{ BucketRef, ObjectStorage }
 
 // Upload with any ObjectStorage instance
 def upload[T <: ObjectStorage[T]](bucket: BucketRef[T], objName: String, data: => Source[Array[Byte], NotUsed])(implicit m: Materializer, tr: T#Pack#Transport, w: T#Pack#Writer[Array[Byte]]): Future[(String, Long)] = {
@@ -165,11 +165,11 @@ def upload[T <: ObjectStorage[T]](bucket: BucketRef[T], objName: String, data: =
   })
 }
 
-import play.api.libs.ws.WSClient
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
-import com.zengularity.s3.WSS3
+import com.zengularity.benji.s3.WSS3
 
-def putToS3[A : WSS3#Pack#Writer](storage: WSS3, bucketName: String, objName: String, data: => Source[A, NotUsed])(implicit m: Materializer, tr: WSClient): Future[Unit] = {
+def putToS3[A : WSS3#Pack#Writer](storage: WSS3, bucketName: String, objName: String, data: => Source[A, NotUsed])(implicit m: Materializer, tr: StandaloneAhcWSClient): Future[Unit] = {
   implicit def ec: ExecutionContext = m.executionContext
 
   for {

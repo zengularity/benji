@@ -1,7 +1,8 @@
-package com.zengularity.storage
+package com.zengularity.benji
+
+import scala.language.higherKinds
 
 import scala.collection.generic.CanBuildFrom
-
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
@@ -23,7 +24,7 @@ trait ObjectStorage[T <: ObjectStorage[T]] { self =>
   /**
    * The type for the object references managed by this storage.
    */
-  type ObjectRef <: com.zengularity.storage.ObjectRef[T]
+  type ObjectRef <: com.zengularity.benji.ObjectRef[T]
 
   /** Storage logger */
   val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
