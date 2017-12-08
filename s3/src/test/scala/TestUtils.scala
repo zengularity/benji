@@ -39,6 +39,9 @@ object TestUtils {
   lazy val awsVirtualHost =
     S3.virtualHost(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
 
+  lazy val awsFromVirtualHostStyleURL = S3(s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost").get
+  lazy val awsFromPathStyleURL = S3(s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=path").get
+
   lazy val ceph = S3(cephAccessKey, cephSecretKey, cephProtocol, cephHost)
 
   lazy val system = akka.actor.ActorSystem("benji-s3-tests")

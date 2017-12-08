@@ -27,11 +27,46 @@ class S3AwsSpec extends Specification with AwsTests {
   awsSuite(
     "in virtual host style",
     TestUtils.awsVirtualHost)(TestUtils.materializer)
+
+  awsMinimalSuite(
+    "in path style with URI",
+    TestUtils.awsFromPathStyleURL)(TestUtils.materializer)
+
+  awsMinimalSuite(
+    "in virtual host with URI",
+    TestUtils.awsFromVirtualHostStyleURL)(TestUtils.materializer)
 }
 
 sealed trait AwsTests { specs: Specification =>
   import Sources.repeat
   import TestUtils.{ WS, consume, withMatEx }
+
+  def awsMinimalSuite(
+    label: String,
+    s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer) = s"S3 client $label" should {
+    val bucketName = s"benji-test-${System identityHashCode s3f}"
+
+    s"Not find bucket $bucketName before it's created" in withMatEx {
+      implicit ee: EE =>
+        val bucket = s3f.bucket(bucketName)
+
+        bucket.toString.
+          aka("string representation") must_== s"WSS3BucketRef($bucketName)" and (
+            bucket.exists must beFalse.await(1, 10.seconds))
+    }
+
+    s"Creating bucket $bucketName and get a list of all buckets" in withMatEx {
+      implicit ee: EE =>
+        val s3 = s3f
+        val bucket = s3.bucket(bucketName)
+
+        bucket.create().flatMap(_ => s3.buckets.collect[List]()).
+          map(_.exists(_.name == bucketName)) must beTrue.
+          await(1, 10.seconds) and (
+            bucket.create(checkBefore = true) must beFalse.
+            await(1, 10.seconds))
+    }
+  }
 
   def awsSuite(
     label: String,

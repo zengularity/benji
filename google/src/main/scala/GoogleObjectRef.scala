@@ -321,8 +321,8 @@ final class GoogleObjectRef private[google] (
         case Ok(_) =>
           Future.successful(reqRange)
 
-        case ResumeIncomplete(response) =>
-          partResponse(response, offset, bytes.size, url)
+        case ResumeIncomplete(resumeResponse) =>
+          partResponse(resumeResponse, offset, bytes.size, url)
 
         case Successful(response) =>
           partResponse(response, offset, bytes.size, url)

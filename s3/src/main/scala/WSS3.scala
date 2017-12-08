@@ -1,9 +1,12 @@
 package com.zengularity.benji.s3
 
+import java.net.URI
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success, Try }
+import scala.collection.JavaConverters._
 
 import akka.NotUsed
 import akka.stream.Materializer
@@ -11,6 +14,7 @@ import akka.stream.scaladsl.Source
 
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
 import play.api.libs.ws.{ BodyWritable, StandaloneWSRequest, StandaloneWSResponse }
+import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
 import com.zengularity.benji.{ Bucket, ObjectStorage, StoragePack }
 
@@ -90,6 +94,55 @@ object S3 {
    */
   def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String): WSS3 = new WSS3(new VirtualHostWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
 
+  /**
+   * Try to create a S3Config from an URI using the following format:
+   * s3:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]
+   *
+   * {{{
+   *   S3("s3:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
+   *   // or
+   *   S3(new java.net.URI("s3:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
+   * }}}
+   *
+   * @param config the config element used by the provider to generate the URI
+   * @param provider a typeclass that try to generate an URI from the config element
+   * @tparam T the config type to be consumed by the provider typeclass
+   * @return Success if the WSS3 was properly created, otherwise Failure
+   */
+  def apply[T](config: T)(implicit provider: S3URIProvider[T]): Try[WSS3] =
+    provider(config).flatMap { builtUri =>
+      if (builtUri == null) {
+        throw new IllegalArgumentException("URI provider returned a null URI")
+      }
+
+      // URI object fails to parse properly with scheme like "s3:http"
+      // So we check for "s3" scheme and then recreate an URI without it
+      if (builtUri.getScheme != "s3") {
+        throw new IllegalArgumentException("Expected URI with scheme containing \"s3:\"")
+      }
+
+      val uri = new URI(builtUri.toString.drop(3))
+
+      if (uri.getUserInfo == null) {
+        throw new IllegalArgumentException("Expected URI containing accessKey and secretKey")
+      }
+
+      val (accessKey, remaining) = uri.getUserInfo.span(_ != ':')
+      val secretKey = remaining.drop(1)
+
+      val host = uri.getHost
+      val scheme = uri.getScheme
+
+      val params = parseQuery(uri)
+
+      params.get("style") match {
+        case Some(Seq("virtualHost")) => Success(virtualHost(accessKey, secretKey, scheme, host))
+        case Some(Seq("path")) => Success(apply(accessKey, secretKey, scheme, host))
+        case Some(style) => Failure(new IllegalArgumentException(s"Invalid style parameter in URI: $style"))
+        case None => Failure(new IllegalArgumentException("Expected style parameter in URI"))
+      }
+    }
+
   def apply(requestBuilder: WSRequestBuilder): WSS3 = new WSS3(requestBuilder)
 
   // Utility functions
@@ -112,4 +165,7 @@ object S3 {
       } else Future.failed[Source[T, NotUsed]](new IllegalStateException(err(response)))
     }).flatMapConcat(identity)
   }
+
+  private def parseQuery(uri: URI): Map[String, Seq[String]] =
+    new QueryStringDecoder(uri.toString).parameters.asScala.mapValues(_.asScala).toMap
 }
