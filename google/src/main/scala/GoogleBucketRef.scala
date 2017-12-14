@@ -63,7 +63,21 @@ final class GoogleBucketRef private[google] (
     case err => Future.failed[Boolean](err)
   }
 
-  def delete()(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = Future { gt.client.buckets().delete(name).execute(); () }
+  private def emptyBucket()(implicit m: Materializer, gt: GoogleTransport): Future[Unit] = {
+    implicit val ec = m.executionContext
+    Future(objects()).flatMap(_.runFoldAsync(())((_: Unit, e) => obj(e.name).delete))
+  }
+
+  def delete()(implicit m: Materializer, gt: GoogleTransport): Future[Unit] = {
+    implicit val ec = m.executionContext
+    Future { gt.client.buckets().delete(name).execute(); () }
+  }
+
+  def delete(recursive: Boolean)(implicit m: Materializer, gt: GoogleTransport): Future[Unit] = {
+    implicit val ec = m.executionContext
+    if (recursive) emptyBucket().flatMap(_ => delete())
+    else delete()
+  }
 
   def obj(objectName: String): GoogleObjectRef =
     new GoogleObjectRef(storage, name, objectName)

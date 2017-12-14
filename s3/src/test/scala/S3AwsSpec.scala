@@ -4,7 +4,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import akka.stream.Materializer
-import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.{ Sink, Source }
 
 import play.api.libs.ws.DefaultBodyWritables._
 
@@ -127,8 +127,8 @@ sealed trait AwsTests { specs: Specification =>
     }
 
     "Creating & deleting buckets" in withMatEx { implicit ee: EE =>
-      val name = s"benji-test-removable-${System identityHashCode s3f}"
       val s3 = s3f
+      val name = s"benji-test-removable-${System identityHashCode s3}"
       val bucket = s3.bucket(name)
 
       bucket.exists must beFalse.await(1, 5.seconds) and {
@@ -140,7 +140,6 @@ sealed trait AwsTests { specs: Specification =>
 
       } and {
         (for {
-          _ <- bucket.exists
           _ <- bucket.delete
           _ <- bucket.delete.filter(_ => false).recoverWith {
             case _: IllegalStateException => Future.successful({})
@@ -149,6 +148,50 @@ sealed trait AwsTests { specs: Specification =>
         } yield bs.exists(_.name == name)).aka("exists") must beFalse.
           await(1, 5.seconds) and (
             bucket.exists must beFalse.await(1, 5.seconds))
+      }
+    }
+
+    "Creating & deleting non-empty buckets" in withMatEx { implicit ee: EE =>
+      val s3 = s3f
+      val name = s"benji-test-nonempty-${System identityHashCode s3}"
+      val bucket = s3.bucket(name)
+      val filetest = bucket.obj("testfile.txt")
+
+      // bucket must not exists
+      bucket.exists must beFalse.await(1, 5.seconds) and {
+        // creating bucket
+        val bucketsWithTestRemovable = bucket.create().flatMap(_ => s3.buckets.collect[List]())
+        bucketsWithTestRemovable.map(_.exists(_.name == name)).aka("exists") must beTrue.await(1, 5.seconds)
+      } and {
+        // uploading file to bucket
+        val put = filetest.put[Array[Byte], Long]
+        val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) => Future.successful(sz + chunk.size) }
+        val body = "hello world".getBytes()
+
+        Source.single(body).runWith(upload).flatMap(sz => filetest.exists.map(sz -> _)).aka("exists") must
+          beEqualTo(body.length -> true).await(1, 10.seconds)
+      } and {
+        // checking that the upload operation is effective
+        // because otherwise the non-recursive delete will unexpectedly succeed
+        filetest.exists must beTrue.await(1, 10.seconds)
+      } and {
+        // trying to delete non-empty bucket with non recursive deletes (should not work)
+        (for {
+          _ <- bucket.delete.failed
+          _ <- bucket.delete(recursive = false).failed
+          bs <- s3.buckets() runWith Sink.seq[Bucket]
+        } // the bucket should not be deleted by non-recursive deletes
+        yield bs.exists(_.name == name)).aka("exists") must
+          beTrue.await(1, 5.seconds)
+      } and {
+        // delete non-empty bucket with recursive delete (should work)
+        bucket.delete(recursive = true) must be_==({}).await(1, 5.seconds)
+      } and {
+        // check that the bucket is effectively deleted
+        (for {
+          bs <- s3.buckets() runWith Sink.seq[Bucket]
+        } // the bucket should be deleted by recursive delete
+        yield bs.exists(_.name == name)).aka("exists") must beFalse.await(1, 5.seconds)
       }
     }
 
