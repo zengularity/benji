@@ -96,11 +96,19 @@ trait BucketRef[T <: ObjectStorage[T]] {
   def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, tr: Transport): Future[Boolean]
 
   /**
-   * Deletes the bucket.
+   * Deletes this empty bucket, or fails if the bucket is not empty.
    *
    * @param tr $transportParam
    */
-  def delete()(implicit ec: ExecutionContext, tr: Transport): Future[Unit]
+  def delete()(implicit m: Materializer, tr: Transport): Future[Unit]
+
+  /**
+   * Deletes this bucket.
+   *
+   * @param recursive If false the operation will fail when the bucket is not empty.
+   * @param tr $transportParam
+   */
+  def delete(recursive: Boolean)(implicit m: Materializer, tr: Transport): Future[Unit]
 
   /**
    * Returns a reference to an child object, specified by the given name.

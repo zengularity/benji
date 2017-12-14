@@ -105,7 +105,6 @@ class VFSStorageSpec(implicit ee: ExecutionEnv)
             _.exists(_.name == name)) aka "exists #2" must beTrue.await(1, 10.seconds)
         } and {
           val existsAfterDelete = (for {
-            _ <- bucket.exists
             _ <- bucket.delete
             r <- vfs.buckets.collect[List]()
           } yield r.exists(_.name == name))
@@ -113,6 +112,49 @@ class VFSStorageSpec(implicit ee: ExecutionEnv)
           existsAfterDelete aka "after delete" must beFalse.
             await(1, 10.seconds)
         } and (bucket.exists aka "exists #3" must beFalse.await(1, 10.seconds))
+    }
+
+    "Creating & deleting non-empty buckets" in {
+      val name = s"benji-test-nonempty-${System identityHashCode vfs}"
+      val bucket = vfs.bucket(name)
+      val filetest = bucket.obj("testfile.txt")
+
+      // bucket must not exists
+      bucket.exists must beFalse.await(1, 5.seconds) and {
+        // creating bucket
+        val bucketsWithTestRemovable = bucket.create().flatMap(_ => vfs.buckets.collect[List]())
+        bucketsWithTestRemovable.map(_.exists(_.name == name)).aka("exists") must beTrue.await(1, 5.seconds)
+      } and {
+        // uploading file to bucket
+        val put = filetest.put[Array[Byte], Long]
+        val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) => Future.successful(sz + chunk.size) }
+        val body = "hello world".getBytes()
+
+        Source.single(body).runWith(upload).flatMap(sz => filetest.exists.map(sz -> _)).aka("exists") must
+          beEqualTo(body.length -> true).await(1, 10.seconds)
+      } and {
+        // checking that the upload operation is effective
+        // because otherwise the non-recursive delete will unexpectedly succeed
+        filetest.exists must beTrue.await(1, 10.seconds)
+      } and {
+        // trying to delete non-empty bucket with non recursive deletes (should not work)
+        (for {
+          _ <- bucket.delete.failed
+          _ <- bucket.delete(recursive = false).failed
+          bs <- vfs.buckets() runWith Sink.seq[Bucket]
+        } // the bucket should not be deleted by non-recursive deletes
+        yield bs.exists(_.name == name)).aka("exists") must
+          beTrue.await(1, 5.seconds)
+      } and {
+        // delete non-empty bucket with recursive delete (should work)
+        bucket.delete(recursive = true) must be_==({}).await(1, 5.seconds)
+      } and {
+        // check that the bucket is effectively deleted
+        (for {
+          bs <- vfs.buckets() runWith Sink.seq[Bucket]
+        } // the bucket should be deleted by recursive delete
+        yield bs.exists(_.name == name)).aka("exists") must beFalse.await(1, 5.seconds)
+      }
     }
 
     "Get content of a file" in assertAllStagesStopped {

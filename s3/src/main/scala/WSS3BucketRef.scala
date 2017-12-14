@@ -71,10 +71,16 @@ final class WSS3BucketRef private[s3] (
     }
   }
 
+  private def emptyBucket()(implicit m: Materializer, ws: StandaloneAhcWSClient): Future[Unit] = {
+    implicit val ec = m.executionContext
+    objects().runFoldAsync(())((_: Unit, e) => obj(e.name).delete)
+  }
+
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
    */
-  def delete()(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] =
+  def delete()(implicit m: Materializer, ws: StandaloneAhcWSClient): Future[Unit] = {
+    implicit val ec = m.executionContext
     storage.request(Some(name), requestTimeout = requestTimeout).delete().map {
       case Successful(_) =>
         logger.info(s"Successfully deleted the bucket $name.")
@@ -82,6 +88,13 @@ final class WSS3BucketRef private[s3] (
       case response =>
         throw new IllegalStateException(s"Could not delete the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}")
     }
+  }
+
+  def delete(recursive: Boolean)(implicit m: Materializer, ws: StandaloneAhcWSClient): Future[Unit] = {
+    implicit val ec = m.executionContext
+    if (recursive) emptyBucket().flatMap(_ => delete())
+    else delete()
+  }
 
   def obj(objectName: String): WSS3ObjectRef =
     new WSS3ObjectRef(storage, name, objectName)

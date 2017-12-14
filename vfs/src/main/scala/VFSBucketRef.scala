@@ -48,8 +48,24 @@ final class VFSBucketRef private[vfs] (
     _ <- Future(dir.createFolder())
   } yield before.map(!_).getOrElse(true)
 
-  def delete()(implicit ec: ExecutionContext, tr: VFSTransport): Future[Unit] =
-    Future { dir.delete(); () }
+  private def emptyBucket()(implicit m: Materializer, tr: VFSTransport): Future[Unit] = {
+    implicit val ec = m.executionContext
+    // despite what the deleteAll documentation says, deleteAll don't delete the folder itself
+    Future { dir.deleteAll(); () }
+  }
+
+  def delete()(implicit m: Materializer, tr: VFSTransport): Future[Unit] = {
+    implicit val ec = m.executionContext
+    Future { dir.delete() }.flatMap(successful =>
+      if (successful) Future.unit
+      else Future.failed(new IllegalStateException("Could not delete bucket")))
+  }
+
+  def delete(recursive: Boolean)(implicit m: Materializer, tr: Transport): Future[Unit] = {
+    implicit val ec = m.executionContext
+    if (recursive) emptyBucket().flatMap(_ => delete())
+    else delete()
+  }
 
   def obj(objectName: String): VFSObjectRef =
     new VFSObjectRef(storage, name, objectName)
