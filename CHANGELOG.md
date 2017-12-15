@@ -1,6 +1,14 @@
 # Changelog
 
-## Release 1.3.4
+## Release 1.4.0 (pending)
+
+- Rename the project to Benji, with module specifications as `"com.zengularity.benji" %% "benji-x" % version`.
+- Upgrade to Scala 2.12, Akka Stream 2.5.4 and Play WS (standalone) 1.1.3.
+- Easy storage configuration:
+    - `S3("s3:http://accessKey:secretKey@hostAndPort/?style=path")`
+- The delete operation now support a `recursive` option to be able to remove a bucket which still contains some object (by deleting them first); The delete behaviour has also been unified accross the modules (e.g. error handling in case the bucket to delete doesn't exist).
+
+## Release 1.3.3
 
 - Upgrade to Akka Stream 2.4.10 (with the provided `Flow.foldAsync`).
 - Apply the Akka Stream TestKit in the tests.
