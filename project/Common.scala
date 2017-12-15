@@ -1,8 +1,12 @@
 import sbt.Keys._
 import sbt._
 
+import com.typesafe.tools.mima.plugin.MimaKeys._
+
 object Common {
   val akkaVer = "2.5.4"
+
+  val previousRelease = "1.3.3"
 
   val settings = Seq(
     scalacOptions ++= Seq(
@@ -29,6 +33,8 @@ object Common {
     },
     scalacOptions in Test ++= Seq("-Yrangepos"),
     fork in Test := true,
+    mimaPreviousArtifacts := Set(
+      /* organization.value %% name.value % previousRelease */),
     autoAPIMappings := true,
     libraryDependencies ++= wsStream ++ Seq(
       "specs2-core", "specs2-junit").map(
@@ -46,8 +52,11 @@ object Common {
 }
 
 object Dependencies {
-  private val version = "1.1.3"
-  val playWS = "com.typesafe.play" %% "play-ahc-ws-standalone" % version
-  val playJson = "com.typesafe.play" %% "play-ws-standalone-json" % version
-  val playXml = "com.typesafe.play" %% "play-ws-standalone-xml" % version
+  object Version {
+    val playWS = "1.1.3"
+  }
+
+  val playWS = "com.typesafe.play" %% "play-ahc-ws-standalone" % Version.playWS
+  val playWSJson = "com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS
+  val playWSXml = "com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS
 }

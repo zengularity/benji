@@ -15,6 +15,8 @@ addSbtPlugin("com.github.sbt" % "sbt-findbugs" % "2.0.0")
 
 addSbtPlugin("com.sksamuel.scapegoat" %% "sbt-scapegoat" % "1.0.7")
 
+addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.1.18")
+
 addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.5")
 
 // For the the highlight extractor
