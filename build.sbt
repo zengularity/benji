@@ -26,7 +26,7 @@ lazy val s3 = project.in(file("s3")).
     libraryDependencies ++= Seq(
       Dependencies.playWSXml,
       "org.scala-lang.modules" %% "scala-xml" % scalaXmlVer.value % Provided)
-  ).dependsOn(core)
+  ).dependsOn(core % "test->test;compile->compile")
 
 lazy val google = project.in(file("google")).
   settings(Common.settings: _*).settings(
@@ -34,7 +34,7 @@ lazy val google = project.in(file("google")).
     libraryDependencies ++= Seq(
       Dependencies.playWSJson,
       "com.google.apis" % "google-api-services-storage" % "v1-rev112-1.23.0")
-  ).dependsOn(core)
+  ).dependsOn(core % "test->test;compile->compile")
 
 lazy val vfs = project.in(file("vfs")).
   settings(Common.settings: _*).settings(
@@ -42,7 +42,7 @@ lazy val vfs = project.in(file("vfs")).
     libraryDependencies ++= Seq(
       "org.apache.commons" % "commons-vfs2" % "2.1",
       "commons-io" % "commons-io" % "2.4" % Test)
-  ).dependsOn(core)
+  ).dependsOn(core % "test->test;compile->compile")
 
 lazy val benji = (project in file(".")).
   enablePlugins(ScalaUnidocPlugin).

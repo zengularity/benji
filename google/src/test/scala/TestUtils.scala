@@ -3,9 +3,7 @@ package tests.benji.google
 import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
 
-import akka.util.ByteString
 import akka.stream.Materializer
-import akka.stream.scaladsl.Sink
 
 import com.zengularity.benji.ws.{ WS => TestWS }
 import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport }
@@ -29,14 +27,6 @@ object TestUtils {
     TestWS.client()(materializer)
 
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
-
-  def consume(implicit m: Materializer): Sink[ByteString, Future[String]] = {
-    implicit def ec: ExecutionContext = m.executionContext
-
-    Sink.fold[StringBuilder, ByteString](StringBuilder.newBuilder) {
-      _ ++= _.utf8String
-    }.mapMaterializedValue(_.map(_.result()))
-  }
 
   lazy val googleCredential: GoogleCredential = try {
     GoogleCredential.fromStream(getClass.getResourceAsStream("/gcs-test.json"))
