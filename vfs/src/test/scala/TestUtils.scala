@@ -1,10 +1,6 @@
 package tests.benji.vfs
 
-import scala.concurrent.{ ExecutionContext, Future }
-
 import akka.stream.Materializer
-import akka.stream.scaladsl.Sink
-import akka.util.ByteString
 
 import com.zengularity.benji.ws.{ WS => TestWS }
 import com.zengularity.benji.vfs.{ VFSStorage, VFSTransport }
@@ -27,14 +23,6 @@ object TestUtils {
     TestWS.client()(materializer)
 
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
-
-  def consume(implicit m: Materializer): Sink[ByteString, Future[String]] = {
-    implicit def ec: ExecutionContext = m.executionContext
-
-    Sink.fold[StringBuilder, ByteString](StringBuilder.newBuilder) {
-      _ ++= _.utf8String
-    }.mapMaterializedValue(_.map(_.result()))
-  }
 
   private val rootPath = s"/tmp/${System identityHashCode this}-${System identityHashCode logger}.${System.currentTimeMillis}"
 
