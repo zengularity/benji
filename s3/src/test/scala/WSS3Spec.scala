@@ -3,7 +3,9 @@ package tests.benji.s3
 import java.net.URI
 
 import org.specs2.mutable.Specification
-import com.zengularity.benji.s3.{ S3, S3URIProvider }
+
+import com.zengularity.benji.s3.S3
+import com.zengularity.benji.URIProvider
 
 import scala.util.Failure
 
@@ -13,7 +15,7 @@ class WSS3Spec extends Specification {
   "S3.apply using URIs" should {
     "returns Failure when the provider fail" in {
       val exception: Throwable = new Exception("foo")
-      implicit val provider = S3URIProvider[Throwable](Failure[URI])
+      implicit val provider = URIProvider[Throwable](Failure[URI])
 
       S3(exception) must beFailedTry.withThrowable[Exception]("foo")
     }
@@ -36,6 +38,10 @@ class WSS3Spec extends Specification {
       val uri = "s3:http://accessKey:secretKey@domain.host/?style=virtualHost"
 
       S3(uri) must beSuccessfulTry
+    }
+
+    "returns Failure without scheme prefix" in {
+      S3("http://accessKey:secretKey@host/?style=path") must beFailedTry.withThrowable[IllegalArgumentException]
     }
 
     "returns Failure when given a uri with an incorrect style" in {

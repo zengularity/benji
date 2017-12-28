@@ -10,7 +10,6 @@ import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport }
 
 object TestUtils {
   import com.typesafe.config.ConfigFactory
-  import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 
   val logger = org.slf4j.LoggerFactory.getLogger("tests")
 
@@ -28,19 +27,11 @@ object TestUtils {
 
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
 
-  lazy val googleCredential: GoogleCredential = try {
-    GoogleCredential.fromStream(getClass.getResourceAsStream("/gcs-test.json"))
-  } catch {
-    case e: Throwable =>
-      logger.error("fails to load Google credential for testing", e)
-      throw e
+  implicit lazy val googleTransport: GoogleTransport = {
+    val projectId = config.getString("google.storage.projectId")
+    val application = s"benji-tests-${System identityHashCode this}"
+    GoogleTransport(s"google:classpath://gcs-test.json?application=$application&projectId=$projectId").get
   }
-
-  implicit lazy val googleTransport: GoogleTransport =
-    GoogleTransport(
-      googleCredential,
-      config.getString("google.storage.projectId"),
-      s"benji-tests-${System identityHashCode this}")
 
   lazy val google = GoogleStorage()
 

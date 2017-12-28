@@ -1,18 +1,23 @@
 package com.zengularity.benji.google
 
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.Try
+import scala.collection.JavaConverters._
+
+import java.net.URI
 
 import akka.stream.Materializer
 
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
 import play.api.libs.ws.{ BodyWritable, StandaloneWSRequest }
+import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.services.storage.Storage
 
-import com.zengularity.benji.StoragePack
+import com.zengularity.benji.{ StoragePack, URIProvider }
 
 /**
  * @define wsParam the WS client
@@ -137,6 +142,64 @@ object GoogleTransport {
       }
     }, projectId, build, ws, stripSlash(baseRestUrl), stripSlash(servicePath))
   }
+
+  /**
+   * Tries to create a GoogleTransport from an URI using the following format:
+   * google:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]
+   *
+   * {{{
+   *   GoogleTransport("google:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
+   *   // or
+   *   GoogleTransport(new java.net.URI("google:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
+   * }}}
+   *
+   * @param config the config element used by the provider to generate the URI
+   * @param provider a typeclass that try to generate an URI from the config element
+   * @tparam T the config type to be consumed by the provider typeclass
+   * @return Success if the GoogleTransport was properly created, otherwise Failure
+   */
+  def apply[T](config: T)(implicit provider: URIProvider[T], ws: StandaloneAhcWSClient): Try[GoogleTransport] =
+    provider(config).map { builtUri =>
+      if (builtUri == null) {
+        throw new IllegalArgumentException("URI provider returned a null URI")
+      }
+
+      // URI object fails to parse properly with scheme like "google:http"
+      // So we check for "google" scheme and then recreate an URI without it
+      if (builtUri.getScheme != "google") {
+        throw new IllegalArgumentException("Expected URI with scheme containing \"google:\"")
+      }
+
+      val uri = new URI(builtUri.toString.drop(7))
+
+      val scheme = uri.getScheme
+
+      val credentialStream = scheme match {
+        case "classpath" => getClass.getResourceAsStream("/" + uri.getHost + uri.getPath)
+        case _ => uri.toURL.openStream()
+      }
+
+      val credential = GoogleCredential.fromStream(credentialStream)
+
+      val params = parseQuery(uri)
+
+      val projectId = params.get("projectId") match {
+        case Some(Seq(s)) => s
+        case Some(_) => throw new IllegalArgumentException("Expected exactly one value for \"projectId\" parameter")
+        case None => throw new IllegalArgumentException("Expected URI containing \"projectId\" parameter")
+      }
+
+      val application = params.get("application") match {
+        case Some(Seq(s)) => s
+        case Some(_) => throw new IllegalArgumentException("Expected exactly one value for \"application\" parameter")
+        case None => throw new IllegalArgumentException("Expected URI containing \"application\" parameter")
+      }
+
+      GoogleTransport(credential, projectId, application)
+    }
+
+  private def parseQuery(uri: URI): Map[String, Seq[String]] =
+    new QueryStringDecoder(uri.toString).parameters.asScala.mapValues(_.asScala).toMap
 }
 
 object GoogleStoragePack extends StoragePack {

@@ -128,7 +128,7 @@ WSS3 have two differents `style`, `path` style and `virtualHost` style that repr
   S3("s3:http://accessKey:secretKey@hostAndPort/?style=virtualHost")
 ```
 
-You can extends how WSS3 can be created using the `S3URIProvider` typeclass, see `S3.apply`.
+You can extends how WSS3 can be created using the `URIProvider` typeclass, see `S3.apply`.
 
 ## FAQ
 
