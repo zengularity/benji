@@ -16,7 +16,7 @@ import play.api.libs.ws.ahc.StandaloneAhcWSClient
 import play.api.libs.ws.{ BodyWritable, StandaloneWSRequest, StandaloneWSResponse }
 import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
-import com.zengularity.benji.{ Bucket, ObjectStorage, StoragePack }
+import com.zengularity.benji.{ Bucket, ObjectStorage, StoragePack, URIProvider }
 
 object WSS3StoragePack extends StoragePack {
   type Transport = StandaloneAhcWSClient
@@ -95,7 +95,7 @@ object S3 {
   def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String): WSS3 = new WSS3(new VirtualHostWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
 
   /**
-   * Try to create a S3Config from an URI using the following format:
+   * Tries to create a S3 client from an URI using the following format:
    * s3:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]
    *
    * {{{
@@ -109,7 +109,7 @@ object S3 {
    * @tparam T the config type to be consumed by the provider typeclass
    * @return Success if the WSS3 was properly created, otherwise Failure
    */
-  def apply[T](config: T)(implicit provider: S3URIProvider[T]): Try[WSS3] =
+  def apply[T](config: T)(implicit provider: URIProvider[T]): Try[WSS3] =
     provider(config).flatMap { builtUri =>
       if (builtUri == null) {
         throw new IllegalArgumentException("URI provider returned a null URI")
