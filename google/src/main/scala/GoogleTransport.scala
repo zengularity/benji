@@ -170,7 +170,7 @@ object GoogleTransport {
         throw new IllegalArgumentException("Expected URI with scheme containing \"google:\"")
       }
 
-      val uri = new URI(builtUri.toString.drop(7))
+      val uri = new URI(builtUri.getSchemeSpecificPart)
 
       val scheme = uri.getScheme
 

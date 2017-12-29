@@ -121,7 +121,7 @@ object S3 {
         throw new IllegalArgumentException("Expected URI with scheme containing \"s3:\"")
       }
 
-      val uri = new URI(builtUri.toString.drop(3))
+      val uri = new URI(builtUri.getSchemeSpecificPart)
 
       if (uri.getUserInfo == null) {
         throw new IllegalArgumentException("Expected URI containing accessKey and secretKey")
