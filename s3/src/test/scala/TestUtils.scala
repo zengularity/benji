@@ -61,11 +61,7 @@ object TestUtils {
 
     def storageCleanup[T <: ObjectStorage[T]](st: T)(implicit tr: st.Pack#Transport) = st.buckets.collect[List]().flatMap(bs =>
       Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
-        val bucket: com.zengularity.benji.BucketRef[T] = st.bucket(b.name)
-
-        bucket.objects.collect[List]().flatMap { os =>
-          Future.sequence(os.map(o => bucket.obj(o.name).delete))
-        }.flatMap { _ => bucket.delete }
+        st.bucket(b.name).delete.recursive()
       })).map(_ => {})
 
     try {

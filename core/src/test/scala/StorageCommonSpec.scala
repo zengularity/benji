@@ -94,7 +94,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       } and {
         bucket must existsIn(storage)
       } and {
-        bucket.delete must be_==({}).await(1, 10.seconds)
+        bucket.delete() must be_==({}).await(1, 10.seconds)
       } and {
         bucket must notExistsIn(storage)
       }
@@ -125,15 +125,14 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       } and {
         // trying to delete non-empty bucket with non recursive deletes (should not work)
         (for {
-          _ <- bucket.delete.failed
-          _ <- bucket.delete(recursive = false).failed
+          _ <- bucket.delete().failed
         } yield true) must beTrue.await(1, 5.seconds)
       } and {
         // the bucket should not be deleted by non-recursive deletes
         bucket must existsIn(storage)
       } and {
         // delete non-empty bucket with recursive delete (should work)
-        bucket.delete(recursive = true) must be_==({}).await(1, 5.seconds)
+        bucket.delete.recursive() must be_==({}).await(1, 5.seconds)
       } and {
         // check that the bucket is effectively deleted
         bucket must notExistsIn(storage)
@@ -165,11 +164,11 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       } and {
         file.exists.aka("exists #2") must beTrue.await(1, 10.seconds)
       } and {
-        file.delete must be_==({}).await(1, 10.seconds)
+        file.delete() must be_==({}).await(1, 10.seconds)
       } and {
         file.exists.aka("exists #3") must beFalse.await(1, 10.seconds)
       } and {
-        file.delete.failed.map(_ => {}) must be_==({}).await(1, 10.seconds)
+        file.delete().failed.map(_ => {}) must be_==({}).await(1, 10.seconds)
       }
     }
 
@@ -189,7 +188,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
           await(1, 10.seconds)
       } and {
         (for {
-          _ <- Future.sequence(Seq(file1.delete, file2.delete))
+          _ <- Future.sequence(Seq(file1.delete(), file2.delete()))
           a <- file1.exists
           b <- file2.exists
         } yield a -> b) must beEqualTo(false -> false).await(1, 10.seconds)
@@ -213,12 +212,12 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
                   onMove(file3, file4, file3.moveTo(file4, preventOverwrite))
                 } and {
                   (for {
-                    _ <- file3.delete.recoverWith {
+                    _ <- file3.delete().recoverWith {
                       case _: IllegalArgumentException =>
                         Future.successful({})
                       case err => Future.failed[Unit](err)
                     }
-                    _ <- file4.delete
+                    _ <- file4.delete()
                     a <- file3.exists
                     b <- file4.exists
                   } yield a -> b) must beEqualTo(false -> false).
@@ -258,6 +257,54 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
 
       "if overwrite when target exists" in assertAllStagesStopped {
         moveSpec(existingTarget, preventOverwrite = false)(successful)
+      }
+    }
+
+    "Delete on buckets successfully ignore when not existing" in {
+      val bucket = storage.bucket("benji-test-testignore")
+
+      {
+        bucket must notExistsIn(storage)
+      } and {
+        bucket.create() must beTrue.await(1, 10.seconds)
+      } and {
+        bucket must existsIn(storage)
+      } and {
+        bucket.delete.ignoreIfNotExists() must beEqualTo({}).await(1, 10.seconds)
+      } and {
+        bucket must notExistsIn(storage)
+      } and {
+        bucket.delete().failed.map(_ => {}) must beEqualTo({}).await(1, 10.seconds)
+      } and {
+        bucket.delete.ignoreIfNotExists() must beEqualTo({}).await(1, 10.seconds)
+      } and {
+        bucket.delete().failed.map(_ => {}) must beEqualTo({}).await(1, 10.seconds)
+      }
+    }
+
+    "Delete on objects successfully ignore when not existing" in {
+      val bucket = storage.bucket(bucketName)
+      val obj = bucket.obj("testignoreobj")
+      val write = obj.put[Array[Byte]]
+      val body = List.fill(10)("qwerty").mkString(" ").getBytes
+      def upload = { repeat(5) { body } runWith write }.map(_ => {})
+
+      {
+        obj must notExistsIn(bucket)
+      } and {
+        obj.delete.ignoreIfNotExists() must beEqualTo({}).await(1, 10.seconds)
+      } and {
+        upload must beEqualTo({}).await(1, 10.seconds)
+      } and {
+        obj must existsIn(bucket)
+      } and {
+        obj.delete() must beEqualTo({}).await(1, 10.seconds)
+      } and {
+        obj.delete().failed.map(_ => {}) must beEqualTo({}).await(1, 10.seconds)
+      } and {
+        obj.delete.ignoreIfNotExists() must beEqualTo({}).await(1, 10.seconds)
+      } and {
+        obj.delete().failed.map(_ => {}) must beEqualTo({}).await(1, 10.seconds)
       }
     }
   }

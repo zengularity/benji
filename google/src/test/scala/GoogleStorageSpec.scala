@@ -86,7 +86,7 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
           await(1, 10.seconds)
       } and {
         (for {
-          _ <- Future.sequence(Seq(file1.delete, file2.delete))
+          _ <- Future.sequence(Seq(file1.delete(), file2.delete()))
           a <- file1.exists
           b <- file2.exists
         } yield a -> b) must beEqualTo(false -> false).await(1, 10.seconds)

@@ -91,12 +91,22 @@ trait ObjectRef[T <: ObjectStorage[T]] { ref =>
    */
   def put[E, A]: PutRequest[E, A]
 
+  trait DeleteRequest {
+    /**
+     * Deletes the current object
+     */
+    def apply()(implicit ec: ExecutionContext, tr: Transport): Future[Unit]
+
+    /**
+     * Updates the request, so that it will not raise an error if the referenced object doesn't exist when executed
+     */
+    def ignoreIfNotExists: DeleteRequest
+  }
+
   /**
-   * Deletes the object if it exists, otherwise it fails.
-   *
-   * @param tr $transportParam
+   * Prepares a request to delete the referenced objecg
    */
-  def delete(implicit ec: ExecutionContext, tr: Transport): Future[Unit]
+  def delete: DeleteRequest
 
   /**
    * $moveToOperation

@@ -54,18 +54,26 @@ final class VFSBucketRef private[vfs] (
     Future { dir.deleteAll(); () }
   }
 
-  def delete()(implicit m: Materializer, tr: VFSTransport): Future[Unit] = {
-    implicit val ec = m.executionContext
-    Future { dir.delete() }.flatMap(successful =>
-      if (successful) Future.unit
-      else Future.failed(new IllegalStateException("Could not delete bucket")))
+  private case class VFSDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
+    private def delete()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+      implicit val ec = m.executionContext
+      Future { dir.delete() }.flatMap(successful =>
+        if (ignoreExists || successful) Future.unit
+        else Future.failed(new IllegalStateException("Could not delete bucket")))
+    }
+
+    def apply()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+      implicit val ec = m.executionContext
+      if (isRecursive) emptyBucket().flatMap(_ => delete())
+      else delete()
+    }
+
+    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
+
+    def recursive: DeleteRequest = this.copy(isRecursive = true)
   }
 
-  def delete(recursive: Boolean)(implicit m: Materializer, tr: Transport): Future[Unit] = {
-    implicit val ec = m.executionContext
-    if (recursive) emptyBucket().flatMap(_ => delete())
-    else delete()
-  }
+  def delete: DeleteRequest = VFSDeleteRequest()
 
   def obj(objectName: String): VFSObjectRef =
     new VFSObjectRef(storage, name, objectName)
