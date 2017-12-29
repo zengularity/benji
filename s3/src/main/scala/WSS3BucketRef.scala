@@ -72,29 +72,40 @@ final class WSS3BucketRef private[s3] (
   }
 
   private def emptyBucket()(implicit m: Materializer, ws: StandaloneAhcWSClient): Future[Unit] = {
-    implicit val ec = m.executionContext
-    objects().runFoldAsync(())((_: Unit, e) => obj(e.name).delete)
+    implicit val ec: ExecutionContext = m.executionContext
+    objects().runFoldAsync(())((_: Unit, e) => obj(e.name).delete.ignoreIfNotExists())
   }
 
-  /**
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
-   */
-  def delete()(implicit m: Materializer, ws: StandaloneAhcWSClient): Future[Unit] = {
-    implicit val ec = m.executionContext
-    storage.request(Some(name), requestTimeout = requestTimeout).delete().map {
-      case Successful(_) =>
-        logger.info(s"Successfully deleted the bucket $name.")
+  private case class WSS3DeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
+    /**
+     * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
+     */
+    private def delete()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+      implicit val ec = m.executionContext
+      storage.request(Some(name), requestTimeout = requestTimeout).delete().map {
+        case Successful(_) =>
+          logger.info(s"Successfully deleted the bucket $name.")
 
-      case response =>
-        throw new IllegalStateException(s"Could not delete the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}")
+        case response if ignoreExists && response.status == 404 =>
+          logger.info(s"Bucket $name was not found when deleting. (Success)")
+
+        case response =>
+          throw new IllegalStateException(s"Could not delete the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}")
+      }
     }
+
+    def apply()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+      implicit val ec = m.executionContext
+      if (isRecursive) emptyBucket().flatMap(_ => delete())
+      else delete()
+    }
+
+    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
+
+    def recursive: DeleteRequest = this.copy(isRecursive = true)
   }
 
-  def delete(recursive: Boolean)(implicit m: Materializer, ws: StandaloneAhcWSClient): Future[Unit] = {
-    implicit val ec = m.executionContext
-    if (recursive) emptyBucket().flatMap(_ => delete())
-    else delete()
-  }
+  def delete: DeleteRequest = WSS3DeleteRequest()
 
   def obj(objectName: String): WSS3ObjectRef =
     new WSS3ObjectRef(storage, name, objectName)

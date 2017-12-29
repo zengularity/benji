@@ -114,18 +114,20 @@ final class GoogleObjectRef private[google] (
 
   def put[E, A] = new RESTPutRequest[E, A]()
 
-  def delete(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] =
-    delete(ignoreMissing = false)
+  private case class GoogleDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
+    def apply()(implicit ec: ExecutionContext, tr: Transport): Future[Unit] = {
+      val futureResult = Future { tr.client.objects().delete(bucket, name).execute(); () }
+      if (ignoreExists) {
+        futureResult.recover { case HttpResponse(404, _) => () }
+      } else {
+        futureResult.recoverWith { case HttpResponse(404, _) => throw new IllegalArgumentException(s"Could not delete $bucket/$name: doesn't exist") }
+      }
+    }
 
-  private def delete(ignoreMissing: Boolean)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = exists.flatMap {
-    case true =>
-      Future { gt.client.objects().delete(bucket, name).execute(); () }
-
-    case _ if (ignoreMissing) => Future.successful({})
-
-    case _ => Future.failed[Unit](new IllegalArgumentException(
-      s"Could not delete $bucket/$name: doesn't exist"))
+    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
   }
+
+  def delete: DeleteRequest = GoogleDeleteRequest()
 
   def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = {
     val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
@@ -146,10 +148,10 @@ final class GoogleObjectRef private[google] (
 
       }.recoverWith {
         case reason =>
-          targetObj.delete(ignoreMissing = true).filter(_ => false).
+          targetObj.delete.ignoreIfNotExists().filter(_ => false).
             recoverWith { case _ => Future.failed[Unit](reason) }
       }
-      _ <- delete(ignoreMissing = false /* the previous reference */ )
+      _ <- delete() /* the previous reference */
     } yield ()
   }
 

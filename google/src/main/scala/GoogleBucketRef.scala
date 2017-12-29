@@ -65,19 +65,32 @@ final class GoogleBucketRef private[google] (
 
   private def emptyBucket()(implicit m: Materializer, gt: GoogleTransport): Future[Unit] = {
     implicit val ec = m.executionContext
-    Future(objects()).flatMap(_.runFoldAsync(())((_: Unit, e) => obj(e.name).delete))
+    Future(objects()).flatMap(_.runFoldAsync(())((_: Unit, e) => obj(e.name).delete.ignoreIfNotExists()))
   }
 
-  def delete()(implicit m: Materializer, gt: GoogleTransport): Future[Unit] = {
-    implicit val ec = m.executionContext
-    Future { gt.client.buckets().delete(name).execute(); () }
+  private case class GoogleDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
+    private def delete()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+      implicit val ec = m.executionContext
+      val futureResult = Future { tr.client.buckets().delete(name).execute(); () }
+      if (ignoreExists) {
+        futureResult.recover { case HttpResponse(404, _) => () }
+      } else {
+        futureResult
+      }
+    }
+
+    def apply()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+      implicit val ec = m.executionContext
+      if (isRecursive) emptyBucket().flatMap(_ => delete())
+      else delete()
+    }
+
+    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
+
+    def recursive: DeleteRequest = this.copy(isRecursive = true)
   }
 
-  def delete(recursive: Boolean)(implicit m: Materializer, gt: GoogleTransport): Future[Unit] = {
-    implicit val ec = m.executionContext
-    if (recursive) emptyBucket().flatMap(_ => delete())
-    else delete()
-  }
+  def delete: DeleteRequest = GoogleDeleteRequest()
 
   def obj(objectName: String): GoogleObjectRef =
     new GoogleObjectRef(storage, name, objectName)

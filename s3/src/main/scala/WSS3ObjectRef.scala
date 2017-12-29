@@ -126,31 +126,35 @@ final class WSS3ObjectRef private[s3] (
 
   def put[E, A] = new RESTPutRequest[E, A](defaultMaxPart)
 
-  /**
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
-   */
-  def delete(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] =
-    delete(ignoreMissing = false)
-
-  private def delete(ignoreMissing: Boolean)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] = {
-    def failMsg = s"Could not delete the object $bucket/$name"
-
-    exists.flatMap {
-      case true => storage.request(Some(bucket), Some(name),
-        requestTimeout = requestTimeout).delete().map {
-        case Successful(_) =>
-          logger.info(s"Successfully deleted the object $bucket/$name.")
-
-        case response =>
-          throw new IllegalStateException(s"$failMsg. Response: ${response.status} - ${response.statusText}; ${response.body}")
+  private case class WSS3DeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
+    /**
+     * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
+     */
+    def apply()(implicit ec: ExecutionContext, tr: Transport): Future[Unit] = {
+      val existanceCheck = if (ignoreExists) {
+        Future.unit
+      } else {
+        exists.flatMap {
+          case false => Future.failed(new IllegalArgumentException(s"Could not delete $bucket/$name: doesn't exist"))
+          case true => Future.unit
+        }
       }
+      existanceCheck.flatMap { _ =>
+        storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).delete().map {
+          case Successful(_) =>
+            logger.info(s"Successfully deleted the object $bucket/$name.")
 
-      case _ if (ignoreMissing) => Future.successful({})
-
-      case _ => Future.failed[Unit](new IllegalArgumentException(
-        s"$failMsg. Response: 404 - Object not found"))
+          case response =>
+            throw new IllegalStateException(s"Could not delete the object $bucket/$name. Response: ${response.status} - " +
+              s"${response.statusText}; ${response.body}")
+        }
+      }
     }
+
+    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
   }
+
+  def delete: DeleteRequest = WSS3DeleteRequest()
 
   /**
    * @see #copyTo
@@ -171,10 +175,10 @@ final class WSS3ObjectRef private[s3] (
       }
       _ <- copyTo(targetBucketName, targetObjectName).recoverWith {
         case reason =>
-          targetObj.delete(ignoreMissing = true).filter(_ => false).
+          targetObj.delete.ignoreIfNotExists().filter(_ => false).
             recoverWith { case _ => Future.failed[Unit](reason) }
       }
-      _ <- delete(ignoreMissing = false /* the previous reference */ )
+      _ <- delete() /* the previous reference */
     } yield ()
   }
 

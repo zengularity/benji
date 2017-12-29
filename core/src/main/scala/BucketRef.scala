@@ -95,20 +95,27 @@ trait BucketRef[T <: ObjectStorage[T]] {
    */
   def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, tr: Transport): Future[Boolean]
 
-  /**
-   * Deletes this empty bucket, or fails if the bucket is not empty.
-   *
-   * @param tr $transportParam
-   */
-  def delete()(implicit m: Materializer, tr: Transport): Future[Unit]
+  trait DeleteRequest {
+    /**
+     * Deletes the current bucket
+     */
+    def apply()(implicit m: Materializer, tr: Transport): Future[Unit]
+
+    /**
+     * Updates the request, so that it will not raise an error if the referenced bucket doesn't exist when executed
+     */
+    def ignoreIfNotExists: DeleteRequest
+
+    /**
+     * Updates the request so that it will be successfully executed if the referenced bucket is not empty, by also deleting the children objects
+     */
+    def recursive: DeleteRequest
+  }
 
   /**
-   * Deletes this bucket.
-   *
-   * @param recursive If false the operation will fail when the bucket is not empty.
-   * @param tr $transportParam
+   * Prepares a request to delete the referenced bucket
    */
-  def delete(recursive: Boolean)(implicit m: Materializer, tr: Transport): Future[Unit]
+  def delete: DeleteRequest
 
   /**
    * Returns a reference to an child object, specified by the given name.

@@ -85,17 +85,17 @@ final class VFSObjectRef private[vfs] (
 
   def put[E, A] = new RESTPutRequest[E, A]()
 
-  def delete(implicit ec: ExecutionContext, tr: VFSTransport): Future[Unit] =
-    delete(ignoreMissing = false)
+  private case class VFSDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
+    def apply()(implicit ec: ExecutionContext, tr: Transport): Future[Unit] = {
+      Future { file.delete() }.flatMap(successful =>
+        if (ignoreExists || successful) Future.unit
+        else Future.failed(new IllegalArgumentException(s"Could not delete $bucket/$name: doesn't exist")))
+    }
 
-  private def delete(ignoreMissing: Boolean)(implicit ec: ExecutionContext, tr: VFSTransport): Future[Unit] = exists.flatMap {
-    case true => Future { file.delete(); () }
-
-    case _ if (ignoreMissing) => Future.successful({})
-
-    case _ => Future.failed[Unit](new IllegalArgumentException(
-      s"Could not delete $bucket/$name: doesn't exist"))
+    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
   }
+
+  def delete: DeleteRequest = VFSDeleteRequest()
 
   def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, t: Transport): Future[Unit] = {
     def target = t.fsManager.resolveFile(
