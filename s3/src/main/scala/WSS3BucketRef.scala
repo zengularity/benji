@@ -1,5 +1,6 @@
 package com.zengularity.benji.s3
 
+import java.net.URLEncoder
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -13,6 +14,7 @@ import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 import com.zengularity.benji.{ BucketRef, Bytes, Object }
 import com.zengularity.benji.ws.Successful
+import play.api.libs.ws.StandaloneWSResponse
 
 final class WSS3BucketRef private[s3] (
   val storage: WSS3,
@@ -23,22 +25,39 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
-  object objects extends ref.ListRequest {
-    def apply()(implicit m: Materializer, ws: StandaloneAhcWSClient): Source[Object, NotUsed] = {
-      S3.getXml[Object](
-        storage.request(Some(name), requestTimeout = requestTimeout))({ xml =>
-          val contents = xml \ "Contents"
+  private case class Objects(maybeMax: Option[Long]) extends ref.ListRequest {
+    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
-          Source(contents.map { content =>
-            Object(
-              name = (content \ "Key").text,
-              size = Bytes((content \ "Size").text.toLong),
-              lastModifiedAt =
-                LocalDateTime.parse((content \ "LastModified").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-          })
-        }, { response => s"Could not list all objects within the bucket $name. Response: ${response.status} - $response" })
+    def apply()(implicit m: Materializer, ws: StandaloneAhcWSClient): Source[Object, NotUsed] = apply(None)
+
+    private def apply(nextToken: Option[String])(implicit m: Materializer, ws: StandaloneAhcWSClient): Source[Object, NotUsed] = {
+      def error(response: StandaloneWSResponse) = s"Could not list all objects within the bucket $name. Response: ${response.status} - ${response.body}"
+      val query = maybeMax.map(max => s"max-keys=$max${nextToken.map(token => s"&marker=${URLEncoder.encode(token, "UTF-8")}").getOrElse("")}")
+      val request = storage.request(Some(name), requestTimeout = requestTimeout, query = query)
+
+      S3.getXml[Object](request)({ xml =>
+        val contents = (xml \ "Contents").map(objectFromXml)
+        val lastObject = contents.lastOption
+        val isTruncated = (xml \ "IsTruncated").text.toBoolean
+        val currentPage = Source(contents)
+
+        lastObject.map(_.name) match {
+          case nextPageToken @ Some(_) if isTruncated => currentPage ++ apply(nextPageToken)
+          case _ => currentPage
+        }
+      }, error)
+    }
+
+    private def objectFromXml(content: scala.xml.Node): Object = {
+      Object(
+        name = (content \ "Key").text,
+        size = Bytes((content \ "Size").text.toLong),
+        lastModifiedAt =
+          LocalDateTime.parse((content \ "LastModified").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
     }
   }
+
+  def objects: ListRequest = Objects(None)
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html

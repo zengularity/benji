@@ -307,5 +307,28 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
         obj.delete().failed.map(_ => {}) must beEqualTo({}).await(1, 10.seconds)
       }
     }
+
+    "Get objects with maximum elements" in {
+      val bucket = storage.bucket(bucketName)
+      bucket.objects.collect[List]().map(_.size) must beEqualTo(1).await(1, 5.seconds)
+      def createFile(name: String) = {
+        val file = bucket.obj(name)
+        val put = file.put[Array[Byte], Long]
+        val upload = put(0L) { (sz, chunk) =>
+          Future.successful(sz + chunk.size)
+        }
+        val body = List.fill(10)("hello world !!!").mkString(" ").getBytes
+        repeat(10)(body) runWith upload
+      }
+
+      1 to 16 foreach (i => {
+        val filename = s"max-test-file-$i"
+        createFile(filename) must beEqualTo(1590).await(1, 5.seconds) and (
+          bucket.obj(filename).exists must beTrue.await(1, 5.seconds))
+      })
+
+      bucket.objects.collect[List]().map(_.size) must beEqualTo(17).await(1, 5.seconds) and (
+        bucket.objects.withBatchSize(6).collect[List]().map(_.size) must beEqualTo(17).await(1, 5.seconds))
+    }
   }
 }

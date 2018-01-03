@@ -47,7 +47,12 @@ trait BucketRef[T <: ObjectStorage[T]] {
         _ += (_: Object)
       }.mapMaterializedValue(_.map(_.result()))
     }
-    // TODO: Support a max
+
+    /**
+     * Define batch size for retrieving objects with multiple requests
+     * @param max the batch size, indicating the maximum number of objects fetch at once
+     */
+    def withBatchSize(max: Long): ListRequest
   }
 
   /**

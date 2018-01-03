@@ -73,6 +73,10 @@ def sample1(implicit m: Materializer): Future[Unit] = {
       objects.runWith(Sink.foreach[Object] { obj =>
         println(s"- ${obj.name}")
       }).map(_ => {})
+      
+      /* Get object list with specified batch size, by default it's 1000 */
+      val allObjects: Future[List[com.zengularity.benji.Object]] = bucketRef.objects.withBatchSize(100).collect[List]()
+      allObjects.map(_.foreach(obj => println(s"- ${obj.name}")))
     }
   }
 }

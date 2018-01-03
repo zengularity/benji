@@ -77,6 +77,14 @@ def sample1(implicit m: Materializer): Unit = {
   (data runWith upload).onComplete {
     case res => println(s"Upload result: $res")
   }
+  
+  /* Get objects list */
+  val objects: Future[List[com.zengularity.benji.Object]] = bucket.objects.collect[List]()
+  objects.map(_.foreach(obj => println(s"- ${obj.name}")))
+  
+  /* Get object list with specified batch size, by default it 1000 */
+  val allObjects: Future[List[com.zengularity.benji.Object]] = bucket.objects.withBatchSize(100).collect[List]()
+  allObjects.map(_.foreach(obj => println(s"- ${obj.name}")))
 
   // Take care to release the underlying resources
   ws.close()

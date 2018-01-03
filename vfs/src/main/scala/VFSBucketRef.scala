@@ -13,6 +13,9 @@ import com.zengularity.benji.{ BucketRef, Bytes, Object }
 final class VFSBucketRef private[vfs] (
   val storage: VFSStorage,
   val name: String) extends BucketRef[VFSStorage] { ref =>
+
+  @inline private def logger = storage.logger
+
   object objects extends ref.ListRequest {
     def apply()(implicit m: Materializer, t: VFSTransport): Source[Object, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
@@ -34,7 +37,10 @@ final class VFSBucketRef private[vfs] (
       }).flatMapMerge(1, identity)
     }
 
-    // TODO: Use pagination
+    def withBatchSize(max: Long) = {
+      logger.warn("For VFS storage there is no need for batch size")
+      this
+    }
   }
 
   def exists(implicit ec: ExecutionContext, t: VFSTransport): Future[Boolean] =

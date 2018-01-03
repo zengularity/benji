@@ -9,7 +9,6 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
 import com.google.api.services.storage.model
-import com.google.api.services.storage.model.StorageObject
 
 import com.zengularity.benji.{ BucketRef, Bytes, Object }
 
@@ -18,25 +17,39 @@ final class GoogleBucketRef private[google] (
   val name: String) extends BucketRef[GoogleStorage] { ref =>
   import scala.collection.JavaConverters.collectionAsScalaIterable
 
-  object objects extends ref.ListRequest {
-    def apply()(implicit m: Materializer, gt: GoogleTransport): Source[Object, NotUsed] = {
-      implicit def ec: ExecutionContext = m.executionContext
+  private case class Objects(maybeMax: Option[Long]) extends ref.ListRequest {
+    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
-      Source.fromFuture(Future {
-        def req = gt.client.objects().list(name).execute()
-        // TODO: Usage pagination + new withChunkSize
+    private def apply(nextToken: Option[String])(implicit m: Materializer, gt: GoogleTransport): Source[Object, NotUsed] = {
+      val prepared = gt.client.objects().list(name)
+      val maxed = maybeMax.fold(prepared) { prepared.setMaxResults(_) }
 
-        Source[Object](Option(req.getItems).
-          map(collectionAsScalaIterable(_).toList).
-          getOrElse(List.empty[StorageObject]).map { obj =>
-            Object(
-              obj.getName,
-              Bytes(obj.getSize.longValue),
+      val request =
+        nextToken.fold(maxed.execute()) { maxed.setPageToken(_).execute() }
+
+      val currentPage = Option(request.getItems) match {
+        case Some(items) => Source.fromIterator[Object] { () =>
+          collectionAsScalaIterable(items).iterator.map { obj =>
+            Object(obj.getName, Bytes(obj.getSize.longValue),
               LocalDateTime.ofInstant(Instant.ofEpochMilli(obj.getUpdated.getValue), ZoneOffset.UTC))
-          })
-      }).flatMapMerge(1, identity)
+          }
+        }
+
+        case _ => Source.empty[Object]
+      }
+
+      Option(request.getNextPageToken) match {
+        case nextPageToken @ Some(_) =>
+          currentPage ++ apply(nextPageToken)
+
+        case _ => currentPage
+      }
     }
+
+    def apply()(implicit m: Materializer, gt: GoogleTransport): Source[Object, NotUsed] = apply(None)
   }
+
+  def objects: ListRequest = Objects(None)
 
   def exists(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = Future {
     gt.client.buckets().get(name).executeUsingHead()
