@@ -1,13 +1,6 @@
-package tests.benji.s3
+package com.zengularity.benji.s3 // as testing internals
 
 import play.shaded.ahc.io.netty.handler.codec.http.DefaultHttpHeaders
-
-import com.zengularity.benji.s3.{
-  PathRequest,
-  RequestStyle,
-  SignatureCalculator,
-  VirtualHostRequest
-}
 
 // Sanity tests related to calculating the signature for S3 requests.
 class SignatureCalculatorSpec extends org.specs2.mutable.Specification {

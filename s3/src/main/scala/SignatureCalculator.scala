@@ -15,11 +15,11 @@ import play.shaded.ahc.io.netty.handler.codec.http.HttpHeaders
 import play.shaded.ahc.org.asynchttpclient.{ Request, RequestBuilderBase }
 
 /** S3 [[http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html request style]]. */
-sealed trait RequestStyle
-object PathRequest extends RequestStyle
-object VirtualHostRequest extends RequestStyle
+private[s3] sealed trait RequestStyle
+private[s3] object PathRequest extends RequestStyle
+private[s3] object VirtualHostRequest extends RequestStyle
 
-object RequestStyle {
+private[s3] object RequestStyle {
   def apply(raw: String): RequestStyle = raw match {
     case "virtualhost" => VirtualHostRequest
     case _ => PathRequest
@@ -35,13 +35,15 @@ object RequestStyle {
  * @param serverHost the S3 server host (name or IP address)
  * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html and http://ceph.com/docs/master/radosgw/s3/authentication/
  */
-class SignatureCalculator(
+private[s3] class SignatureCalculator(
   accessKey: String,
   secretKey: String,
   serverHost: String) extends WSSignatureCalculator
   with play.shaded.ahc.org.asynchttpclient.SignatureCalculator {
 
   val logger = org.slf4j.LoggerFactory.getLogger("com.zengularity.s3")
+
+  private val s3QueriesString = Seq("acl", "lifecycle", "location", "logging", "notification", "partNumber", "policy", "requestPayment", "torrent", "uploadId", "uploads", "versionId", "versioning", "versions", "website")
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
@@ -60,7 +62,7 @@ class SignatureCalculator(
     val str = stringToSign(
       request.getMethod, style,
       header("Content-MD5"), header("Content-Type"),
-      date, request.getHeaders, serverHost, request.getUrl)
+      date, request.getHeaders, serverHost, getSignatureUrl(request))
 
     calculateFor(str).map { signature =>
       requestBuilder.setHeader("Authorization", s"AWS $accessKey:$signature")
@@ -70,6 +72,26 @@ class SignatureCalculator(
     }
 
     ()
+  }
+
+  private def getSignatureUrl(request: Request): String = {
+    val queryParams = request.getQueryParams
+
+    if (queryParams.isEmpty) {
+      request.getUri.toBaseUrl
+    } else {
+      val signatureQueries = queryParams.asScala.collect {
+        case p if s3QueriesString.contains(p.getName) =>
+          if (p.getValue != null) {
+            s"${p.getName}=${p.getValue}"
+          } else {
+            p.getName
+          }
+      }
+      val baseUrl = request.getUri.toBaseUrl
+
+      s"""$baseUrl?${signatureQueries mkString "&"}"""
+    }
   }
 
   /**
