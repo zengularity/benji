@@ -43,7 +43,7 @@ private[s3] class SignatureCalculator(
 
   val logger = org.slf4j.LoggerFactory.getLogger("com.zengularity.s3")
 
-  private val s3QueriesString = Seq("acl", "lifecycle", "location", "logging", "notification", "partNumber", "policy", "requestPayment", "torrent", "uploadId", "uploads", "versionId", "versioning", "versions", "website")
+  private val subResourceParameters = Seq("acl", "lifecycle", "location", "logging", "notification", "partNumber", "policy", "requestPayment", "torrent", "uploadId", "uploads", "versionId", "versioning", "versions", "website")
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
@@ -62,7 +62,9 @@ private[s3] class SignatureCalculator(
     val str = stringToSign(
       request.getMethod, style,
       header("Content-MD5"), header("Content-Type"),
-      date, request.getHeaders, serverHost, getSignatureUrl(request))
+      date, request.getHeaders, serverHost, signatureUrl(request))
+
+    logger.trace(s"awsStringToSign {\n$str\n}")
 
     calculateFor(str).map { signature =>
       requestBuilder.setHeader("Authorization", s"AWS $accessKey:$signature")
@@ -74,14 +76,14 @@ private[s3] class SignatureCalculator(
     ()
   }
 
-  private def getSignatureUrl(request: Request): String = {
+  private[s3] def signatureUrl(request: Request): String = {
     val queryParams = request.getQueryParams
 
     if (queryParams.isEmpty) {
       request.getUri.toBaseUrl
     } else {
       val signatureQueries = queryParams.asScala.collect {
-        case p if s3QueriesString.contains(p.getName) =>
+        case p if subResourceParameters.contains(p.getName) =>
           if (p.getValue != null) {
             s"${p.getName}=${p.getValue}"
           } else {
@@ -90,7 +92,11 @@ private[s3] class SignatureCalculator(
       }
       val baseUrl = request.getUri.toBaseUrl
 
-      s"""$baseUrl?${signatureQueries mkString "&"}"""
+      if (signatureQueries.isEmpty) {
+        baseUrl
+      } else {
+        s"""$baseUrl?${signatureQueries mkString "&"}"""
+      }
     }
   }
 

@@ -62,10 +62,10 @@ class PathStyleWSRequestBuilder private[s3] (
 
     objectName.foreach { name =>
       url.append('/').append(name)
+    }
 
-      query.foreach { string =>
-        url.append('?').append(string)
-      }
+    query.foreach { string =>
+      url.append('?').append(string)
     }
 
     WSRequestBuilder.build(
