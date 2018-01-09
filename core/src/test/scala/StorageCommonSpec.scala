@@ -41,7 +41,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       }
     }
 
-    s"Get objects of the empty $bucketName bucket" in assertAllStagesStopped {
+    s"Lists objects of the empty $bucketName bucket" in assertAllStagesStopped {
       storage.bucket(bucketName).objects.collect[List]().map(_.size) must beEqualTo(0).await(1, 5.seconds)
     }
 
@@ -308,9 +308,14 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       }
     }
 
-    "Get objects with maximum elements" in {
-      val bucket = storage.bucket(bucketName)
-      bucket.objects.collect[List]().map(_.size) must beEqualTo(1).await(1, 5.seconds)
+    "Get objects with maximum elements" >> {
+      lazy val bucket = storage.bucket(bucketName)
+
+      "after preparing bucket" in {
+        bucket.objects.collect[List]().
+          map(_.size) must beEqualTo(1).await(1, 5.seconds)
+      }
+
       def createFile(name: String) = {
         val file = bucket.obj(name)
         val put = file.put[Array[Byte], Long]
@@ -321,14 +326,23 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
         repeat(10)(body) runWith upload
       }
 
-      1 to 16 foreach (i => {
-        val filename = s"max-test-file-$i"
-        createFile(filename) must beEqualTo(1590).await(1, 5.seconds) and (
-          bucket.obj(filename).exists must beTrue.await(1, 5.seconds))
-      })
+      "after creating more objects" in {
+        (1 to 16).foldLeft(ok) { (res, i) =>
+          val filename = s"max-test-file-$i"
 
-      bucket.objects.collect[List]().map(_.size) must beEqualTo(17).await(1, 5.seconds) and (
-        bucket.objects.withBatchSize(6).collect[List]().map(_.size) must beEqualTo(17).await(1, 5.seconds))
+          res and {
+            createFile(filename) must beEqualTo(1590).await(1, 5.seconds)
+          } and {
+            bucket.obj(filename).exists must beTrue.await(1, 5.seconds)
+          }
+        }
+      }
+
+      "using batch size 6" in {
+        bucket.objects.collect[List]().map(_.size) must beEqualTo(17).await(1, 5.seconds) and (
+          bucket.objects.withBatchSize(6).collect[List]().
+          map(_.size) must beEqualTo(17).await(1, 5.seconds))
+      }
     }
   }
 }

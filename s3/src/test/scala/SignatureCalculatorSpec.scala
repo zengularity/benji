@@ -1,5 +1,6 @@
 package com.zengularity.benji.s3 // as testing internals
 
+import play.shaded.ahc.org.asynchttpclient.RequestBuilder
 import play.shaded.ahc.io.netty.handler.codec.http.DefaultHttpHeaders
 
 // Sanity tests related to calculating the signature for S3 requests.
@@ -9,32 +10,19 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
   // Examples taken from:
   // http://s3.amazonaws.com/doc/s3-developer-guide/RESTAuthentication.html
 
-  "Calculated authentication signature" should {
-    val signature1 = "5m+HAmc5JsrgyDelh9+a2dNrzN8="
-    s"be '$signature1' for request #1" in {
-      calculator.calculateFor(
-        "GET\n\n\n\n" +
-          "x-amz-date:Thu, 17 Nov 2005 18:49:58 GMT\n" +
-          "x-amz-magic:abracadabra\n" +
-          "/quotes/nelson").get aka "signature" must_== signature1
+  "Canolicalized signature url" should {
+    "keep sub-resource parameter (e.g. ?acl)" in {
+      val req = new RequestBuilder("http://localhost/").
+        addQueryParam("acl", null).build()
+
+      calculator.signatureUrl(req) must_== "http://localhost?acl"
     }
 
-    val signature2 = "jZNOcbfWmD/A/f3hSvVzXZjM2HU="
-    s"be '$signature2' for request #2" in {
-      calculator.calculateFor(
-        "PUT\n" +
-          "c8fdb181845a4ca6b8fec737b3581d76\n" +
-          "text/html\n" +
-          "Thu, 17 Nov 2005 18:49:58 GMT\n" +
-          "x-amz-magic:abracadabra\n" +
-          "x-amz-meta-author:foo@bar.com\n" +
-          "/quotes/nelson").get aka "signature" must_== signature2
-    }
+    "filter query parameters (e.g. ?max-keys)" in {
+      val req = new RequestBuilder("http://localhost/").
+        addQueryParam("max-keys", "50").build()
 
-    val signature3 = "vjbyPxybdZaNmGa+yT272YEAiv4="
-    s"be '$signature3' for request #3" in {
-      calculator.calculateFor(
-        "GET\n\n\n1141889120\n/quotes/nelson").get aka "signature" must_== signature3
+      calculator.signatureUrl(req) must_== "http://localhost"
     }
   }
 
@@ -184,10 +172,10 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
         "Host" -> host,
         "Date" -> date)
 
-      val expected = "GET\n\n\nTue, 27 Mar 2007 19:42:41 +0000\n/johnsmith/?prefix=photos&max-keys=50&marker=puppy"
+      val expected = "GET\n\n\nTue, 27 Mar 2007 19:42:41 +0000\n/johnsmith/"
 
       stringToSign("GET", VirtualHostRequest, None, None, date, headers,
-        serverHost, s"https://$host/?prefix=photos&max-keys=50&marker=puppy").
+        serverHost, s"https://$host/").
         aka("string-to-sign") must_== expected
     }
 
@@ -268,6 +256,35 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
 
       stringToSign("GET", PathRequest, None, None, date, headers, serverHost,
         s"http://$serverHost/") must_== expected
+    }
+  }
+
+  "Calculated authentication signature" should {
+    val signature1 = "5m+HAmc5JsrgyDelh9+a2dNrzN8="
+    s"be '$signature1' for request #1" in {
+      calculator.calculateFor(
+        "GET\n\n\n\n" +
+          "x-amz-date:Thu, 17 Nov 2005 18:49:58 GMT\n" +
+          "x-amz-magic:abracadabra\n" +
+          "/quotes/nelson").get aka "signature" must_== signature1
+    }
+
+    val signature2 = "jZNOcbfWmD/A/f3hSvVzXZjM2HU="
+    s"be '$signature2' for request #2" in {
+      calculator.calculateFor(
+        "PUT\n" +
+          "c8fdb181845a4ca6b8fec737b3581d76\n" +
+          "text/html\n" +
+          "Thu, 17 Nov 2005 18:49:58 GMT\n" +
+          "x-amz-magic:abracadabra\n" +
+          "x-amz-meta-author:foo@bar.com\n" +
+          "/quotes/nelson").get aka "signature" must_== signature2
+    }
+
+    val signature3 = "vjbyPxybdZaNmGa+yT272YEAiv4="
+    s"be '$signature3' for request #3" in {
+      calculator.calculateFor(
+        "GET\n\n\n1141889120\n/quotes/nelson").get aka "signature" must_== signature3
     }
   }
 
