@@ -18,7 +18,7 @@ import tests.benji.StorageCommonSpec
 class VFSStorageSpec(implicit ee: ExecutionEnv) extends org.specs2.mutable.Specification with StorageCommonSpec {
 
   import tests.benji.StreamUtils._
-  import TestUtils.{ vfs, vfsTransport }
+  import TestUtils.vfs
 
   "VFS Cloud Storage" title
 

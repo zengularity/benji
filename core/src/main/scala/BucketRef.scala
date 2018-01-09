@@ -13,14 +13,9 @@ import akka.stream.scaladsl.{ Sink, Source }
  * A bucket reference.
  * The operations are scoped on the specified bucket.
  *
- * @tparam T the type of object storage
- * @define transportParam the storage transport
+ * Such reference must only be used with the storage which resolved it first.
  */
-trait BucketRef[T <: ObjectStorage[T]] {
-
-  /** The type of the storage transport. */
-  final type Transport = T#Pack#Transport
-
+trait BucketRef {
   /**
    * The name of the bucket.
    */
@@ -32,15 +27,13 @@ trait BucketRef[T <: ObjectStorage[T]] {
   trait ListRequest {
     /**
      * Lists of all objects within the bucket.
-     *
-     * @param tr $transportParam
      */
-    def apply()(implicit m: Materializer, tr: Transport): Source[Object, NotUsed]
+    def apply()(implicit m: Materializer): Source[Object, NotUsed]
 
     /**
      * Collects the bucket objects.
      */
-    def collect[M[_]]()(implicit m: Materializer, tr: Transport, builder: CanBuildFrom[M[_], Object, M[Object]]): Future[M[Object]] = {
+    def collect[M[_]]()(implicit m: Materializer, builder: CanBuildFrom[M[_], Object, M[Object]]): Future[M[Object]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       apply() runWith Sink.fold(builder()) {
@@ -59,10 +52,9 @@ trait BucketRef[T <: ObjectStorage[T]] {
    * Prepares a request to list the bucket objects.
    *
    * {{{
-   * def enumObjects[T <: ObjectStorage[_]](b: BucketRef[T]) = b.objects()
+   * def enumObjects(b: BucketRef) = b.objects()
    *
-   * def objectList[T <: ObjectStorage[_]](b: BucketRef[T]) =
-   *   b.objects.collect[List]()
+   * def objectList(b: BucketRef) = b.objects.collect[List]()
    * }}}
    */
   def objects: ListRequest
@@ -72,23 +64,20 @@ trait BucketRef[T <: ObjectStorage[T]] {
    * `false` might be returned also in cases where you don't have permission
    * to view a certain bucket.
    *
-   * @param tr $transportParam
-   *
    * {{{
-   * def check[T <: ObjectStorage[T]](store: T, name: String)(implicit ec: ExecutionContext, tr: T#Pack#Transport): Future[Boolean] = store.bucket(name).exists
+   * def check(store: ObjectStorage, name: String)(implicit ec: ExecutionContext): Future[Boolean] = store.bucket(name).exists
    * }}}
    */
-  def exists(implicit ec: ExecutionContext, tr: Transport): Future[Boolean]
+  def exists(implicit ec: ExecutionContext): Future[Boolean]
 
   /**
    * Creates the bucket.
    *
    * @param checkBefore if true, checks if it already exists before
-   * @param tr $transportParam
    * @return true if a new bucket has been created, false if skipped
    *
    * {{{
-   * def setupBucket[T <: ObjectStorage[T]](store: T, name: String)(implicit ec: ExecutionContext, tr: T#Pack#Transport): Future[BucketRef[T]] = {
+   * def setupBucket(store: ObjectStorage, name: String)(implicit ec: ExecutionContext): Future[BucketRef] = {
    *   // Make sure a bucket is available (either a new or existing one)
    *   val bucket = store.bucket(name)
    *   bucket.create().map {
@@ -98,13 +87,13 @@ trait BucketRef[T <: ObjectStorage[T]] {
    * }
    * }}}
    */
-  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, tr: Transport): Future[Boolean]
+  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext): Future[Boolean]
 
   trait DeleteRequest {
     /**
      * Deletes the current bucket
      */
-    def apply()(implicit m: Materializer, tr: Transport): Future[Unit]
+    def apply()(implicit m: Materializer): Future[Unit]
 
     /**
      * Updates the request, so that it will not raise an error if the referenced bucket doesn't exist when executed
@@ -127,5 +116,5 @@ trait BucketRef[T <: ObjectStorage[T]] {
    *
    * @param objectName the name of child object
    */
-  def obj(objectName: String): T#ObjectRef
+  def obj(objectName: String): ObjectRef
 }

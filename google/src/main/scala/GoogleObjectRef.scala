@@ -9,6 +9,8 @@ import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
 import akka.util.ByteString
 
 import play.api.libs.json.{ JsObject, JsString, Json }
+
+import play.api.libs.ws.BodyWritable
 import play.api.libs.ws.DefaultBodyWritables._
 import play.api.libs.ws.JsonBodyWritables._
 import play.api.libs.ws.ahc.StandaloneAhcWSResponse
@@ -22,21 +24,22 @@ import com.zengularity.benji.ws.{ ContentMD5, Ok, Successful }
 final class GoogleObjectRef private[google] (
   val storage: GoogleStorage,
   val bucket: String,
-  val name: String) extends ObjectRef[GoogleStorage] { ref =>
+  val name: String) extends ObjectRef { ref =>
   import GoogleObjectRef.ResumeIncomplete
 
   @inline def defaultThreshold = GoogleObjectRef.defaultThreshold
 
   @inline private def logger = storage.logger
+  @inline private def gt = storage.transport
 
-  def exists(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = Future {
+  def exists(implicit ec: ExecutionContext): Future[Boolean] = Future {
     gt.client.objects().get(bucket, name).executeUsingHead()
   }.map(_ => true).recoverWith {
     case HttpResponse(404, _) => Future.successful(false)
     case err => Future.failed[Boolean](err)
   }
 
-  def headers()(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Map[String, Seq[String]]] = Future {
+  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = Future {
     val resp = gt.client.objects().get(bucket, name).executeUnparsed()
 
     resp.parseAsString
@@ -59,7 +62,7 @@ final class GoogleObjectRef private[google] (
   val get = new GoogleGetRequest()
 
   final class GoogleGetRequest private[google] () extends GetRequest {
-    def apply(range: Option[ByteRange] = None)(implicit m: Materializer, gt: GoogleTransport): Source[ByteString, NotUsed] = {
+    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       Source.fromFuture(Future {
@@ -91,7 +94,7 @@ final class GoogleObjectRef private[google] (
   final class RESTPutRequest[E, A] private[google] ()
     extends ref.PutRequest[E, A] {
 
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, tr: Transport, w: Writer[E]): Sink[E, Future[A]] = {
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
       def flowChunks = Streams.chunker[E].via(Streams.consumeAtMost(threshold))
 
       flowChunks.prefixAndTail(1).flatMapMerge[A, NotUsed](1, {
@@ -115,8 +118,8 @@ final class GoogleObjectRef private[google] (
   def put[E, A] = new RESTPutRequest[E, A]()
 
   private case class GoogleDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
-    def apply()(implicit ec: ExecutionContext, tr: Transport): Future[Unit] = {
-      val futureResult = Future { tr.client.objects().delete(bucket, name).execute(); () }
+    def apply()(implicit ec: ExecutionContext): Future[Unit] = {
+      val futureResult = Future { gt.client.objects().delete(bucket, name).execute(); () }
       if (ignoreExists) {
         futureResult.recover { case HttpResponse(404, _) => () }
       } else {
@@ -129,7 +132,7 @@ final class GoogleObjectRef private[google] (
 
   def delete: DeleteRequest = GoogleDeleteRequest()
 
-  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = {
+  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
     val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
 
     for {
@@ -155,7 +158,7 @@ final class GoogleObjectRef private[google] (
     } yield ()
   }
 
-  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Unit] = Future {
+  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] = Future {
     gt.client.objects().
       copy(bucket, name, targetBucketName, targetObjectName, null).execute()
   }.map(_ => {})
@@ -177,7 +180,7 @@ final class GoogleObjectRef private[google] (
    *
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#simple
    */
-  private def putSimple[A](contentType: Option[String], metadata: Map[String, String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, gt: GoogleTransport): Flow[Chunk, A, NotUsed] = {
+  private def putSimple[A](contentType: Option[String], metadata: Map[String, String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer): Flow[Chunk, A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     Flow[Chunk].limit(1).flatMapConcat { single =>
@@ -213,7 +216,7 @@ final class GoogleObjectRef private[google] (
    * @param contentType $contentTypeParam
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#multipart
    */
-  private def putMulti[A](firstChunk: Chunk, contentType: Option[String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, gt: GoogleTransport): Flow[(Chunk, String), A, NotUsed] = {
+  private def putMulti[A](firstChunk: Chunk, contentType: Option[String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer): Flow[(Chunk, String), A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     @inline def zst = (Option.empty[String], 0L, firstChunk, z)
@@ -258,7 +261,7 @@ final class GoogleObjectRef private[google] (
    * @param contentType $contentTypeParam
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#start-resumable
    */
-  private def initiateUpload(contentType: Option[String], metadata: Map[String, String])(implicit m: Materializer, gt: GoogleTransport): Source[String, NotUsed] = {
+  private def initiateUpload(contentType: Option[String], metadata: Map[String, String])(implicit m: Materializer): Source[String, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     Source.fromFuture(gt
@@ -304,7 +307,7 @@ final class GoogleObjectRef private[google] (
    * @param globalSz the global size (if known)
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#uploading_the_file_in_chunks
    */
-  private def uploadPart(url: String, bytes: ByteString, offset: Long, contentType: Option[String], globalSz: Option[Long] = None)(implicit m: Materializer, gt: GoogleTransport): Future[String] = {
+  private def uploadPart(url: String, bytes: ByteString, offset: Long, contentType: Option[String], globalSz: Option[Long] = None)(implicit m: Materializer): Future[String] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     gt.withWSRequest2(url) { req =>

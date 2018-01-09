@@ -20,6 +20,12 @@ object TestUtils {
     ConfigFactory.load("tests.conf")
   }
 
+  lazy val system = akka.actor.ActorSystem("benji-s3-tests")
+  lazy val materializer = akka.stream.ActorMaterializer.create(system)
+
+  implicit lazy val WS: play.api.libs.ws.ahc.StandaloneAhcWSClient =
+    TestWS.client()(materializer)
+
   lazy val (awsAccessKey, awsSecretKey, awsHost, awsProtocol) = (
     config.getString("aws.s3.accessKey"),
     config.getString("aws.s3.secretKey"),
@@ -42,12 +48,6 @@ object TestUtils {
 
   lazy val ceph = S3(cephAccessKey, cephSecretKey, cephProtocol, cephHost)
 
-  lazy val system = akka.actor.ActorSystem("benji-s3-tests")
-  lazy val materializer = akka.stream.ActorMaterializer.create(system)
-
-  implicit lazy val WS: play.api.libs.ws.ahc.StandaloneAhcWSClient =
-    TestWS.client()(materializer)
-
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T =
     TestKit.assertAllStagesStopped(f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext)))
 
@@ -59,7 +59,7 @@ object TestUtils {
 
     import com.zengularity.benji.ObjectStorage
 
-    def storageCleanup[T <: ObjectStorage[T]](st: T)(implicit tr: st.Pack#Transport) = st.buckets.collect[List]().flatMap(bs =>
+    def storageCleanup(st: ObjectStorage) = st.buckets.collect[List]().flatMap(bs =>
       Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
         st.bucket(b.name).delete.recursive()
       })).map(_ => {})

@@ -14,18 +14,7 @@ import akka.stream.scaladsl.{ Sink, Source }
  *
  * @define bucketNameParam the name of the bucket
  */
-trait ObjectStorage[T <: ObjectStorage[T]] { self =>
-  /**
-   * The type of transport package,
-   * required by an underlying implementation.
-   */
-  type Pack <: StoragePack with Singleton
-
-  /**
-   * The type for the object references managed by this storage.
-   */
-  type ObjectRef <: com.zengularity.benji.ObjectRef[T]
-
+trait ObjectStorage { self =>
   /** Storage logger */
   val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
 
@@ -34,7 +23,7 @@ trait ObjectStorage[T <: ObjectStorage[T]] { self =>
    *
    * @param timeout the request timeout in milliseconds
    */
-  def withRequestTimeout(timeout: Long): T
+  def withRequestTimeout(timeout: Long): ObjectStorage
 
   /**
    * A request to list the buckets.
@@ -42,15 +31,13 @@ trait ObjectStorage[T <: ObjectStorage[T]] { self =>
   trait BucketsRequest {
     /**
      * Lists of all objects within the bucket.
-     *
-     * @param tr the storage transport
      */
-    def apply()(implicit m: Materializer, tr: Pack#Transport): Source[Bucket, NotUsed]
+    def apply()(implicit m: Materializer): Source[Bucket, NotUsed]
 
     /**
      * Collects the bucket objects.
      */
-    def collect[M[_]]()(implicit m: Materializer, tr: Pack#Transport, builder: CanBuildFrom[M[_], Bucket, M[Bucket]]): Future[M[Bucket]] = {
+    def collect[M[_]]()(implicit m: Materializer, builder: CanBuildFrom[M[_], Bucket, M[Bucket]]): Future[M[Bucket]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       apply() runWith Sink.fold(builder()) {
@@ -64,9 +51,9 @@ trait ObjectStorage[T <: ObjectStorage[T]] { self =>
    * Prepares the request to list the buckets.
    *
    * {{{
-   * def enumBuckets[T <: ObjectStorage[_]](store: T) = ls.buckets()
+   * def enumBuckets(store: ObjectStorage) = ls.buckets()
    *
-   * def bucketSet[T <: ObjectStorage[_]](store: T) = ls.buckets.collect[Set]()
+   * def bucketSet(store: ObjectStorage) = ls.buckets.collect[Set]()
    * }}}
    */
   def buckets: BucketsRequest
@@ -76,5 +63,5 @@ trait ObjectStorage[T <: ObjectStorage[T]] { self =>
    *
    * @param name $bucketNameParam
    */
-  def bucket(name: String): BucketRef[T]
+  def bucket(name: String): BucketRef
 }

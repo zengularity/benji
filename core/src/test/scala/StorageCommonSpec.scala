@@ -6,22 +6,23 @@ import akka.stream.Materializer
 import akka.stream.contrib.TestKit.assertAllStagesStopped
 import akka.stream.scaladsl.Source
 
+import play.api.libs.ws.BodyWritable
+
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.MatchResult
 
-import com.zengularity.benji.{ ByteRange, ObjectStorage }
+import com.zengularity.benji.{ ByteRange, ObjectStorage, ObjectRef }
 
 import scala.concurrent.Future
 
 trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specification =>
   import tests.benji.StreamUtils._
 
-  def minimalCommonTests[T <: ObjectStorage[T]](storage: T, defaultBucketName: String)(
+  def minimalCommonTests(storage: ObjectStorage, defaultBucketName: String)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv,
-    transport: storage.Pack#Transport,
-    writer: storage.ObjectRef#Writer[Array[Byte]]) = {
+    writer: BodyWritable[Array[Byte]]) = {
 
     val bucketName = defaultBucketName
 
@@ -70,12 +71,11 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
     }
   }
 
-  def commonTests[T <: ObjectStorage[T]](storage: T, defaultBucketName: String)(
+  def commonTests(storage: ObjectStorage, defaultBucketName: String)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv,
-    transport: storage.Pack#Transport,
-    writer: storage.ObjectRef#Writer[Array[Byte]]) = {
+    writer: BodyWritable[Array[Byte]]) = {
 
     val bucketName = defaultBucketName
 
@@ -196,13 +196,11 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
     }
 
     "Write and move file" >> {
-      type ObjRef = T#ObjectRef
-
-      def moveSpec[R](target: => Future[ObjRef], preventOverwrite: Boolean = true)(onMove: (ObjRef, ObjRef, Future[Unit]) => MatchResult[Future[R]]) = {
+      def moveSpec[R](target: => Future[ObjectRef], preventOverwrite: Boolean = true)(onMove: (ObjectRef, ObjectRef, Future[Unit]) => MatchResult[Future[R]]) = {
         val file3 = storage.bucket(bucketName).obj("testfile3.txt")
 
         file3.exists.aka("exists #3") must beFalse.await(1, 5.seconds) and (
-          target must beLike[ObjRef] {
+          target must beLike[ObjectRef] {
             case file4 =>
               val write = file3.put[Array[Byte]]
               val body = List.fill(1000)("qwerty").mkString(" ").getBytes
@@ -226,20 +224,20 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
           }.await(1, 10.seconds))
       }
 
-      @inline def successful(file3: ObjRef, file4: ObjRef, res: Future[Unit]) = (for {
+      @inline def successful(file3: ObjectRef, file4: ObjectRef, res: Future[Unit]) = (for {
         _ <- res
         a <- file3.exists
         b <- file4.exists
       } yield a -> b) must beEqualTo(false -> true).await(1, 10.seconds)
 
-      @inline def failed(file3: ObjRef, file4: ObjRef, res: Future[Unit]) = res.recoverWith {
+      @inline def failed(file3: ObjectRef, file4: ObjectRef, res: Future[Unit]) = res.recoverWith {
         case _: IllegalStateException => for {
           a <- file3.exists
           b <- file4.exists
         } yield a -> b
       } must beEqualTo(true -> true).await(1, 10.seconds)
 
-      @inline def existingTarget: Future[ObjRef] = {
+      @inline def existingTarget: Future[ObjectRef] = {
         val target = storage.bucket(bucketName).obj("testfile4.txt")
         val write = target.put[Array[Byte]]
         val body = List.fill(1000)("qwerty").mkString(" ").getBytes

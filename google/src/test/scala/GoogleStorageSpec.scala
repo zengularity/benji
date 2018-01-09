@@ -18,7 +18,7 @@ import tests.benji.StorageCommonSpec
 class GoogleStorageSpec(implicit ee: ExecutionEnv)
   extends org.specs2.mutable.Specification with StorageCommonSpec {
 
-  import TestUtils.{ google, googleTransport }
+  import TestUtils.google
   import tests.benji.StreamUtils._
 
   "Google Cloud Storage" title

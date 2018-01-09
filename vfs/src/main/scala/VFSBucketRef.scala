@@ -12,12 +12,12 @@ import com.zengularity.benji.{ BucketRef, Bytes, Object }
 
 final class VFSBucketRef private[vfs] (
   val storage: VFSStorage,
-  val name: String) extends BucketRef[VFSStorage] { ref =>
+  val name: String) extends BucketRef { ref =>
 
   @inline private def logger = storage.logger
 
   object objects extends ref.ListRequest {
-    def apply()(implicit m: Materializer, t: VFSTransport): Source[Object, NotUsed] = {
+    def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       Source.fromFuture(Future {
@@ -43,10 +43,10 @@ final class VFSBucketRef private[vfs] (
     }
   }
 
-  def exists(implicit ec: ExecutionContext, t: VFSTransport): Future[Boolean] =
+  def exists(implicit ec: ExecutionContext): Future[Boolean] =
     Future(dir.exists)
 
-  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, tr: VFSTransport): Future[Boolean] = for {
+  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext): Future[Boolean] = for {
     before <- {
       if (checkBefore) exists.map(Some(_))
       else Future.successful(Option.empty[Boolean])
@@ -54,21 +54,21 @@ final class VFSBucketRef private[vfs] (
     _ <- Future(dir.createFolder())
   } yield before.map(!_).getOrElse(true)
 
-  private def emptyBucket()(implicit m: Materializer, tr: VFSTransport): Future[Unit] = {
+  private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
     implicit val ec = m.executionContext
     // despite what the deleteAll documentation says, deleteAll don't delete the folder itself
     Future { dir.deleteAll(); () }
   }
 
   private case class VFSDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
-    private def delete()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+    private def delete()(implicit m: Materializer): Future[Unit] = {
       implicit val ec = m.executionContext
       Future { dir.delete() }.flatMap(successful =>
         if (ignoreExists || successful) Future.unit
         else Future.failed(new IllegalStateException("Could not delete bucket")))
     }
 
-    def apply()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+    def apply()(implicit m: Materializer): Future[Unit] = {
       implicit val ec = m.executionContext
       if (isRecursive) emptyBucket().flatMap(_ => delete())
       else delete()
@@ -84,8 +84,7 @@ final class VFSBucketRef private[vfs] (
   def obj(objectName: String): VFSObjectRef =
     new VFSObjectRef(storage, name, objectName)
 
-  @inline private def dir(implicit t: VFSTransport) =
-    t.fsManager.resolveFile(name)
+  @inline private def dir = storage.transport.fsManager.resolveFile(name)
 
   override lazy val toString = s"VFSBucketRef($name)"
 }

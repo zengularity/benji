@@ -13,7 +13,7 @@ import tests.benji.StorageCommonSpec
 
 class S3CephSpec extends org.specs2.mutable.Specification with StorageCommonSpec {
   import tests.benji.StreamUtils._
-  import TestUtils.{ WS, ceph, withMatEx }
+  import TestUtils.{ ceph, withMatEx }
 
   "S3 Ceph" title
 

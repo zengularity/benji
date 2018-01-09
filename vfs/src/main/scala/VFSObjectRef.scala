@@ -7,26 +7,34 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
 import akka.util.ByteString
 
-import org.apache.commons.vfs2.{ FileName, FileNotFoundException, FileType, FileTypeSelector }
+import org.apache.commons.vfs2.{
+  FileName,
+  FileNotFoundException,
+  FileType,
+  FileTypeSelector
+}
+
+import play.api.libs.ws.BodyWritable
 
 import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams }
 
 final class VFSObjectRef private[vfs] (
   val storage: VFSStorage,
   val bucket: String,
-  val name: String) extends ObjectRef[VFSStorage] { ref =>
+  val name: String) extends ObjectRef { ref =>
 
   val defaultThreshold = VFSObjectRef.defaultThreshold
+  @inline private def transport = storage.transport
 
-  def exists(implicit ec: ExecutionContext, t: VFSTransport): Future[Boolean] =
+  def exists(implicit ec: ExecutionContext): Future[Boolean] =
     Future(file.exists)
 
-  def headers()(implicit ec: ExecutionContext, tt: VFSTransport): Future[Map[String, Seq[String]]] = Future.failed(new RuntimeException("TODO"))
+  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = Future.failed(new RuntimeException("TODO"))
 
   val get = new VFSGetRequest()
 
   final class VFSGetRequest private[vfs] () extends GetRequest {
-    def apply(range: Option[ByteRange] = None)(implicit m: Materializer, tr: VFSTransport): Source[ByteString, NotUsed] = {
+    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       Source.fromFuture(Future {
@@ -54,7 +62,7 @@ final class VFSObjectRef private[vfs] (
   final class RESTPutRequest[E, A] private[vfs] ()
     extends ref.PutRequest[E, A] {
 
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, tr: Transport, w: Writer[E]): Sink[E, Future[A]] = {
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       lazy val of = file
@@ -86,7 +94,7 @@ final class VFSObjectRef private[vfs] (
   def put[E, A] = new RESTPutRequest[E, A]()
 
   private case class VFSDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
-    def apply()(implicit ec: ExecutionContext, tr: Transport): Future[Unit] = {
+    def apply()(implicit ec: ExecutionContext): Future[Unit] = {
       Future { file.delete() }.flatMap(successful =>
         if (ignoreExists || successful) Future.unit
         else Future.failed(new IllegalArgumentException(s"Could not delete $bucket/$name: doesn't exist")))
@@ -97,8 +105,8 @@ final class VFSObjectRef private[vfs] (
 
   def delete: DeleteRequest = VFSDeleteRequest()
 
-  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, t: Transport): Future[Unit] = {
-    def target = t.fsManager.resolveFile(
+  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
+    def target = transport.fsManager.resolveFile(
       s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
 
     lazy val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
@@ -119,16 +127,16 @@ final class VFSObjectRef private[vfs] (
 
   private val copySelector = new FileTypeSelector(FileType.FILE)
 
-  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext, t: VFSTransport): Future[Unit] = {
-    def target = t.fsManager.resolveFile(
+  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] = {
+    def target = transport.fsManager.resolveFile(
       s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
 
     Future(target.copyFrom(file, copySelector))
   }
 
   // Utility methods
-  @inline private def file(implicit t: VFSTransport) =
-    t.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name")
+  @inline private def file =
+    transport.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name")
 
   override lazy val toString = s"VFSObjectRef($bucket, $name)"
 }

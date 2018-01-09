@@ -29,7 +29,7 @@ libraryDependencies += "com.zengularity" %% "benji-google" % benjiVer
 libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.4"
 ```
 
-Then the storage operations can be called according the DSL from your `ObjectStorage[T]` instance.
+Then the storage operations can be called according the DSL from your `ObjectStorage` instance.
 
 > Generally, these operations must be applied in a scope providing an `Materializer` and a transport instance (whose type is according the `ObjectStorage` instance; e.g. `play.api.libs.ws.WSClient` for S3).
 
@@ -49,33 +49,29 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.api.libs.ws.StandaloneWSClient
 
 import com.zengularity.benji.Bucket
 import com.zengularity.benji.s3.WSS3
 import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport }
 
-def listBuckets(s3: WSS3)(implicit m: Materializer, tr: StandaloneAhcWSClient): Future[List[Bucket]] = s3.buckets.collect[List]
+def listBuckets(s3: WSS3)(implicit m: Materializer, tr: StandaloneWSClient): Future[List[Bucket]] = s3.buckets.collect[List]
 
 def enumerateBucket(gcs: GoogleStorage)(implicit m: Materializer, tr: GoogleTransport): Source[Bucket, NotUsed] = gcs.buckets()
 ```
 
-#### Get a bucket
+#### Resolve a bucket
 
 In order to update a bucket, a `BucketRef` must be obtained (rather than the read-only metadata `Bucket`).
 
-- `ObjectStorage.bucket(String): BucketRef[_]`
+- `ObjectStorage.bucket(String): BucketRef`
 
 ```scala
 import scala.concurrent.ExecutionContext
 
 import com.zengularity.benji.{ BucketRef, ObjectStorage }
-import com.zengularity.benji.google.{ GoogleBucketRef, GoogleStorage, GoogleTransport }
 
-def googleBucket(gcs: GoogleStorage, name: String)(implicit ec: ExecutionContext, tr: GoogleTransport): GoogleBucketRef = gcs.bucket(name)
-
-def obtainRef[T <: ObjectStorage[T]](storage: T, name: String)(implicit ec: ExecutionContext, tr: T#Pack#Transport): BucketRef[T] = storage.bucket(name)
-// Generic - Works with any kind of ObjectStorage[T]
+def obtainRef(storage: ObjectStorage, name: String)(implicit ec: ExecutionContext): BucketRef = storage.bucket(name)
 ```
 
 ### Object operations
@@ -86,8 +82,8 @@ The operations to manage the objects are available on the `ObjectStorage` instan
 
 The objects can be listed from the parent `BucketRef`.
 
-- `BucketRef[T].objects()` (note the final `()`); Can be processed using an `Sink[Object, _]`.
-- `BucketRef[T].objects.collect[M[Object]]` (when `CanBuildFrom[M[_], Object, M[Object]]`)
+- `BucketRef.objects()` (note the final `()`); Can be processed using an `Sink[Object, _]`.
+- `BucketRef.objects.collect[M[Object]]` (when `CanBuildFrom[M[_], Object, M[Object]]`)
 
 ```scala
 import scala.collection.immutable.Set
@@ -98,42 +94,37 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.api.libs.ws.StandaloneWSClient
 
-import com.zengularity.benji.{ BucketRef, Object, ObjectStorage }
+import com.zengularity.benji.{ BucketRef, Object }
 import com.zengularity.benji.s3.WSS3BucketRef
 
-def objectSet(bucket: WSS3BucketRef)(implicit m: Materializer, tr: StandaloneAhcWSClient): Future[Set[Object]] = bucket.objects.collect[Set]
+def objectSet(bucket: WSS3BucketRef)(implicit m: Materializer, tr: StandaloneWSClient): Future[Set[Object]] = bucket.objects.collect[Set]
 
-def enumerateObjects[T <: ObjectStorage[T]](bucket: BucketRef[T])(implicit m: Materializer, tr: T#Pack#Transport): Source[Object, NotUsed] = bucket.objects()
-// Generic - Works with any kind of ObjectStorage[T]
+def enumerateObjects(bucket: BucketRef)(implicit m: Materializer): Source[Object, NotUsed] = bucket.objects()
 ```
 
 #### Get an object
 
 In order to manage an object, an `ObjectRef` must be obtained (rather than the read-only metadata `Object`).
 
-- `BucketRef[T].obj(String): ObjectRef[_]`
+- `BucketRef.obj(String): ObjectRef`
 
 ```scala
 import scala.concurrent.ExecutionContext
 
-import com.zengularity.benji.{ BucketRef, ObjectRef, ObjectStorage }
-import com.zengularity.benji.google.{ GoogleBucketRef, GoogleObjectRef, GoogleTransport }
+import com.zengularity.benji.{ BucketRef, ObjectRef }
 
-def obtainRef[T <: ObjectStorage[T]](bucket: BucketRef[T], name: String)(implicit ec: ExecutionContext, tr: T#Pack#Transport): ObjectRef[T] = bucket.obj(name)
-// Generic - Works with any kind of ObjectStorage[T]
-
-def googleObject(bucket: GoogleBucketRef, name: String)(implicit ec: ExecutionContext, tr: GoogleTransport): GoogleObjectRef = bucket.obj(name)
+def obtainRef(bucket: BucketRef, name: String)(implicit ec: ExecutionContext): ObjectRef = bucket.obj(name)
 ```
 
 #### Upload data
 
 To upload data to a previously obtained `ObjectRef`, the `put` functions can be used.
 
-- `ObjectRef[T].put[E : Writer]: Sink[E, NotUsed]`
-- `ObjectRef[T].put[E : Writer](size: Long): Sink[E, NotUsed]`
-- `ObjectRef[T].put[E : Writer, A](z: => A, threshold: Bytes, size: Option[Long])(f: (A, Chunk) => A): Sink[E, NotUsed]`
+- `ObjectRef.put[E : Writer]: Sink[E, NotUsed]`
+- `ObjectRef.put[E : Writer](size: Long): Sink[E, NotUsed]`
+- `ObjectRef.put[E : Writer, A](z: => A, threshold: Bytes, size: Option[Long])(f: (A, Chunk) => A): Sink[E, NotUsed]`
 
 ```scala
 import scala.concurrent.{ ExecutionContext, Future }
@@ -142,10 +133,12 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
 
-import com.zengularity.benji.{ BucketRef, ObjectStorage }
+import play.api.libs.ws.BodyWritable
+
+import com.zengularity.benji.BucketRef
 
 // Upload with any ObjectStorage instance
-def upload[T <: ObjectStorage[T]](bucket: BucketRef[T], objName: String, data: => Source[Array[Byte], NotUsed])(implicit m: Materializer, tr: T#Pack#Transport, w: T#Pack#Writer[Array[Byte]]): Future[(String, Long)] = {
+def upload(bucket: BucketRef, objName: String, data: => Source[Array[Byte], NotUsed])(implicit m: Materializer, w: BodyWritable[Array[Byte]]): Future[(String, Long)] = {
   implicit def ec: ExecutionContext = m.executionContext
 
   val storeObj = bucket.obj(objName)
@@ -165,11 +158,11 @@ def upload[T <: ObjectStorage[T]](bucket: BucketRef[T], objName: String, data: =
   })
 }
 
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.api.libs.ws.StandaloneWSClient
 
 import com.zengularity.benji.s3.WSS3
 
-def putToS3[A : WSS3#Pack#Writer](storage: WSS3, bucketName: String, objName: String, data: => Source[A, NotUsed])(implicit m: Materializer, tr: StandaloneAhcWSClient): Future[Unit] = {
+def putToS3[A : BodyWritable](storage: WSS3, bucketName: String, objName: String, data: => Source[A, NotUsed])(implicit m: Materializer, tr: StandaloneWSClient): Future[Unit] = {
   implicit def ec: ExecutionContext = m.executionContext
 
   for {
@@ -188,4 +181,4 @@ def putToS3[A : WSS3#Pack#Writer](storage: WSS3, bucketName: String, objName: St
 TODO
 
 - Metadata types: `Bucket`, `Object`
-- Working references: `BucketRef[T]`, `ObjectRef[T]`
+- Working references: `BucketRef`, `ObjectRef`
