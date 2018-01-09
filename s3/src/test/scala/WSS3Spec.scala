@@ -12,6 +12,8 @@ import scala.util.Failure
 class WSS3Spec extends Specification {
   "WSS3" title
 
+  import TestUtils.WS
+
   "Factory using URI" should {
     "return Failure when the provider fail" in {
       val exception: Throwable = new Exception("foo")

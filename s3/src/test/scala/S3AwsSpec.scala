@@ -34,7 +34,7 @@ class S3AwsSpec extends Specification with AwsTests {
 }
 
 sealed trait AwsTests extends StorageCommonSpec { specs: Specification =>
-  import TestUtils.{ WS, withMatEx }
+  import TestUtils.withMatEx
 
   def awsMinimalSuite(
     label: String,

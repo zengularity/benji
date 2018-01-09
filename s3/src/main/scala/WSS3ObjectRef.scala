@@ -7,10 +7,9 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import akka.util.ByteString
 
+import play.api.libs.ws.{ BodyWritable, StandaloneWSRequest }
 import play.api.libs.ws.DefaultBodyWritables._
 import play.api.libs.ws.XMLBodyWritables._
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
-import play.api.libs.ws.StandaloneWSRequest
 
 import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams }
 import com.zengularity.benji.ws.{ ContentMD5, Successful }
@@ -18,7 +17,7 @@ import com.zengularity.benji.ws.{ ContentMD5, Successful }
 final class WSS3ObjectRef private[s3] (
   val storage: WSS3,
   val bucket: String,
-  val name: String) extends ObjectRef[WSS3] { ref =>
+  val name: String) extends ObjectRef { ref =>
 
   /** The maximum number of part (10,000) for a multipart upload to S3/AWS. */
   val defaultMaxPart = 10000
@@ -31,7 +30,7 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
    */
-  def exists(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Boolean] =
+  def exists(implicit ec: ExecutionContext): Future[Boolean] =
     storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).
       head().map(_.status == 200)
 
@@ -39,7 +38,7 @@ final class WSS3ObjectRef private[s3] (
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
    */
   final class RESTGetRequest(val target: ref.type) extends GetRequest {
-    def apply(range: Option[ByteRange] = None)(implicit m: Materializer, tr: Transport): Source[ByteString, NotUsed] = {
+    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       def req = storage.request(
@@ -55,7 +54,7 @@ final class WSS3ObjectRef private[s3] (
 
   def get = new RESTGetRequest(this)
 
-  def headers()(implicit ec: ExecutionContext, tr: Transport): Future[Map[String, Seq[String]]] = {
+  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = {
     def req = storage.request(
       Some(bucket), Some(name), requestTimeout = requestTimeout)
 
@@ -92,7 +91,7 @@ final class WSS3ObjectRef private[s3] (
      *
      * @param metadata (without the `x-amz-meta-` prefix for the keys)
      */
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: Transport, w: Writer[E]): Sink[E, Future[A]] = {
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
       val th = size.filter(_ > 0).fold(threshold) { sz =>
         val partCount = sz /: threshold
         if (partCount <= maxPart) threshold else Bytes(sz / maxPart)
@@ -130,7 +129,7 @@ final class WSS3ObjectRef private[s3] (
     /**
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
      */
-    def apply()(implicit ec: ExecutionContext, tr: Transport): Future[Unit] = {
+    def apply()(implicit ec: ExecutionContext): Future[Unit] = {
       val existanceCheck = if (ignoreExists) {
         Future.unit
       } else {
@@ -160,7 +159,7 @@ final class WSS3ObjectRef private[s3] (
    * @see #copyTo
    * @see #delete
    */
-  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] = {
+  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
     val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
 
     for {
@@ -185,7 +184,7 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
    */
-  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] =
+  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] =
     storage.request(Some(targetBucketName), Some(targetObjectName),
       requestTimeout = requestTimeout).
       addHttpHeaders("x-amz-copy-source" -> s"/$bucket/$name").
@@ -214,7 +213,7 @@ final class WSS3ObjectRef private[s3] (
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
    */
-  private def putSimple[A](contentType: Option[String], metadata: Map[String, String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: StandaloneAhcWSClient): Flow[Chunk, A, NotUsed] = {
+  private def putSimple[A](contentType: Option[String], metadata: Map[String, String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer): Flow[Chunk, A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     Flow[Chunk].limit(1).flatMapConcat { single =>
@@ -241,7 +240,7 @@ final class WSS3ObjectRef private[s3] (
    * @param contentType $contentTypeParam
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html
    */
-  private def putMulti[A](contentType: Option[String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer, ws: StandaloneAhcWSClient): Flow[(Chunk, String), A, NotUsed] = {
+  private def putMulti[A](contentType: Option[String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer): Flow[(Chunk, String), A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     @inline def zst = (Option.empty[String], List.empty[String], z)
@@ -266,7 +265,7 @@ final class WSS3ObjectRef private[s3] (
    * Initiates a multi-part upload and returns the upload ID we're supposed to include when uploading parts later on.
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
    */
-  private def initiateUpload(metadata: Map[String, String])(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Source[String, NotUsed] = Source fromFuture {
+  private def initiateUpload(metadata: Map[String, String])(implicit ec: ExecutionContext): Source[String, NotUsed] = Source fromFuture {
     storage.request(Some(bucket), Some(name), Some("uploads"),
       requestTimeout = requestTimeout).addHttpHeaders(metadata.toSeq: _*).
       post("").map {
@@ -299,7 +298,7 @@ final class WSS3ObjectRef private[s3] (
   private def uploadPart(
     bytes: ByteString,
     contentType: Option[String],
-    partNumber: Int, uploadId: String)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[String] = {
+    partNumber: Int, uploadId: String)(implicit ec: ExecutionContext): Future[String] = {
     val req = storage.request(
       Some(bucket), Some(name),
       query = Some(s"partNumber=$partNumber&uploadId=$uploadId"),
@@ -322,7 +321,7 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html
    */
-  private def completeUpload(etags: List[String], uploadId: String)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] = {
+  private def completeUpload(etags: List[String], uploadId: String)(implicit ec: ExecutionContext): Future[Unit] = {
     storage.request(Some(bucket), Some(name),
       query = Some(s"uploadId=$uploadId"),
       requestTimeout = requestTimeout).post(

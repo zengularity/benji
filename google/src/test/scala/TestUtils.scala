@@ -43,7 +43,7 @@ object TestUtils {
     implicit def m: Materializer = materializer
     implicit def ec: ExecutionContext = m.executionContext
 
-    def storageCleanup[T <: ObjectStorage[T]](st: T)(implicit tr: st.Pack#Transport) = st.buckets.collect[List]().flatMap(bs =>
+    def storageCleanup(st: ObjectStorage) = st.buckets.collect[List]().flatMap(bs =>
       Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
         st.bucket(b.name).delete.recursive()
       })).map(_ => {})

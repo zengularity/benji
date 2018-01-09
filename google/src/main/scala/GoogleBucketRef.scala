@@ -14,13 +14,15 @@ import com.zengularity.benji.{ BucketRef, Bytes, Object }
 
 final class GoogleBucketRef private[google] (
   val storage: GoogleStorage,
-  val name: String) extends BucketRef[GoogleStorage] { ref =>
+  val name: String) extends BucketRef { ref =>
   import scala.collection.JavaConverters.collectionAsScalaIterable
+
+  @inline private def gt = storage.transport
 
   private case class Objects(maybeMax: Option[Long]) extends ref.ListRequest {
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
-    private def apply(nextToken: Option[String])(implicit m: Materializer, gt: GoogleTransport): Source[Object, NotUsed] = {
+    private def apply(nextToken: Option[String])(implicit m: Materializer): Source[Object, NotUsed] = {
       val prepared = gt.client.objects().list(name)
       val maxed = maybeMax.fold(prepared) { prepared.setMaxResults(_) }
 
@@ -46,19 +48,19 @@ final class GoogleBucketRef private[google] (
       }
     }
 
-    def apply()(implicit m: Materializer, gt: GoogleTransport): Source[Object, NotUsed] = apply(None)
+    def apply()(implicit m: Materializer): Source[Object, NotUsed] = apply(None)
   }
 
   def objects: ListRequest = Objects(None)
 
-  def exists(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = Future {
+  def exists(implicit ec: ExecutionContext): Future[Boolean] = Future {
     gt.client.buckets().get(name).executeUsingHead()
   }.map(_ => true).recoverWith {
     case HttpResponse(404, _) => Future.successful(false)
     case err => Future.failed[Boolean](err)
   }
 
-  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = {
+  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext): Future[Boolean] = {
     if (!checkBefore) create
     else exists.flatMap {
       case true => Future.successful(false)
@@ -66,7 +68,7 @@ final class GoogleBucketRef private[google] (
     }
   }
 
-  private def create(implicit ec: ExecutionContext, gt: GoogleTransport): Future[Boolean] = Future {
+  private def create(implicit ec: ExecutionContext): Future[Boolean] = Future {
     val nb = new model.Bucket()
     nb.setName(name)
 
@@ -76,15 +78,15 @@ final class GoogleBucketRef private[google] (
     case err => Future.failed[Boolean](err)
   }
 
-  private def emptyBucket()(implicit m: Materializer, gt: GoogleTransport): Future[Unit] = {
+  private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
     implicit val ec = m.executionContext
     Future(objects()).flatMap(_.runFoldAsync(())((_: Unit, e) => obj(e.name).delete.ignoreIfNotExists()))
   }
 
   private case class GoogleDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
-    private def delete()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+    private def delete()(implicit m: Materializer): Future[Unit] = {
       implicit val ec = m.executionContext
-      val futureResult = Future { tr.client.buckets().delete(name).execute(); () }
+      val futureResult = Future { gt.client.buckets().delete(name).execute(); () }
       if (ignoreExists) {
         futureResult.recover { case HttpResponse(404, _) => () }
       } else {
@@ -92,7 +94,7 @@ final class GoogleBucketRef private[google] (
       }
     }
 
-    def apply()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+    def apply()(implicit m: Materializer): Future[Unit] = {
       implicit val ec = m.executionContext
       if (isRecursive) emptyBucket().flatMap(_ => delete())
       else delete()

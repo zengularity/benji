@@ -1,7 +1,5 @@
 package com.zengularity.benji
 
-import scala.language.higherKinds
-
 import java.time.LocalDateTime
 
 /**
@@ -16,17 +14,6 @@ case class Bucket(name: String, creationTime: LocalDateTime)
  * @param lastModifiedAt the time of the last modification for this object
  */
 case class Object(name: String, size: Bytes, lastModifiedAt: LocalDateTime)
-
-/**
- * A transport pack.
- */
-trait StoragePack {
-  /** The transport type. */
-  type Transport
-
-  /** The type of writer, to send data using the transport. */
-  type Writer[T]
-}
 
 /**
  * An explicit range of bytes.

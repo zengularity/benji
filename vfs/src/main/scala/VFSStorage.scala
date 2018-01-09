@@ -17,24 +17,23 @@ import com.zengularity.benji.{ Bucket, ObjectStorage }
  *
  * @param requestTimeout the optional timeout for the prepared requests
  */
-class VFSStorage(val requestTimeout: Option[Long])
-  extends ObjectStorage[VFSStorage] { self =>
+class VFSStorage(
+  val transport: VFSTransport,
+  val requestTimeout: Option[Long]) extends ObjectStorage { self =>
 
-  type Pack = VFSStoragePack.type
-  type ObjectRef = VFSObjectRef
-
-  def withRequestTimeout(timeout: Long) = new VFSStorage(Some(timeout))
+  def withRequestTimeout(timeout: Long) =
+    new VFSStorage(transport, Some(timeout))
 
   def bucket(name: String) = new VFSBucketRef(this, name)
 
   object buckets extends self.BucketsRequest {
     private val selector = new FileTypeSelector(FileType.FOLDER)
 
-    def apply()(implicit m: Materializer, t: VFSTransport): Source[Bucket, NotUsed] = {
+    def apply()(implicit m: Materializer): Source[Bucket, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       Source.fromFuture(Future {
-        lazy val root = t.fsManager.resolveFile(FileName.ROOT_PATH)
+        lazy val root = transport.fsManager.resolveFile(FileName.ROOT_PATH)
         lazy val items = root.findFiles(selector)
 
         Source.fromIterator[Bucket] { () =>
@@ -58,5 +57,5 @@ object VFSStorage {
    *
    * @param requestTimeout the optional timeout for the prepared requests (none by default)
    */
-  def apply(requestTimeout: Option[Long] = None): VFSStorage = new VFSStorage(requestTimeout)
+  def apply(transport: VFSTransport, requestTimeout: Option[Long] = None): VFSStorage = new VFSStorage(transport, requestTimeout)
 }

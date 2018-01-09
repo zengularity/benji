@@ -17,30 +17,29 @@ import com.zengularity.benji.{ Bucket, ObjectStorage }
  * @param disableGZip if true, disables the GZip compression for upload and download (automatically disabled for multi-part upload)
  */
 class GoogleStorage(
+  val transport: GoogleTransport,
   val requestTimeout: Option[Long],
-  val disableGZip: Boolean) extends ObjectStorage[GoogleStorage] { self =>
+  val disableGZip: Boolean) extends ObjectStorage { self =>
   import scala.collection.JavaConverters._
 
-  type Pack = GoogleStoragePack.type
-  type ObjectRef = GoogleObjectRef
-
   def withRequestTimeout(timeout: Long) =
-    new GoogleStorage(Some(timeout), disableGZip)
+    new GoogleStorage(transport, Some(timeout), disableGZip)
 
   /**
    * Returns a new instance with GZip compression disabled.
    */
   def withDisabledGZip(disabled: Boolean) =
-    new GoogleStorage(requestTimeout, disabled)
+    new GoogleStorage(transport, requestTimeout, disabled)
 
   def bucket(name: String) = new GoogleBucketRef(this, name)
 
   object buckets extends self.BucketsRequest {
-    def apply()(implicit m: Materializer, gt: GoogleTransport): Source[Bucket, NotUsed] = {
+    def apply()(implicit m: Materializer): Source[Bucket, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       Source.fromFuture(Future {
-        val items = gt.buckets().list(gt.projectId).execute().getItems
+        val items = transport.buckets().
+          list(transport.projectId).execute().getItems
 
         Source(
           if (items == null) List.empty[Bucket] else items.asScala.map { b =>
@@ -61,7 +60,7 @@ object GoogleStorage {
    * @param requestTimeout the optional timeout for the prepared requests (none by default)
    * @param disableGZip if true, disables the GZip compression for upload and download (default: false)
    */
-  def apply(requestTimeout: Option[Long] = None, disableGZip: Boolean = false): GoogleStorage = new GoogleStorage(requestTimeout, disableGZip)
+  def apply(requestTimeout: Option[Long] = None, disableGZip: Boolean = false)(implicit gt: GoogleTransport): GoogleStorage = new GoogleStorage(gt, requestTimeout, disableGZip)
 }
 
 /**

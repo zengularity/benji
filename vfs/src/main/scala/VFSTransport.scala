@@ -7,7 +7,7 @@ import scala.util.Try
 import org.apache.commons.vfs2.{ FileSystemManager, VFS }
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
 
-import com.zengularity.benji.{ StoragePack, URIProvider }
+import com.zengularity.benji.URIProvider
 
 /**
  * @param fsManager the VFS manager
@@ -108,9 +108,4 @@ object VFSTransport {
 
     mngr
   }.map(apply(_))
-}
-
-object VFSStoragePack extends StoragePack {
-  type Transport = VFSTransport
-  type Writer[T] = play.api.libs.ws.BodyWritable[T]
 }

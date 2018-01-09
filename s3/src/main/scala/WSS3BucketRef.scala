@@ -10,15 +10,14 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.api.libs.ws.StandaloneWSResponse
 
 import com.zengularity.benji.{ BucketRef, Bytes, Object }
 import com.zengularity.benji.ws.Successful
-import play.api.libs.ws.StandaloneWSResponse
 
 final class WSS3BucketRef private[s3] (
   val storage: WSS3,
-  val name: String) extends BucketRef[WSS3] { ref =>
+  val name: String) extends BucketRef { ref =>
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
 
@@ -28,9 +27,9 @@ final class WSS3BucketRef private[s3] (
   private case class Objects(maybeMax: Option[Long]) extends ref.ListRequest {
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
-    def apply()(implicit m: Materializer, ws: StandaloneAhcWSClient): Source[Object, NotUsed] = apply(None)
+    def apply()(implicit m: Materializer): Source[Object, NotUsed] = apply(None)
 
-    private def apply(nextToken: Option[String])(implicit m: Materializer, ws: StandaloneAhcWSClient): Source[Object, NotUsed] = {
+    private def apply(nextToken: Option[String])(implicit m: Materializer): Source[Object, NotUsed] = {
       def error(response: StandaloneWSResponse) = s"Could not list all objects within the bucket $name. Response: ${response.status} - ${response.body}"
       val query = maybeMax.map(max => s"max-keys=$max${nextToken.map(token => s"&marker=${URLEncoder.encode(token, "UTF-8")}").getOrElse("")}")
       val request = storage.request(Some(name), requestTimeout = requestTimeout, query = query)
@@ -62,13 +61,13 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html
    */
-  def exists(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Boolean] =
+  def exists(implicit ec: ExecutionContext): Future[Boolean] =
     storage.request(Some(name), requestTimeout = requestTimeout).head().map(_.status == 200)
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
    */
-  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Boolean] = {
+  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext): Future[Boolean] = {
     if (!checkBefore) create.map(_ => true)
     else exists.flatMap {
       case true => Future.successful(false)
@@ -76,7 +75,7 @@ final class WSS3BucketRef private[s3] (
     }
   }
 
-  private def create(implicit ec: ExecutionContext, ws: StandaloneAhcWSClient): Future[Unit] = {
+  private def create(implicit ec: ExecutionContext): Future[Unit] = {
 
     import play.api.libs.ws.DefaultBodyWritables._
     storage.request(Some(name), requestTimeout =
@@ -90,7 +89,7 @@ final class WSS3BucketRef private[s3] (
     }
   }
 
-  private def emptyBucket()(implicit m: Materializer, ws: StandaloneAhcWSClient): Future[Unit] = {
+  private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
     implicit val ec: ExecutionContext = m.executionContext
     objects().runFoldAsync(())((_: Unit, e) => obj(e.name).delete.ignoreIfNotExists())
   }
@@ -99,7 +98,7 @@ final class WSS3BucketRef private[s3] (
     /**
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
      */
-    private def delete()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+    private def delete()(implicit m: Materializer): Future[Unit] = {
       implicit val ec = m.executionContext
       storage.request(Some(name), requestTimeout = requestTimeout).delete().map {
         case Successful(_) =>
@@ -113,7 +112,7 @@ final class WSS3BucketRef private[s3] (
       }
     }
 
-    def apply()(implicit m: Materializer, tr: Transport): Future[Unit] = {
+    def apply()(implicit m: Materializer): Future[Unit] = {
       implicit val ec = m.executionContext
       if (isRecursive) emptyBucket().flatMap(_ => delete())
       else delete()

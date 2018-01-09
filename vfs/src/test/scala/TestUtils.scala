@@ -26,9 +26,9 @@ object TestUtils {
 
   private val rootPath = s"/tmp/${System identityHashCode this}-${System identityHashCode logger}.${System.currentTimeMillis}"
 
-  implicit lazy val vfsTransport = VFSTransport.temporary(rootPath).get
+  lazy val vfsTransport = VFSTransport.temporary(rootPath).get
 
-  lazy val vfs = VFSStorage()
+  lazy val vfs = VFSStorage(vfsTransport)
 
   // ---
 

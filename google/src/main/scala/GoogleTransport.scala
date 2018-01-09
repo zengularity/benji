@@ -9,7 +9,8 @@ import java.net.URI
 import akka.stream.Materializer
 
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
-import play.api.libs.ws.{ BodyWritable, StandaloneWSRequest }
+import play.api.libs.ws.StandaloneWSRequest
+
 import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
@@ -17,7 +18,7 @@ import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.services.storage.Storage
 
-import com.zengularity.benji.{ StoragePack, URIProvider }
+import com.zengularity.benji.URIProvider
 
 /**
  * @define wsParam the WS client
@@ -200,9 +201,4 @@ object GoogleTransport {
 
   private def parseQuery(uri: URI): Map[String, Seq[String]] =
     new QueryStringDecoder(uri.toString).parameters.asScala.mapValues(_.asScala).toMap
-}
-
-object GoogleStoragePack extends StoragePack {
-  type Transport = GoogleTransport
-  type Writer[T] = BodyWritable[T]
 }
