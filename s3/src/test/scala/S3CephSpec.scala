@@ -11,7 +11,9 @@ import org.specs2.concurrent.{ ExecutionEnv => EE }
 
 import tests.benji.StorageCommonSpec
 
-class S3CephSpec extends org.specs2.mutable.Specification with StorageCommonSpec {
+class S3CephSpec extends org.specs2.mutable.Specification
+  with StorageCommonSpec with S3Spec {
+
   import tests.benji.StreamUtils._
   import TestUtils.{ ceph, withMatEx }
 
@@ -26,6 +28,8 @@ class S3CephSpec extends org.specs2.mutable.Specification with StorageCommonSpec
     val objName = "testfile.txt"
 
     withMatEx { implicit ee: EE => commonTests(ceph, bucketName) }
+
+    s3Suite(ceph, bucketName, objName)
 
     s"Write file in $bucketName bucket using multipart" >> {
       "with the default maximum" in withMatEx { implicit ee: EE =>
@@ -68,22 +72,6 @@ class S3CephSpec extends org.specs2.mutable.Specification with StorageCommonSpec
             partCount must_== 2
           }
       }
-    }
-
-    s"Metadata of a file $objName" in withMatEx { implicit ee: EE =>
-      ceph.bucket(bucketName).obj(objName).
-        headers() must beLike[Map[String, Seq[String]]] {
-          case headers => headers.get("x-amz-meta-foo").
-            aka("custom metadata") must beSome(Seq("bar"))
-        }.await(1, 5.seconds)
-    }
-
-    "Use correct toString format on bucket" in {
-      ceph.bucket("bucketName").toString must_== "WSS3BucketRef(bucketName)"
-    }
-
-    "Use correct toString format on object" in {
-      ceph.bucket("bucketName").obj("objectName").toString must_== "WSS3ObjectRef(bucketName, objectName)"
     }
   }
 }

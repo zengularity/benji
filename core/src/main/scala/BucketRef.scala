@@ -33,7 +33,7 @@ trait BucketRef {
     /**
      * Collects the bucket objects.
      */
-    def collect[M[_]]()(implicit m: Materializer, builder: CanBuildFrom[M[_], Object, M[Object]]): Future[M[Object]] = {
+    final def collect[M[_]]()(implicit m: Materializer, builder: CanBuildFrom[M[_], Object, M[Object]]): Future[M[Object]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       apply() runWith Sink.fold(builder()) {

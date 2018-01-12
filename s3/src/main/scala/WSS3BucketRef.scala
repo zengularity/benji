@@ -27,21 +27,31 @@ final class WSS3BucketRef private[s3] (
   private case class Objects(maybeMax: Option[Long]) extends ref.ListRequest {
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
-    def apply()(implicit m: Materializer): Source[Object, NotUsed] = apply(None)
+    def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
+      def next(nextToken: String): Source[Object, NotUsed] =
+        list(Some(nextToken))(next)
 
-    private def apply(nextToken: Option[String])(implicit m: Materializer): Source[Object, NotUsed] = {
+      list(None)(next)
+    }
+
+    def list(token: Option[String])(andThen: String => Source[Object, NotUsed])(implicit m: Materializer): Source[Object, NotUsed] = {
       def error(response: StandaloneWSResponse) = s"Could not list all objects within the bucket $name. Response: ${response.status} - ${response.body}"
-      val query = maybeMax.map(max => s"max-keys=$max${nextToken.map(token => s"&marker=${URLEncoder.encode(token, "UTF-8")}").getOrElse("")}")
-      val request = storage.request(Some(name), requestTimeout = requestTimeout, query = query)
+
+      // list-type=2 to use AWS v2 for pagination
+      val query = maybeMax.map(max => s"?list-type=2&max-keys=$max${token.map(tok => s"&marker=${URLEncoder.encode(tok, "UTF-8")}").getOrElse("")}")
+
+      val request = storage.request(
+        Some(name), requestTimeout = requestTimeout, query = query)
 
       S3.getXml[Object](request)({ xml =>
         val contents = (xml \ "Contents").map(objectFromXml)
-        val lastObject = contents.lastOption
-        val isTruncated = (xml \ "IsTruncated").text.toBoolean
+        def isTruncated = (xml \ "IsTruncated").text.toBoolean
         val currentPage = Source(contents)
 
-        lastObject.map(_.name) match {
-          case nextPageToken @ Some(_) if isTruncated => currentPage ++ apply(nextPageToken)
+        contents.lastOption.map(_.name) match {
+          case Some(nextToken) if isTruncated =>
+            currentPage ++ andThen(nextToken)
+
           case _ => currentPage
         }
       }, error)
