@@ -1,7 +1,5 @@
 package tests.benji.s3
 
-import scala.concurrent.duration._
-
 import akka.stream.Materializer
 
 import play.api.libs.ws.DefaultBodyWritables._
@@ -33,7 +31,9 @@ class S3AwsSpec extends Specification with AwsTests {
     TestUtils.awsFromVirtualHostStyleURL)(TestUtils.materializer)
 }
 
-sealed trait AwsTests extends StorageCommonSpec { specs: Specification =>
+sealed trait AwsTests
+  extends StorageCommonSpec with S3Spec { specs: Specification =>
+
   import TestUtils.withMatEx
 
   def awsMinimalSuite(
@@ -51,20 +51,6 @@ sealed trait AwsTests extends StorageCommonSpec { specs: Specification =>
 
     withMatEx { implicit ee: EE => commonTests(s3f, bucketName) }
 
-    "Metadata of a file" in withMatEx { implicit ee: EE =>
-      s3f.bucket(bucketName).obj("testfile.txt").
-        headers() must beLike[Map[String, Seq[String]]] {
-          case headers => headers.get("x-amz-meta-foo").
-            aka("custom metadata") must beSome(Seq("bar"))
-        }.await(1, 5.seconds)
-    }
-
-    "Use correct toString format on bucket" in {
-      s3f.bucket("bucketName").toString must_== "WSS3BucketRef(bucketName)"
-    }
-
-    "Use correct toString format on object" in {
-      s3f.bucket("bucketName").obj("objectName").toString must_== "WSS3ObjectRef(bucketName, objectName)"
-    }
+    s3Suite(s3f, bucketName, "testfile.txt")
   }
 }

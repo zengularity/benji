@@ -100,10 +100,10 @@ class VirtualHostWSRequestBuilder private[s3] (
 
     objectName.foreach { name =>
       url.append(name)
+    }
 
-      query.foreach { string =>
-        url.append('?').append(string)
-      }
+    query.foreach { string =>
+      url.append('?').append(string)
     }
 
     val serverHost = bucketName.fold(host) { b => s"$b.$host" }
