@@ -1,15 +1,19 @@
 <configuration>
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>%-4relative [%-5level] %logger{35} - %msg %n</pattern>
     </encoder>
   </appender>
-  
+
+
   <logger name="play" level="WARN" />
-  <logger name="io.netty" level="ERROR" />
-  <logger name="org.asynchttpclient" level="ERROR" />
+  <logger name="io.netty" level="WARN" /><!-- TRACE for wire -->
+  <logger name="org.asynchttpclient" level="WARN" /><!-- TRACE for wire -->
   <logger name="ch.qos.logback" level="ERROR" />
   <logger name="com.zengularity" level="WARN" /><!-- DEBUG -->
+  <logger name="akka" level="WARN" />
 
   <root level="TRACE">
     <appender-ref ref="STDOUT" />

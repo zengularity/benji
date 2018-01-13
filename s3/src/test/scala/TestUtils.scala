@@ -43,7 +43,8 @@ object TestUtils {
   lazy val awsVirtualHost =
     S3.virtualHost(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
 
-  lazy val awsFromVirtualHostStyleURL = S3(s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost").get
+  lazy val virtualHostStyleURL = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost"
+  lazy val awsFromVirtualHostStyleURL = S3(virtualHostStyleURL).get
   lazy val awsFromPathStyleURL = S3(s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=path").get
 
   lazy val ceph = S3(cephAccessKey, cephSecretKey, cephProtocol, cephHost)

@@ -20,12 +20,18 @@ val scalaXmlVer = Def.setting[String] {
   else "1.0.6"
 }
 
+val playVer = "2.6.1"
+
+lazy val playTest = "com.typesafe.play" %% "play-test" % playVer % Test
+
 lazy val s3 = project.in(file("s3")).
   settings(Common.settings: _*).settings(
     name := "benji-s3",
     libraryDependencies ++= Seq(
       Dependencies.playWSXml,
-      "org.scala-lang.modules" %% "scala-xml" % scalaXmlVer.value % Provided)
+      "org.scala-lang.modules" %% "scala-xml" % scalaXmlVer.value % Provided,
+      "javax.inject" % "javax.inject" % "1" % Provided,
+      playTest)
   ).dependsOn(core % "test->test;compile->compile")
 
 lazy val google = project.in(file("google")).
@@ -33,7 +39,9 @@ lazy val google = project.in(file("google")).
     name := "benji-google",
     libraryDependencies ++= Seq(
       Dependencies.playWSJson,
-      "com.google.apis" % "google-api-services-storage" % "v1-rev112-1.23.0")
+      "com.google.apis" % "google-api-services-storage" % "v1-rev112-1.23.0",
+      "javax.inject" % "javax.inject" % "1" % Provided,
+      playTest)
   ).dependsOn(core % "test->test;compile->compile")
 
 lazy val vfs = project.in(file("vfs")).
@@ -44,15 +52,29 @@ lazy val vfs = project.in(file("vfs")).
       "commons-io" % "commons-io" % "2.4" % Test)
   ).dependsOn(core % "test->test;compile->compile")
 
+lazy val play = project.in(file("play")).
+  settings(Common.settings: _*).settings(
+    name := "benji-play",
+    libraryDependencies ++= Seq(
+      "com.typesafe.play" %% "play" % playVer % Provided,
+      playTest),
+    sources in (Compile, doc) := {
+      val compiled = (sources in Compile).value
+
+      compiled.filter { _.getName endsWith "NamedStorage.java" }
+    }
+  ).dependsOn(core % "test->test;compile->compile", vfs % "test->compile")
+
 lazy val benji = (project in file(".")).
   enablePlugins(ScalaUnidocPlugin).
     settings(
-    libraryDependencies ++= wsStream,
-    scalacOptions ++= Seq("-Ywarn-unused-import", "-unchecked"),
-    scalacOptions in (Compile, doc) ++= List(
-      "-skip-packages", "highlightextractor")).
-  dependsOn(s3, google, vfs).
-  aggregate(core, s3, google, vfs)
+      libraryDependencies ++= wsStream,
+      excludeFilter in doc := "play",
+      scalacOptions ++= Seq("-Ywarn-unused-import", "-unchecked"),
+      scalacOptions in (Compile, doc) ++= List(
+        "-skip-packages", "highlightextractor")).
+  dependsOn(s3, google, vfs, play).
+  aggregate(core, s3, google, vfs, play)
 
 publishTo in ThisBuild := Some {
   import Resolver.mavenStylePatterns

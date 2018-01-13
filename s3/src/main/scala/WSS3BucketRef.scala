@@ -20,6 +20,7 @@ final class WSS3BucketRef private[s3] (
   val name: String) extends BucketRef { ref =>
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
+  //@inline private implicit def ws = storage.transport
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html

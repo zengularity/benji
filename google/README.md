@@ -1,4 +1,4 @@
-# Google Benji
+# Benji Google
 
 Benji module for Google Cloud Storage.
 
