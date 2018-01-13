@@ -26,6 +26,7 @@ final class WSS3ObjectRef private[s3] (
 
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
+  //@inline private implicit def ws = storage.transport
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html

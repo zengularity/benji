@@ -27,11 +27,15 @@ object TestUtils {
 
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
 
-  implicit lazy val googleTransport: GoogleTransport = {
+  lazy val configUri = {
     val projectId = config.getString("google.storage.projectId")
     val application = s"benji-tests-${System identityHashCode this}"
-    GoogleTransport(s"google:classpath://gcs-test.json?application=$application&projectId=$projectId").get
+
+    s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
   }
+
+  implicit lazy val googleTransport: GoogleTransport =
+    GoogleTransport(configUri).get
 
   lazy val google = GoogleStorage()
 

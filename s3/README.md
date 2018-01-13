@@ -1,4 +1,4 @@
-# S3 Benji
+# Benji S3
 
 This library is a Scala client for object storage (e.g. S3/Amazon, S3/CEPH).
 

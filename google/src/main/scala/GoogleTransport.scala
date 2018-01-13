@@ -8,8 +8,7 @@ import java.net.URI
 
 import akka.stream.Materializer
 
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
-import play.api.libs.ws.StandaloneWSRequest
+import play.api.libs.ws.{ StandaloneWSClient, StandaloneWSRequest }
 
 import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
@@ -21,12 +20,10 @@ import com.google.api.services.storage.Storage
 import com.zengularity.benji.URIProvider
 
 /**
- * @define wsParam the WS client
- *
  * @param credential the Google Cloud Storage credential
  * @param projectId the ID of the Google project authorized for Cloud Storage
  * @param builder the Google builder
- * @param ws $wsParam
+ * @param ws the WS client
  * @param baseRestUrl the base URL for the Google REST API (without the final `/`)
  * @param servicePath the Google service path (without the final `/`; e.g. storage/v1)
  * @param requestTimeout the optional timeout for the prepared requests
@@ -36,7 +33,7 @@ final class GoogleTransport(
   credential: => GoogleCredential,
   val projectId: String,
   builder: GoogleCredential => Storage,
-  ws: StandaloneAhcWSClient,
+  ws: StandaloneWSClient,
   baseRestUrl: String,
   servicePath: String,
   requestTimeout: Option[Long] = None) {
@@ -132,7 +129,7 @@ object GoogleTransport {
    * implicit val googleTransport = GoogleTransport(credential, "foo")
    * }}}
    */
-  def apply(credential: GoogleCredential, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: StandaloneAhcWSClient): GoogleTransport = {
+  def apply(credential: GoogleCredential, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: StandaloneWSClient): GoogleTransport = {
     val build = new Storage.Builder(http, json, _: GoogleCredential).
       setApplicationName(application).build()
 
@@ -159,7 +156,7 @@ object GoogleTransport {
    * @tparam T the config type to be consumed by the provider typeclass
    * @return Success if the GoogleTransport was properly created, otherwise Failure
    */
-  def apply[T](config: T)(implicit provider: URIProvider[T], ws: StandaloneAhcWSClient): Try[GoogleTransport] =
+  def apply[T](config: T)(implicit provider: URIProvider[T], ws: StandaloneWSClient): Try[GoogleTransport] =
     provider(config).map { builtUri =>
       if (builtUri == null) {
         throw new IllegalArgumentException("URI provider returned a null URI")

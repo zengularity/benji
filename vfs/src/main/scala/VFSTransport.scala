@@ -14,7 +14,7 @@ import com.zengularity.benji.URIProvider
  */
 final class VFSTransport(val fsManager: FileSystemManager)
 
-/** Google transport factory. */
+/** VFS transport factory. */
 object VFSTransport {
   import java.io.File
 
@@ -51,7 +51,7 @@ object VFSTransport {
    * @param config the config element used by the provider to generate the URI
    * @param provider a typeclass that try to generate an URI from the config element
    * @tparam T the config type to be consumed by the provider typeclass
-   * @return Success if the GoogleTransport was properly created, otherwise Failure
+   * @return Success if the VFSTransport was properly created, otherwise Failure
    */
   def apply[T](config: T)(implicit provider: URIProvider[T]): Try[VFSTransport] =
     provider(config).map { builtUri =>
@@ -59,10 +59,10 @@ object VFSTransport {
         throw new IllegalArgumentException("URI provider returned a null URI")
       }
 
-      // URI object fails to parse properly with scheme like "google:http"
-      // So we check for "google" scheme and then recreate an URI without it
+      // URI object fails to parse properly with scheme like "vfs:http"
+      // So we check for "vfs" scheme and then recreate an URI without it
       if (builtUri.getScheme != "vfs") {
-        throw new IllegalArgumentException("Expected URI with scheme containing \"google:\"")
+        throw new IllegalArgumentException("Expected URI with scheme containing \"vfs:\"")
       }
 
       val uri = new URI(builtUri.getSchemeSpecificPart)
