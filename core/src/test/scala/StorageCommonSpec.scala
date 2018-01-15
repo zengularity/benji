@@ -342,5 +342,21 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
           map(_.size) must beEqualTo(17).await(1, 5.seconds))
       }
     }
+
+    "Not create objects if bucket doesn't exist" in {
+      val bucket = storage.bucket("unknown_bucket")
+      val newObj = bucket.obj("new_object.txt")
+      val write = newObj.put[Array[Byte]]
+      val body = List.fill(10)("qwerty").mkString(" ").getBytes
+      def upload = { repeat(5) { body } runWith write }.map(_ => {})
+
+      {
+        bucket must notExistsIn(storage)
+      } and {
+        upload.failed.map(_ => "Bucket doesn't exist") must beEqualTo("Bucket doesn't exist").await(1, 10.seconds)
+      } and {
+        bucket must notExistsIn(storage)
+      }
+    }
   }
 }

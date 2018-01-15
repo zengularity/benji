@@ -4,7 +4,7 @@ import java.net.URI
 
 import scala.util.Try
 
-import org.apache.commons.vfs2.{ FileSystemManager, VFS }
+import org.apache.commons.vfs2.{ FileSystemManager, FileType, FileTypeSelector, VFS }
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
 
 import com.zengularity.benji.URIProvider
@@ -12,7 +12,11 @@ import com.zengularity.benji.URIProvider
 /**
  * @param fsManager the VFS manager
  */
-final class VFSTransport(val fsManager: FileSystemManager)
+final class VFSTransport(val fsManager: FileSystemManager, _close: () => Unit = () => ()) extends java.io.Closeable {
+  def close() {
+    _close()
+  }
+}
 
 /** VFS transport factory. */
 object VFSTransport {
@@ -20,8 +24,6 @@ object VFSTransport {
 
   import org.apache.commons.vfs2.CacheStrategy
   import org.apache.commons.vfs2.cache.NullFilesCache
-  import org.apache.commons.vfs2.impl.DefaultFileSystemManager
-  import org.apache.commons.vfs2.provider.temp.TemporaryFileProvider
 
   /**
    * Initializes a transport based on the given FS manager.
@@ -98,14 +100,21 @@ object VFSTransport {
 
     rootDir.mkdir()
 
-    val mngr = new DefaultFileSystemManager()
-
-    mngr.setDefaultProvider(new TemporaryFileProvider(rootDir))
+    val mngr = new StandardFileSystemManager()
 
     mngr.setCacheStrategy(CacheStrategy.ON_CALL)
     mngr.setFilesCache(new NullFilesCache())
-    mngr.setBaseFile(mngr.resolveFile("tmp://"))
+    mngr.init()
 
-    mngr
-  }.map(apply(_))
+    mngr.setBaseFile(rootDir)
+
+    val cleanup: () => Unit = { () =>
+      mngr.getBaseFile.deleteAll()
+      mngr.getBaseFile.delete(new FileTypeSelector(FileType.FOLDER))
+      rootDir.delete()
+      ()
+    }
+
+    new VFSTransport(mngr, cleanup)
+  }
 }
