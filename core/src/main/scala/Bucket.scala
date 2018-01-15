@@ -16,6 +16,20 @@ case class Bucket(name: String, creationTime: LocalDateTime)
 case class Object(name: String, size: Bytes, lastModifiedAt: LocalDateTime)
 
 /**
+ * @param name the name of the object
+ * @param size the binary size of the object or 0 when it's a delete marker
+ * @param versionCreatedAt the time when this version was created
+ * @param versionId the id of the version
+ * @param isDeleteMarker indicates whether this version is a delete marker
+ */
+case class VersionedObject(
+  name: String,
+  size: Bytes,
+  versionCreatedAt: LocalDateTime,
+  versionId: String,
+  isDeleteMarker: Boolean)
+
+/**
  * An explicit range of bytes.
  *
  * @param start the inclusive offset for the range start (< end)

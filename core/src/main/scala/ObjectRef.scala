@@ -94,7 +94,7 @@ trait ObjectRef { ref =>
   }
 
   /**
-   * Prepares a request to delete the referenced objecg
+   * Prepares a request to delete the referenced object
    */
   def delete: DeleteRequest
 
@@ -175,6 +175,13 @@ trait ObjectRef { ref =>
      */
     def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]]
   }
+
+  /**
+   * Try to get a reference of this object that would allow you to perform versioning related operations.
+   *
+   * @return Some if the module of the object supports versioning related operations, otherwise None.
+   */
+  def versioning: Option[ObjectVersioning]
 }
 
 /**

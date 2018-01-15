@@ -16,7 +16,7 @@ import org.apache.commons.vfs2.{
 
 import play.api.libs.ws.BodyWritable
 
-import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams }
+import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams, ObjectVersioning }
 
 final class VFSObjectRef private[vfs] (
   val storage: VFSStorage,
@@ -150,6 +150,8 @@ final class VFSObjectRef private[vfs] (
     transport.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name")
 
   override lazy val toString = s"VFSObjectRef($bucket, $name)"
+
+  def versioning: Option[ObjectVersioning] = None
 }
 
 object VFSObjectRef {

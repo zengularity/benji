@@ -10,7 +10,7 @@ import akka.stream.scaladsl.Source
 
 import com.google.api.services.storage.model
 
-import com.zengularity.benji.{ BucketRef, Bytes, Object }
+import com.zengularity.benji.{ BucketRef, BucketVersioning, Bytes, Object }
 
 final class GoogleBucketRef private[google] (
   val storage: GoogleStorage,
@@ -111,4 +111,6 @@ final class GoogleBucketRef private[google] (
     new GoogleObjectRef(storage, name, objectName)
 
   override lazy val toString = s"GoogleBucketRef($name)"
+
+  def versioning: Option[BucketVersioning] = None
 }

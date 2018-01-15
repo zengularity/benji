@@ -10,7 +10,7 @@ import akka.stream.scaladsl.Source
 
 import org.apache.commons.vfs2.{ FileName, FileType, FileTypeSelector }
 
-import com.zengularity.benji.{ BucketRef, Bytes, Object }
+import com.zengularity.benji.{ BucketRef, BucketVersioning, Bytes, Object }
 
 final class VFSBucketRef private[vfs] (
   val storage: VFSStorage,
@@ -96,4 +96,6 @@ final class VFSBucketRef private[vfs] (
   @inline private def dir = storage.transport.fsManager.resolveFile(name)
 
   override lazy val toString = s"VFSBucketRef($name)"
+
+  def versioning: Option[BucketVersioning] = None
 }

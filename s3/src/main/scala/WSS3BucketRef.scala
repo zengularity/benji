@@ -12,12 +12,12 @@ import akka.stream.scaladsl.Source
 
 import play.api.libs.ws.StandaloneWSResponse
 
-import com.zengularity.benji.{ BucketRef, Bytes, Object }
+import com.zengularity.benji.{ BucketRef, Bytes, Object, BucketVersioning, VersionedObject }
 import com.zengularity.benji.ws.Successful
 
 final class WSS3BucketRef private[s3] (
   val storage: WSS3,
-  val name: String) extends BucketRef { ref =>
+  val name: String) extends BucketRef with BucketVersioning { ref =>
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
   //@inline private implicit def ws = storage.transport
@@ -102,7 +102,13 @@ final class WSS3BucketRef private[s3] (
 
   private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
     implicit val ec: ExecutionContext = m.executionContext
-    objects().runFoldAsync(())((_: Unit, e) => obj(e.name).delete.ignoreIfNotExists())
+    objectsVersions().runFoldAsync(())((_: Unit, e) => {
+      if (!e.isDeleteMarker) {
+        obj(e.name, e.versionId).delete.ignoreIfNotExists()
+      } else {
+        Future.unit
+      }
+    })
   }
 
   private case class WSS3DeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
@@ -140,4 +146,91 @@ final class WSS3BucketRef private[s3] (
     new WSS3ObjectRef(storage, name, objectName)
 
   override val toString = s"WSS3BucketRef($name)"
+
+  def versioning: Option[BucketVersioning] = Some(this)
+
+  def isVersioned(implicit ec: ExecutionContext): Future[Boolean] = {
+    storage.request(Some(name), requestTimeout = storage.requestTimeout, query = Some("versioning")).get().map(response => {
+      val xml = scala.xml.XML.loadString(response.body)
+      val status: Option[scala.xml.Node] = xml \ "Status" match {
+        case Seq() => None
+        case Seq(s) => Some(s)
+        case _ => throw new java.io.IOException("Unexpected multiple VersioningConfiguration.Status children from S3")
+      }
+
+      status.exists(_.text match {
+        case "Enabled" => true
+        case "Suspended" => false
+        case _ => throw new java.io.IOException("Unexpected VersioningConfiguration.Status content from S3")
+      })
+    })
+  }
+
+  def setVersioning(enabled: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
+    import play.api.libs.ws.DefaultBodyWritables._
+
+    val body =
+      <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Status>{ if (enabled) "Enabled" else "Suspended" }</Status>
+      </VersioningConfiguration>
+    val req = storage.request(Some(name), requestTimeout = storage.requestTimeout, query = Some("versioning"))
+
+    req.put(body.toString()).flatMap {
+      case Successful(_) => Future.unit
+      case response =>
+        val exc = new IllegalStateException(s"Could not change versionning of the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}")
+        Future.failed[Unit](exc)
+    }
+  }
+
+  /**
+   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
+   */
+  private case class ObjectsVersions(maybeMax: Option[Long]) extends ref.VersionedListRequest {
+    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
+
+    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = apply(None)
+
+    private def apply(nextToken: Option[String])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+      def error(response: StandaloneWSResponse) = s"Could not list all objects versions within the bucket $name. Response: ${response.status} - ${response.body}"
+      val query = maybeMax.map(max => s"versions&max-keys=$max${nextToken.map(token => s"&marker=${URLEncoder.encode(token, "UTF-8")}").getOrElse("")}")
+      val request = storage.request(Some(name), requestTimeout = requestTimeout, query = query.orElse(Some("versions")))
+
+      S3.getXml[VersionedObject](request)({ xml =>
+        val versions = (xml \ "Version").map(versionFromXml)
+        val markers = (xml \ "DeleteMarker").map(deleteMarkerFromXml)
+        val versionedObjects = versions ++ markers
+        val lastObject = versionedObjects.lastOption
+        val isTruncated = (xml \ "IsTruncated").text.toBoolean
+        val currentPage = Source(versionedObjects)
+
+        lastObject.map(_.name) match {
+          case nextPageToken @ Some(_) if isTruncated => currentPage ++ apply(nextPageToken)
+          case _ => currentPage
+        }
+      }, error)
+    }
+
+    private def versionFromXml(content: scala.xml.Node): VersionedObject = {
+      VersionedObject(
+        name = (content \ "Key").text,
+        size = Bytes((content \ "Size").text.toLong),
+        versionCreatedAt = LocalDateTime.parse((content \ "LastModified").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+        versionId = (content \ "VersionId").text,
+        isDeleteMarker = false)
+    }
+
+    private def deleteMarkerFromXml(content: scala.xml.Node): VersionedObject = {
+      VersionedObject(
+        name = (content \ "Key").text,
+        size = Bytes(0),
+        versionCreatedAt = LocalDateTime.parse((content \ "LastModified").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+        versionId = (content \ "VersionId").text,
+        isDeleteMarker = false)
+    }
+  }
+
+  def objectsVersions: VersionedListRequest = ObjectsVersions(None)
+
+  def obj(objectName: String, versionId: String): WSS3ObjectVersionRef = WSS3ObjectVersionRef(storage, name, objectName, versionId)
 }

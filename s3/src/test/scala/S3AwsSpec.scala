@@ -7,7 +7,7 @@ import play.api.libs.ws.DefaultBodyWritables._
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 import org.specs2.mutable.Specification
 
-import tests.benji.StorageCommonSpec
+import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
 class S3AwsSpec extends Specification with AwsTests {
   "S3 Amazon" title
@@ -31,9 +31,7 @@ class S3AwsSpec extends Specification with AwsTests {
     TestUtils.awsFromVirtualHostStyleURL)(TestUtils.materializer)
 }
 
-sealed trait AwsTests
-  extends StorageCommonSpec with S3Spec { specs: Specification =>
-
+sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S3Spec { specs: Specification =>
   import TestUtils.withMatEx
 
   def awsMinimalSuite(
@@ -49,7 +47,10 @@ sealed trait AwsTests
     s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer) = s"S3 client $label" should {
     val bucketName = s"benji-test-${System identityHashCode s3f}"
 
-    withMatEx { implicit ee: EE => commonTests(s3f, bucketName) }
+    withMatEx { implicit ee: EE =>
+      commonTests(s3f, bucketName)
+      commonVersioningTests(s3f)
+    }
 
     s3Suite(s3f, bucketName, "testfile.txt")
   }

@@ -1,7 +1,9 @@
 package tests.benji
 
 import akka.stream.Materializer
-import com.zengularity.benji.{ BucketRef, ObjectRef, ObjectStorage }
+
+import com.zengularity.benji.{ BucketRef, ObjectRef, ObjectStorage, BucketVersioning, VersionedObjectRef }
+
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.{ Matcher, Matchers }
 
@@ -27,9 +29,23 @@ trait BenjiMatchers { self: Matchers =>
     implicit val ec = ee.executionContext
     val matcher = ===(expected)
     val futureMatcher = matcher.await(1, 10.seconds)
-    val matchFromBucket = futureMatcher ^^ { (obj: ObjectRef) => obj.exists }
-    val matchFromStorage = futureMatcher ^^ { (obj: ObjectRef) => bucket.objects.collect[List]().map(_.exists(_.name == obj.name)) }
-    matchFromBucket and matchFromStorage
+    val matchFromObject = futureMatcher ^^ { (obj: ObjectRef) => obj.exists }
+    val matchFromBucket = futureMatcher ^^ { (obj: ObjectRef) => bucket.objects.collect[List]().map(_.exists(_.name == obj.name)) }
+    matchFromObject and matchFromBucket
+  }
+
+  private def existsOrNot(vbucket: BucketVersioning, expected: Boolean)(
+    implicit
+    ee: ExecutionEnv,
+    materializer: Materializer): Matcher[VersionedObjectRef] = {
+    implicit val ec = ee.executionContext
+    val matcher = ===(expected)
+    val futureMatcher = matcher.await(1, 10.seconds)
+    val matchFromVersion = futureMatcher ^^ { (version: VersionedObjectRef) => version.exists }
+    val matchFromBucket = futureMatcher ^^ { (version: VersionedObjectRef) =>
+      vbucket.objectsVersions.collect[List]().map(_.exists(v => v.name == version.name && v.versionId == version.versionId))
+    }
+    matchFromVersion and matchFromBucket
   }
 
   def existsIn(storage: ObjectStorage)(
@@ -51,4 +67,14 @@ trait BenjiMatchers { self: Matchers =>
     implicit
     ee: ExecutionEnv,
     materializer: Materializer): Matcher[ObjectRef] = existsOrNot(bucket, expected = false)
+
+  def existsIn(vbucket: BucketVersioning)(
+    implicit
+    ee: ExecutionEnv,
+    materializer: Materializer): Matcher[VersionedObjectRef] = existsOrNot(vbucket, expected = true)
+
+  def notExistsIn(vbucket: BucketVersioning)(
+    implicit
+    ee: ExecutionEnv,
+    materializer: Materializer): Matcher[VersionedObjectRef] = existsOrNot(vbucket, expected = false)
 }
