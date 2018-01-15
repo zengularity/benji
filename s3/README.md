@@ -158,3 +158,6 @@ When using with AWS, the style `virtualHost` is recommanded. Without (according 
 **Jet lag:** A S3 client must be configured with the appropriate system time. Otherwise with S3, the `RequestTimeTooSkewed` error can occur.
 
     java.lang.IllegalStateException: Could not update the contents of the object [...]. Response (403 / Forbidden): <?xml version="1.0" encoding="UTF-8"?><Error><Code>RequestTimeTooSkewed</Code></Error>
+
+**Versioning:** When using versioning with S3, you may obtain version id `"null"` (not `null`), this is the version assigned to objects on non-versioned buckets.
+See [Managing Objects in a Versioning-Enabled Bucket](https://docs.aws.amazon.com/AmazonS3/latest/dev/manage-objects-versioned-bucket.html) S3 documentation for more details.

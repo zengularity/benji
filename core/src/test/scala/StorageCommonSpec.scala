@@ -259,7 +259,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
     }
 
     "Delete on buckets successfully ignore when not existing" in {
-      val bucket = storage.bucket("benji-test-testignore")
+      val bucket = storage.bucket(s"benji-test-testignore-${System identityHashCode storage}")
 
       {
         bucket must notExistsIn(storage)
@@ -357,6 +357,12 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       } and {
         bucket must notExistsIn(storage)
       }
+    }
+
+    "Versioning feature should be consistant between buckets and objects" in {
+      val bucket = storage.bucket(bucketName)
+      val obj = bucket.obj("test-benji-versioning-obj")
+      bucket.versioning.isDefined must_=== obj.versioning.isDefined
     }
   }
 }

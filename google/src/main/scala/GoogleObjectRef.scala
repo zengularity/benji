@@ -18,7 +18,7 @@ import play.api.libs.ws.ahc.StandaloneAhcWSResponse
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.services.storage.model.StorageObject
 
-import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams }
+import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams, ObjectVersioning }
 import com.zengularity.benji.ws.{ ContentMD5, Ok, Successful }
 
 final class GoogleObjectRef private[google] (
@@ -355,6 +355,8 @@ final class GoogleObjectRef private[google] (
   }
 
   override lazy val toString = s"GoogleObjectRef($bucket, $name)"
+
+  def versioning: Option[ObjectVersioning] = None
 }
 
 object GoogleObjectRef {

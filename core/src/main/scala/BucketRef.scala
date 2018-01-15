@@ -101,7 +101,8 @@ trait BucketRef {
     def ignoreIfNotExists: DeleteRequest
 
     /**
-     * Updates the request so that it will be successfully executed if the referenced bucket is not empty, by also deleting the children objects
+     * Updates the request so that it will succeed on non-empty bucket, by also deleting all of its content,
+     * this includes its objects and if applicable also all versions of the objects.
      */
     def recursive: DeleteRequest
   }
@@ -117,4 +118,11 @@ trait BucketRef {
    * @param objectName the name of child object
    */
   def obj(objectName: String): ObjectRef
+
+  /**
+   * Try to get a reference of this bucket that would allow you to perform versioning related operations.
+   *
+   * @return Some if the module of the bucket supports versioning related operations, otherwise None.
+   */
+  def versioning: Option[BucketVersioning]
 }

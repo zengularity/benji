@@ -9,11 +9,9 @@ import play.api.libs.ws.DefaultBodyWritables._
 
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 
-import tests.benji.StorageCommonSpec
+import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
-class S3CephSpec extends org.specs2.mutable.Specification
-  with StorageCommonSpec with S3Spec {
-
+class S3CephSpec extends org.specs2.mutable.Specification with StorageCommonSpec with VersioningCommonSpec with S3Spec {
   import tests.benji.StreamUtils._
   import TestUtils.{ ceph, withMatEx }
 
@@ -27,7 +25,10 @@ class S3CephSpec extends org.specs2.mutable.Specification
     val bucketName = s"benji-test-${System identityHashCode this}"
     val objName = "testfile.txt"
 
-    withMatEx { implicit ee: EE => commonTests(ceph, bucketName) }
+    withMatEx { implicit ee: EE =>
+      commonTests(ceph, bucketName)
+      commonVersioningTests(ceph)
+    }
 
     s3Suite(ceph, bucketName, objName)
 
