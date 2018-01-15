@@ -8,6 +8,8 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
+import org.apache.commons.vfs2.{ FileName, FileType, FileTypeSelector }
+
 import com.zengularity.benji.{ BucketRef, Bytes, Object }
 
 final class VFSBucketRef private[vfs] (
@@ -17,22 +19,29 @@ final class VFSBucketRef private[vfs] (
   @inline private def logger = storage.logger
 
   object objects extends ref.ListRequest {
+    private val rootPath = s"${storage.transport.fsManager.getBaseFile.getName.getPath}${FileName.SEPARATOR}$name${FileName.SEPARATOR}"
+    private val selector = new FileTypeSelector(FileType.FILE)
+
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       Source.fromFuture(Future {
-        lazy val items = dir.getChildren
+        lazy val items = Option(dir.findFiles(selector))
 
         Source.fromIterator[Object] { () =>
-          if (items.isEmpty) Iterator.empty else items.map { o =>
-            val content = o.getContent
+          items match {
+            case Some(itm) if itm.nonEmpty =>
+              itm.map { o =>
+                val content = o.getContent
 
-            Object(
-              o.getName.getBaseName,
-              Bytes(content.getSize),
-              LocalDateTime.ofInstant(Instant.ofEpochMilli(content.getLastModifiedTime), ZoneOffset.UTC))
+                Object(
+                  o.getName.getPath.stripPrefix(rootPath),
+                  Bytes(content.getSize),
+                  LocalDateTime.ofInstant(Instant.ofEpochMilli(content.getLastModifiedTime), ZoneOffset.UTC))
 
-          }.iterator
+              }.iterator
+            case _ => Iterator.empty
+          }
         }
       }).flatMapMerge(1, identity)
     }

@@ -65,29 +65,40 @@ final class VFSObjectRef private[vfs] (
     def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      lazy val of = file
-      lazy val st = of.getContent.getOutputStream
-      @volatile var closed = false
+      def upload: Flow[E, A, NotUsed] = {
+        lazy val of = file
+        lazy val st = of.getContent.getOutputStream
+        @volatile var closed = false
+        Streams.chunker[E].via(Streams.consumeAtMost(threshold)).via(
+          Flow.apply[Chunk].foldAsync[A](z) { (a, chunk) =>
+            Future[Chunk] {
+              st.write(chunk.data.toArray)
+              st.flush()
 
-      Streams.chunker[E].via(Streams.consumeAtMost(threshold)).via(
-        Flow.apply[Chunk].foldAsync[A](z) { (a, chunk) =>
-          Future[Chunk] {
-            st.write(chunk.data.toArray)
-            st.flush()
-
-            chunk
-          }.flatMap(f(a, _))
-        }).map { a =>
-          of.close()
-          closed = true
-          a
-        }.recoverWithRetries(3, {
-          case reason if !closed =>
-            reason.printStackTrace()
+              chunk
+            }.flatMap(f(a, _))
+          }).map { a =>
             of.close()
-            Source.failed[A](reason)
+            closed = true
+            a
+          }.recoverWithRetries(3, {
+            case reason if !closed =>
+              of.close()
+              Source.failed[A](reason)
 
-        }).toMat(Sink.head[A]) { (_, mat) => mat }
+          })
+      }
+
+      val flow = Flow[E].flatMapConcat { entry =>
+        Source.fromFuture {
+          storage.bucket(bucket).exists.flatMap { exists =>
+            if (exists) Future.successful(entry)
+            else Future.failed[E](new NoSuchElementException(s"Target bucket doesn't exist: $bucket"))
+          }
+        }
+      }.via(upload)
+
+      flow.toMat(Sink.head[A]) { (_, mat) => mat }
     }
   }
 

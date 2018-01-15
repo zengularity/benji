@@ -4,6 +4,8 @@ import scala.concurrent.duration._
 import scala.concurrent.Future
 
 import akka.stream.Materializer
+
+import org.specs2.specification.AfterAll
 import akka.stream.contrib.TestKit.assertAllStagesStopped
 import akka.stream.scaladsl.Source
 
@@ -15,7 +17,7 @@ import com.zengularity.benji.vfs.VFSObjectRef
 
 import tests.benji.StorageCommonSpec
 
-class VFSStorageSpec(implicit ee: ExecutionEnv) extends org.specs2.mutable.Specification with StorageCommonSpec {
+class VFSStorageSpec(implicit ee: ExecutionEnv) extends org.specs2.mutable.Specification with StorageCommonSpec with AfterAll {
 
   import tests.benji.StreamUtils._
   import TestUtils.vfs
@@ -64,5 +66,9 @@ class VFSStorageSpec(implicit ee: ExecutionEnv) extends org.specs2.mutable.Speci
     "Use correct toString format on object" in {
       vfs.bucket("bucketName").obj("objectName").toString must_== "VFSObjectRef(bucketName, objectName)"
     }
+  }
+
+  override def afterAll(): Unit = {
+    TestUtils.vfsTransport.close()
   }
 }

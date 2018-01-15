@@ -28,20 +28,25 @@ class VFSStorage(
 
   object buckets extends self.BucketsRequest {
     private val selector = new FileTypeSelector(FileType.FOLDER)
+    private val rootBaseFile = transport.fsManager.getBaseFile
 
     def apply()(implicit m: Materializer): Source[Bucket, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       Source.fromFuture(Future {
-        lazy val root = transport.fsManager.resolveFile(FileName.ROOT_PATH)
-        lazy val items = root.findFiles(selector)
+        lazy val root = transport.fsManager.resolveFile(rootBaseFile.getURL)
+        lazy val items = Option(root.findFiles(selector))
 
         Source.fromIterator[Bucket] { () =>
-          if (items.isEmpty) Iterator.empty
-          else items.filter(!_.getName.getBaseName.isEmpty).map { b =>
-            Bucket(b.getName.getBaseName, LocalDateTime.ofInstant(
-              Instant.ofEpochMilli(b.getContent.getLastModifiedTime), ZoneOffset.UTC))
-          }.iterator
+          items match {
+            case Some(itm) if itm.nonEmpty =>
+              itm.filter(_.getName.getBaseName != rootBaseFile.getName.getBaseName).map { b =>
+                Bucket(
+                  b.getName.getPathDecoded.stripPrefix(s"${rootBaseFile.getName.getPath}${FileName.SEPARATOR}"),
+                  LocalDateTime.ofInstant(Instant.ofEpochMilli(b.getContent.getLastModifiedTime), ZoneOffset.UTC))
+              }.iterator
+            case _ => Iterator.empty
+          }
         }
       }).flatMapMerge(1, identity)
     }
