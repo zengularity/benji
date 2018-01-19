@@ -12,49 +12,89 @@ import scala.util.Failure
 class GoogleTransportSpec extends Specification {
   "GoogleTransport" title
 
+  import TestUtils.WS
+
+  val filename = "gcs-test.json"
+  val projectId = TestUtils.config.getString("google.storage.projectId")
+  val application = s"benji-tests-${System identityHashCode this}"
+
   "Factory using URI" should {
-    val filename = "gcs-test.json"
-    val projectId = TestUtils.config.getString("google.storage.projectId")
-    val application = s"benji-tests-${System identityHashCode this}"
+    "succeed" >> {
+      "when given a proper uri as String" in {
+        GoogleTransport(s"google:classpath://$filename?application=$application&projectId=$projectId") must beSuccessfulTry
+      }
 
-    import TestUtils.WS
+      "when given a proper uri as URI" in {
+        val uri = new URI(s"google:classpath://$filename?application=$application&projectId=$projectId")
 
-    "return Failure when the provider fail" in {
-      val exception: Throwable = new Exception("foo")
-      implicit val provider = URIProvider[Throwable](Failure[URI])
+        GoogleTransport(uri) must beSuccessfulTry
+      }
 
-      GoogleTransport(exception) must beFailedTry.withThrowable[Exception]("foo")
+      "with optional request timeout in URI" in {
+        val uri = new URI(s"google:classpath://$filename?application=$application&projectId=$projectId&requestTimeout=123")
+
+        GoogleTransport(uri) must beSuccessfulTry[GoogleTransport].like {
+          case transport => transport.requestTimeout must beSome[Long].which {
+            _ aka "request timeout" must_=== 123L
+          } and {
+            transport.disableGZip must beFalse // by default
+          }
+        }
+      }
+
+      "with GZip disabled in URI" in {
+        val uri = new URI(s"google:classpath://$filename?application=$application&projectId=$projectId&disableGZip=true")
+
+        GoogleTransport(uri) must beSuccessfulTry[GoogleTransport].like {
+          case transport => transport.disableGZip must beTrue
+        }
+      }
     }
 
-    "return Failure when given a null URI" in {
-      GoogleTransport(null: URI) must beFailedTry.withThrowable[IllegalArgumentException]
-    }
+    "fail" >> {
+      "when the provider fail" in {
+        val exception: Throwable = new Exception("foo")
+        implicit val provider = URIProvider[Throwable](Failure[URI])
 
-    "return Success when given a proper uri as String" in {
-      GoogleTransport(s"google:classpath://$filename?application=$application&projectId=$projectId") must beSuccessfulTry
-    }
+        GoogleTransport(exception) must beFailedTry.
+          withThrowable[Exception]("foo")
+      }
 
-    "return Success when given a proper uri as URI" in {
-      val uri = new URI(s"google:classpath://$filename?application=$application&projectId=$projectId")
+      "when given a null URI" in {
+        GoogleTransport(null: URI) must beFailedTry.withThrowable[IllegalArgumentException]
+      }
 
-      GoogleTransport(uri) must beSuccessfulTry
-    }
+      "with wrong scheme" in {
+        GoogleTransport(s"google:wrong://$filename?application=$application&projectId=$projectId") must beFailedTry.withThrowable[MalformedURLException]
+      }
 
-    "return Failure with wrong scheme" in {
-      GoogleTransport(s"google:wrong://$filename?application=$application&projectId=$projectId") must beFailedTry.withThrowable[MalformedURLException]
-    }
+      "without scheme prefix" in {
+        GoogleTransport(s"classpath://$filename?application=$application&projectId=$projectId") must beFailedTry.withThrowable[IllegalArgumentException]
+      }
 
-    "return Failure without scheme prefix" in {
-      GoogleTransport(s"classpath://$filename?application=$application&projectId=$projectId") must beFailedTry.withThrowable[IllegalArgumentException]
-    }
+      "when given a uri without application parameter" in {
+        GoogleTransport(s"google:classpath://$filename?projectId=$projectId") must beFailedTry.withThrowable[IllegalArgumentException]
+      }
 
-    "return Failure when given a uri without application parameter" in {
-      GoogleTransport(s"google:classpath://$filename?projectId=$projectId") must beFailedTry.withThrowable[IllegalArgumentException]
-    }
+      "when given a uri without projectId parameter" in {
+        GoogleTransport(s"google:classpath://$filename?application=$application") must beFailedTry.withThrowable[IllegalArgumentException]
+      }
 
-    "return Failure when given a uri without projectId parameter" in {
-      GoogleTransport(s"google:classpath://$filename?application=$application") must beFailedTry.withThrowable[IllegalArgumentException]
+      "with invalid request timeout in URI" in {
+        val uri = new URI(s"google:classpath://$filename?application=$application&projectId=$projectId&requestTimeout=AB")
+
+        GoogleTransport(uri) must beFailedTry[GoogleTransport].
+          withThrowable[IllegalArgumentException](
+            "Invalid 'requestTimeout' parameter: AB")
+      }
+
+      "with value for 'disableGZip' in URI" in {
+        val uri = new URI(s"google:classpath://$filename?application=$application&projectId=$projectId&disableGZip=Foo")
+
+        GoogleTransport(uri) must beFailedTry[GoogleTransport].
+          withThrowable[IllegalArgumentException](
+            "Invalid 'disableGZip' parameter: Foo")
+      }
     }
   }
-
 }

@@ -54,7 +54,8 @@ def sample1(implicit m: Materializer): Unit = {
   implicit val ws: StandaloneAhcWSClient = StandaloneAhcWSClient()
 
   val s3: WSS3 = S3("accessKey", "secretKey", "http", "hostAndPort")
-  // See "S3 Client configuration" section for more ways create and configure a WSS3
+  // See "S3 Client configuration" section to see
+  // how to create and configure a WSS3
 
   val bucket: WSS3BucketRef = s3.bucket("aBucket")
 
@@ -112,9 +113,9 @@ To run the compliance tests for this module, you have to go through the followin
 
     sbt test
 
-## S3 Client configuration
+## S3 client configuration
 
-WSS3 have two differents `style`, `path` style and `virtualHost` style that represents how request URLs are created, you can specify which one to use during WSS3 instance creation :
+There are several factories to create a S3 `ObjectStorage` client, either passing parameters separately, or using a configuration URI.
 
 ```scala
 import akka.stream.Materializer
@@ -128,25 +129,35 @@ def sample2(implicit m: Materializer): Unit = {
 
   // Creating a "path" style WSS3 :
 
-  S3("accessKey", "secretKey", "http", "hostAndPort")
+  S3("accessKey", "secretKey", "httpProto", "hostAndPort")
   // equivalent to
-  S3(new java.net.URI("s3:http://accessKey:secretKey@hostAndPort/?style=path"))
-  // and
-  S3("s3:http://accessKey:secretKey@hostAndPort/?style=path")
+  S3("s3:httpProto://accessKey:secretKey@hostAndPort/?style=path")
 
   // Creating a "virtualHost" style WSS3 :
 
-  S3.virtualHost("accessKey", "secretKey", "http", "hostAndPort")
+  S3.virtualHost("accessKey", "secretKey", "httpProto", "hostAndPort")
   // equivalent to
-  S3(new java.net.URI("s3:http://accessKey:secretKey@hostAndPort/?style=virtualHost"))
-  // and
-  S3("s3:http://accessKey:secretKey@hostAndPort/?style=virtualHost")
+  S3("s3:httpProto://accessKey:secretKey@hostAndPort/?style=virtualHost")
 
   ()
 }
 ```
 
-You can extends how WSS3 can be created using the `URIProvider` typeclass, see `S3.apply`.
+The main settings are:
+
+- *accessKey*: The unique identifier for the S3 account (e.g. `905C97B16AA34C7D8E97`, [for AWS](https://aws.amazon.com/blogs/security/wheres-my-secret-access-key/)).
+- *secretKey*: The secret key associated with the *accessKey* for authentication.
+- *httpProto*: The HTTP protocol to be used, either plain `http` or `https` .
+- *hostAndPort*: The HTTP host and optional port (otherwise defaulted according the `httpProto`; e.g. `s3.amazonaws.com`).
+- *style*: It represents how request URLs are created, either `path` style and [`virtualHost`](https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html).
+
+The format for the configuration URIs is the following:
+
+    s3:${httpProto}://${accessKey}:${secretKey}@${hostAndPort}/?style=${style}
+
+The optional parameter `requestTimeout` can also be specified in the query string of such URI:
+
+    ...?style=${style}&requestTimeout=${timeInMilliseconds}
 
 ## FAQ
 

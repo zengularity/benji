@@ -34,10 +34,10 @@ object TestUtils {
     s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
   }
 
-  implicit lazy val googleTransport: GoogleTransport =
+  lazy val googleTransport: GoogleTransport =
     GoogleTransport(configUri).get
 
-  lazy val google = GoogleStorage()
+  lazy val google = GoogleStorage(googleTransport)
 
   // ---
 
