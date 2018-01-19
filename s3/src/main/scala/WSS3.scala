@@ -67,6 +67,8 @@ class WSS3(
 
 /** S3 companion */
 object S3 {
+  import com.zengularity.benji.LongVal
+
   /**
    * Returns the S3 client in the path style.
    *
@@ -94,9 +96,9 @@ object S3 {
    * s3:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]
    *
    * {{{
-   *   S3("s3:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
-   *   // or
-   *   S3(new java.net.URI("s3:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
+   * S3("s3:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
+   * // or
+   * S3(new java.net.URI("s3:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
    * }}}
    *
    * @param config the config element used by the provider to generate the URI
@@ -130,7 +132,19 @@ object S3 {
 
       val params = parseQuery(uri)
 
-      params.get("style") match {
+      def reqTimeout: Try[Option[Long]] = params.get("requestTimeout") match {
+        case Some(Seq(LongVal(timeout))) => Success(Some(timeout))
+
+        case Some(Seq(v)) => Failure[Option[Long]](new IllegalArgumentException(
+          s"Invalid request timeout parameter in URI: $v"))
+
+        case Some(ps) => Failure[Option[Long]](new IllegalArgumentException(
+          s"Invalid request timeout parameter in URI: $ps"))
+
+        case _ => Success(Option.empty[Long])
+      }
+
+      def storage = params.get("style") match {
         case Some(Seq("virtualHost")) =>
           Success(virtualHost(accessKey, secretKey, scheme, host))
 
@@ -140,10 +154,15 @@ object S3 {
         case Some(style) => Failure(new IllegalArgumentException(
           s"Invalid style parameter in URI: $style"))
 
-        case None => Failure(new IllegalArgumentException(
-          "Expected style parameter in URI"))
+        case _ => Failure(new IllegalArgumentException(
+          "Missing style parameter in URI"))
 
       }
+
+      for {
+        timeout <- reqTimeout
+        s3 <- storage
+      } yield timeout.fold(s3)(s3.withRequestTimeout(_))
     }
 
   def apply(requestBuilder: WSRequestBuilder)(implicit ws: StandaloneWSClient): WSS3 = new WSS3(ws, requestBuilder)

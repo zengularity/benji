@@ -61,10 +61,9 @@ def sample1(implicit m: Materializer): Future[Unit] = {
   // WSClient must be available to init the GoogleTransport
   implicit def ws: StandaloneAhcWSClient = StandaloneAhcWSClient()
 
-  implicit def gt: GoogleTransport =
-    GoogleTransport(credential, projectId, appName)
+  def gt: GoogleTransport = GoogleTransport(credential, projectId, appName)
+  val gcs = GoogleStorage(gt)
 
-  val gcs = GoogleStorage()
   val buckets: Future[List[Bucket]] = gcs.buckets.collect[List]
 
   buckets.flatMap {
@@ -83,6 +82,58 @@ def sample1(implicit m: Materializer): Future[Unit] = {
   }
 }
 ```
+
+## Google client configuration
+
+There are several factories to create a Google `ObjectStorage` client, either passing parameters separately, or using a configuration URI.
+
+```scala
+import akka.stream.Materializer
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+
+import com.zengularity.benji.google._
+
+def sample2a(implicit m: Materializer): GoogleStorage = {
+  implicit val ws: StandaloneAhcWSClient = StandaloneAhcWSClient()
+
+  // Settings
+  val projectId = "google-project-123456"
+  val appName = "Foo"
+
+  def credential = GoogleCredential.fromStream(
+    new java.io.FileInputStream("/path/to/google-credential.json"))
+
+  def gt: GoogleTransport = GoogleTransport(credential, projectId, appName)
+
+  GoogleStorage(gt)
+}
+
+// Using configuration URI
+def sample2b(implicit m: Materializer): GoogleStorage = {
+  implicit val ws: StandaloneAhcWSClient = StandaloneAhcWSClient()
+
+  val configUri = "google:classpath://resource-for-credentials.json?application=Foo&projectId=google-project-123456"
+
+  GoogleStorage(GoogleTransport(configUri).get)
+}
+```
+
+The main settings are:
+
+- *credentials*: An URI to a JSON file representing the [credentials to access Google Cloud Storage](https://cloud.google.com/storage/docs/authentication#generating-a-private-key). To use resource accessible through the application classpath, the scheme `classpath:` can be used (e.g. `classpath://foo.json` will try to load the credentials with `getResource("foo.json")`). For credentials stored in a file outside the JVM, the scheme `file:` is useful.
+- *application*: The name of application.
+- *projectId*: The unique ID for which the credentials are registered in the Google Cloud.
+
+The format for the configuration URIs is the following:
+
+    google:${credentialUri}?application=${application}&projectId=${projectId}
+
+The optional parameters `requestTimeout` and `disableGZip` can also be specified in the query string of such URI:
+
+    ...&projectId=${projectId}&requestTimeout=${timeInMilliseconds}&disableGZip=${falseByDefault}
 
 ## Troubleshoot
 

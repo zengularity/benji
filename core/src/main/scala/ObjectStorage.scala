@@ -44,7 +44,6 @@ trait ObjectStorage { self =>
         _ += (_: Bucket)
       }.mapMaterializedValue(_.map(_.result()))
     }
-    // TODO: Support a max
   }
 
   /**

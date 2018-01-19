@@ -62,14 +62,41 @@ Then, the VFS can be used as ObjectStorage in your code, considering directories
 
 > In order to be compatible accross the various FS supported by VFS itself, it's recommanded not to nest sub-directory inside buckets.
 
-**Transport:**
+## VFS client configuration
 
-The VFS transport can be inited with a [`FileSystemManager`](https://commons.apache.org/proper/commons-vfs/apidocs/org/apache/commons/vfs2/FileSystemManager.html).
+There are several factories to create a VFS `ObjectStorage` client, either passing parameters separately, or using a configuration URI.
 
-A convenient factory is available for testing, to use a temporary directory as filesystem.
 
 ```scala
-import com.zengularity.benji.vfs.VFSTransport
+import scala.util.Try
+import com.zengularity.benji.ObjectStorage
+import com.zengularity.benji.vfs._
 
-implicit def vfsTransport = VFSTransport.temporary("/tmp/foo")
+def vfs1: ObjectStorage = {
+  import org.apache.commons.vfs2.{ FileSystemManager, VFS }
+  def fsManager: FileSystemManager = VFS.getManager()
+  def vfsTransport = VFSTransport(fsManager)
+
+  VFSStorage(vfsTransport)
+}
+
+// Temporary
+def vfs2: Try[ObjectStorage] =
+  VFSTransport.temporary("/tmp/foo").map { vfsTransport =>
+    VFSStorage(vfsTransport)
+  }
+
+// Using configuration URI
+def vfs3: Try[ObjectStorage] =
+  VFSTransport("vfs:file:///home/someuser/somedir").map { vfsTransport =>
+    VFSStorage(vfsTransport)
+  }
 ```
+
+> The `.temporary` factory is available for testing, using a local directory with cleanup.
+
+The format for the configuration URIs is the following:
+
+    vfs:${anyUriSupportedByVfs}
+
+The [VFS documentation](https://commons.apache.org/proper/commons-vfs/filesystems.html) is available to check the form of `anyUriSupportedByVfs`.

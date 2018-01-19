@@ -17,7 +17,7 @@ import com.zengularity.benji.{ Bucket, ObjectStorage }
  * @param disableGZip if true, disables the GZip compression for upload and download (automatically disabled for multi-part upload)
  */
 class GoogleStorage(
-  val transport: GoogleTransport,
+  private[google] val transport: GoogleTransport,
   val requestTimeout: Option[Long],
   val disableGZip: Boolean) extends ObjectStorage { self =>
   import scala.collection.JavaConverters._
@@ -47,8 +47,6 @@ class GoogleStorage(
           }.toList)
       }).flatMapMerge(1, identity)
     }
-
-    // TODO: Use pagination
   }
 }
 
@@ -57,10 +55,17 @@ object GoogleStorage {
   /**
    * Returns a client for Google Cloud Storage.
    *
-   * @param requestTimeout the optional timeout for the prepared requests (none by default)
-   * @param disableGZip if true, disables the GZip compression for upload and download (default: false)
+   * @param gt the Google transport to be used
+   *
+   * {{{
+   * import com.zengularity.benji.google._
+   *
+   * def sample(implicit gt: GoogleTransport): GoogleStorage =
+   *   GoogleStorage()
+   * }}}
    */
-  def apply(requestTimeout: Option[Long] = None, disableGZip: Boolean = false)(implicit gt: GoogleTransport): GoogleStorage = new GoogleStorage(gt, requestTimeout, disableGZip)
+  def apply(gt: GoogleTransport): GoogleStorage =
+    new GoogleStorage(gt, gt.requestTimeout, gt.disableGZip)
 }
 
 /**

@@ -27,7 +27,7 @@ import com.zengularity.benji.URIProvider
  * @param baseRestUrl the base URL for the Google REST API (without the final `/`)
  * @param servicePath the Google service path (without the final `/`; e.g. storage/v1)
  * @param requestTimeout the optional timeout for the prepared requests
- *
+ * @param disableGZip if true, disables the GZip compression for upload and download (default: false)
  */
 final class GoogleTransport(
   credential: => GoogleCredential,
@@ -36,7 +36,8 @@ final class GoogleTransport(
   ws: StandaloneWSClient,
   baseRestUrl: String,
   servicePath: String,
-  requestTimeout: Option[Long] = None) {
+  val requestTimeout: Option[Long] = None,
+  val disableGZip: Boolean = false) {
   import scala.concurrent.duration._
 
   private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
@@ -99,6 +100,20 @@ final class GoogleTransport(
       })
     }
   }
+
+  /**
+   * @param timeout the request timeout
+   */
+  def withRequestTimeout(requestTimeout: Long): GoogleTransport =
+    new GoogleTransport(credential, projectId, builder, ws,
+      baseRestUrl, servicePath, Some(requestTimeout), disableGZip)
+
+  /**
+   * @param disableGZip disable or not the GZip compression
+   */
+  def withDisableGZip(disableGZip: Boolean): GoogleTransport =
+    new GoogleTransport(credential, projectId, builder, ws,
+      baseRestUrl, servicePath, requestTimeout, disableGZip)
 }
 
 /** Google transport factory. */
@@ -106,6 +121,7 @@ object GoogleTransport {
   import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
   import com.google.api.client.json.jackson2.JacksonFactory
   import com.google.api.services.storage.StorageScopes
+  import com.zengularity.benji.LongVal
 
   @inline private def stripSlash(str: String): String =
     if (str endsWith "/") str.dropRight(1) else str
@@ -146,9 +162,9 @@ object GoogleTransport {
    * google:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]
    *
    * {{{
-   *   GoogleTransport("google:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
-   *   // or
-   *   GoogleTransport(new java.net.URI("google:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
+   * GoogleTransport("google:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
+   * // or
+   * GoogleTransport(new java.net.URI("google:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
    * }}}
    *
    * @param config the config element used by the provider to generate the URI
@@ -183,19 +199,45 @@ object GoogleTransport {
 
       val projectId = params.get("projectId") match {
         case Some(Seq(s)) => s
-        case Some(_) => throw new IllegalArgumentException("Expected exactly one value for \"projectId\" parameter")
-        case None => throw new IllegalArgumentException("Expected URI containing \"projectId\" parameter")
+        case Some(_) => throw new IllegalArgumentException("Expected exactly one value for 'projectId' parameter")
+        case None => throw new IllegalArgumentException("Expected URI containing 'projectId' parameter")
       }
 
       val application = params.get("application") match {
         case Some(Seq(s)) => s
-        case Some(_) => throw new IllegalArgumentException("Expected exactly one value for \"application\" parameter")
-        case None => throw new IllegalArgumentException("Expected URI containing \"application\" parameter")
+        case Some(_) => throw new IllegalArgumentException("Expected exactly one value for 'application' parameter")
+        case _ => throw new IllegalArgumentException("Expected URI containing 'application' parameter")
       }
 
-      GoogleTransport(credential, projectId, application)
+      def requestTimeout: Option[Long] = params.get("requestTimeout") match {
+        case Some(Seq(LongVal(l))) => Some(l)
+        case Some(Seq(v)) => throw new IllegalArgumentException(s"Invalid 'requestTimeout' parameter: $v")
+        case Some(ps) => throw new IllegalArgumentException(s"Expected exactly one value for 'requestTimeout' parameter: $ps")
+        case _ => Option.empty[Long]
+      }
+
+      def disableGZip: Option[Boolean] = params.get("disableGZip") match {
+        case Some(Seq(BoolVal(b))) => Some(b)
+        case Some(Seq(v)) => throw new IllegalArgumentException(s"Invalid 'disableGZip' parameter: $v")
+        case Some(ps) => throw new IllegalArgumentException(s"Expected exactly one value for 'disableGZip' parameter: $ps")
+        case _ => Option.empty[Boolean]
+      }
+
+      def tx1 = GoogleTransport(credential, projectId, application)
+      def tx2 = requestTimeout.fold(tx1)(tx1.withRequestTimeout(_))
+
+      disableGZip.fold(tx2)(tx2.withDisableGZip(_))
     }
 
   private def parseQuery(uri: URI): Map[String, Seq[String]] =
     new QueryStringDecoder(uri.toString).parameters.asScala.mapValues(_.asScala).toMap
+
+  private object BoolVal {
+    def unapply(value: String): Option[Boolean] = try {
+      def bool = value.toBoolean
+      Some(bool)
+    } catch {
+      case scala.util.control.NonFatal(_) => Option.empty[Boolean]
+    }
+  }
 }

@@ -20,7 +20,7 @@ class GoogleFactory @Inject() (
   @SuppressWarnings(Array("TryGet"))
   def apply(uri: URI): ObjectStorage = {
     @inline implicit def ws = wsClient
-    GoogleStorage()(GoogleTransport[URI](uri).get)
+    GoogleStorage(GoogleTransport[URI](uri).get)
   }
 }
 
