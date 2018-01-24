@@ -1,20 +1,27 @@
 package com.zengularity.benji.s3
 
+import scala.concurrent.{ ExecutionContext, Future }
+
 import akka.NotUsed
+import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-import akka.util.ByteString
-
-import scala.concurrent.{ ExecutionContext, Future }
 
 import com.zengularity.benji.{ VersionedObjectRef, ByteRange }
 import com.zengularity.benji.ws.Successful
 
-final case class WSS3ObjectVersionRef(storage: WSS3, bucket: String, name: String, versionId: String) extends VersionedObjectRef {
+final case class WSS3ObjectVersionRef(
+  storage: WSS3,
+  bucket: String,
+  name: String,
+  versionId: String) extends VersionedObjectRef {
+
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
 
-  private case class WSS3DeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
+  private class WSS3DeleteRequest(
+    ignoreExists: Boolean) extends DeleteRequest {
+
     /**
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
      */
@@ -31,10 +38,10 @@ final case class WSS3ObjectVersionRef(storage: WSS3, bucket: String, name: Strin
       }
     }
 
-    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
+    def ignoreIfNotExists: DeleteRequest = new WSS3DeleteRequest(true)
   }
 
-  def delete: DeleteRequest = WSS3DeleteRequest()
+  def delete: DeleteRequest = new WSS3DeleteRequest(false)
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
@@ -53,12 +60,13 @@ final case class WSS3ObjectVersionRef(storage: WSS3, bucket: String, name: Strin
     }
   }
 
-  def get: GetRequest = RESTGetRequest
+  val get: GetRequest = RESTGetRequest
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
    */
   def exists(implicit ec: ExecutionContext): Future[Boolean] =
-    storage.request(Some(bucket), Some(name), query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout).
+    storage.request(Some(bucket), Some(name),
+      query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout).
       head().map(_.status == 200)
 }

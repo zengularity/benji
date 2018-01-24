@@ -1,9 +1,9 @@
 package com.zengularity.benji.s3
 
 import java.net.URLEncoder
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
+import scala.xml.Elem
+import scala.collection.immutable.Iterable
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
@@ -12,15 +12,21 @@ import akka.stream.scaladsl.Source
 
 import play.api.libs.ws.StandaloneWSResponse
 
-import com.zengularity.benji.{ BucketRef, Bytes, Object, BucketVersioning, VersionedObject }
+import com.zengularity.benji.{
+  BucketRef,
+  Object,
+  BucketVersioning,
+  VersionedObject
+}
+
 import com.zengularity.benji.ws.Successful
 
 final class WSS3BucketRef private[s3] (
   val storage: WSS3,
   val name: String) extends BucketRef with BucketVersioning { ref =>
+
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
-  //@inline private implicit def ws = storage.transport
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
@@ -30,40 +36,22 @@ final class WSS3BucketRef private[s3] (
 
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
       def next(nextToken: String): Source[Object, NotUsed] =
-        list(Some(nextToken))(next)
+        list(Some(nextToken))(next(_))
 
-      list(None)(next)
+      list(Option.empty[String])(next(_))
     }
 
     def list(token: Option[String])(andThen: String => Source[Object, NotUsed])(implicit m: Materializer): Source[Object, NotUsed] = {
-      def error(response: StandaloneWSResponse) = s"Could not list all objects within the bucket $name. Response: ${response.status} - ${response.body}"
+      val parse: Elem => Iterable[Object] = { xml =>
+        (xml \ "Contents").map(Xml.objectFromXml)
+      }
 
-      // list-type=2 to use AWS v2 for pagination
-      val query = maybeMax.map(max => s"?list-type=2&max-keys=$max${token.map(tok => s"&marker=${URLEncoder.encode(tok, "UTF-8")}").getOrElse("")}")
+      val query: Option[String] => Option[String] = { token =>
+        maybeMax.map(max => s"max-keys=$max${token.map(tok => s"&marker=${URLEncoder.encode(tok, "UTF-8")}").getOrElse("")}")
+      }
 
-      val request = storage.request(
-        Some(name), requestTimeout = requestTimeout, query = query)
-
-      S3.getXml[Object](request)({ xml =>
-        val contents = (xml \ "Contents").map(objectFromXml)
-        def isTruncated = (xml \ "IsTruncated").text.toBoolean
-        val currentPage = Source(contents)
-
-        contents.lastOption.map(_.name) match {
-          case Some(nextToken) if isTruncated =>
-            currentPage ++ andThen(nextToken)
-
-          case _ => currentPage
-        }
-      }, error)
-    }
-
-    private def objectFromXml(content: scala.xml.Node): Object = {
-      Object(
-        name = (content \ "Key").text,
-        size = Bytes((content \ "Size").text.toLong),
-        lastModifiedAt =
-          LocalDateTime.parse((content \ "LastModified").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+      WSS3BucketRef.list[Object](ref.storage, ref.name, token)(
+        query, parse, _.name, andThen)
     }
   }
 
@@ -73,7 +61,8 @@ final class WSS3BucketRef private[s3] (
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html
    */
   def exists(implicit ec: ExecutionContext): Future[Boolean] =
-    storage.request(Some(name), requestTimeout = requestTimeout).head().map(_.status == 200)
+    storage.request(Some(name), requestTimeout = requestTimeout).
+      head().map(_.status == 200)
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
@@ -189,48 +178,66 @@ final class WSS3BucketRef private[s3] (
   private case class ObjectsVersions(maybeMax: Option[Long]) extends ref.VersionedListRequest {
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
-    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = apply(None)
+    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+      def next(nextToken: String): Source[VersionedObject, NotUsed] =
+        list(Some(nextToken))(next(_))
 
-    private def apply(nextToken: Option[String])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
-      def error(response: StandaloneWSResponse) = s"Could not list all objects versions within the bucket $name. Response: ${response.status} - ${response.body}"
-      val query = maybeMax.map(max => s"versions&max-keys=$max${nextToken.map(token => s"&marker=${URLEncoder.encode(token, "UTF-8")}").getOrElse("")}")
-      val request = storage.request(Some(name), requestTimeout = requestTimeout, query = query.orElse(Some("versions")))
-
-      S3.getXml[VersionedObject](request)({ xml =>
-        val versions = (xml \ "Version").map(versionFromXml)
-        val markers = (xml \ "DeleteMarker").map(deleteMarkerFromXml)
-        val versionedObjects = versions ++ markers
-        val lastObject = versionedObjects.lastOption
-        val isTruncated = (xml \ "IsTruncated").text.toBoolean
-        val currentPage = Source(versionedObjects)
-
-        lastObject.map(_.name) match {
-          case nextPageToken @ Some(_) if isTruncated => currentPage ++ apply(nextPageToken)
-          case _ => currentPage
-        }
-      }, error)
+      list(Option.empty[String])(next(_))
     }
 
-    private def versionFromXml(content: scala.xml.Node): VersionedObject = {
-      VersionedObject(
-        name = (content \ "Key").text,
-        size = Bytes((content \ "Size").text.toLong),
-        versionCreatedAt = LocalDateTime.parse((content \ "LastModified").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME),
-        versionId = (content \ "VersionId").text,
-        isDeleteMarker = false)
+    def list(token: Option[String])(andThen: String => Source[VersionedObject, NotUsed])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+      val parse: Elem => Iterable[VersionedObject] = { xml =>
+        val versions = (xml \ "Version").map(Xml.versionDecoder)
+        val markers = (xml \ "DeleteMarker").map(Xml.deleteMarkerDecoder)
+
+        versions ++ markers
+      }
+
+      val query: Option[String] => Option[String] = { token =>
+        maybeMax.map(max => s"versions&max-keys=$max${token.map(token => s"&marker=${URLEncoder.encode(token, "UTF-8")}").getOrElse("")}").
+          orElse(Some("versions"))
+      }
+
+      WSS3BucketRef.list[VersionedObject](
+        ref.storage, ref.name, token)(query, parse, _.name, andThen)
     }
 
-    private def deleteMarkerFromXml(content: scala.xml.Node): VersionedObject = {
-      VersionedObject(
-        name = (content \ "Key").text,
-        size = Bytes(0),
-        versionCreatedAt = LocalDateTime.parse((content \ "LastModified").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME),
-        versionId = (content \ "VersionId").text,
-        isDeleteMarker = false)
-    }
   }
 
   def objectsVersions: VersionedListRequest = ObjectsVersions(None)
 
   def obj(objectName: String, versionId: String): WSS3ObjectVersionRef = WSS3ObjectVersionRef(storage, name, objectName, versionId)
+}
+
+object WSS3BucketRef {
+  /**
+   * @param name the bucket name
+   * @param token the continuation token
+   */
+  private[s3] def list[T](storage: WSS3, name: String, token: Option[String])(
+    query: Option[String] => Option[String],
+    parse: Elem => Iterable[T],
+    marker: T => String,
+    andThen: String => Source[T, NotUsed])(implicit m: Materializer): Source[T, NotUsed] = {
+    @inline def requestTimeout = storage.requestTimeout
+
+    def error(response: StandaloneWSResponse) = s"Could not list objects within the bucket $name. Response: ${response.status} - ${response.body}"
+
+    val request = storage.request(
+      Some(name), requestTimeout = requestTimeout, query = query(token))
+
+    S3.getXml[T](request)({ xml =>
+      def isTruncated = (xml \ "IsTruncated").text.toBoolean
+
+      val parsed = parse(xml)
+      def currentPage = Source(parsed)
+
+      parsed.lastOption.map(marker) match {
+        case Some(tok) if isTruncated =>
+          currentPage ++ andThen(tok)
+
+        case _ => currentPage
+      }
+    }, error)
+  }
 }

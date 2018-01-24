@@ -362,6 +362,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
     "Versioning feature should be consistant between buckets and objects" in {
       val bucket = storage.bucket(bucketName)
       val obj = bucket.obj("test-benji-versioning-obj")
+
       bucket.versioning.isDefined must_=== obj.versioning.isDefined
     }
   }
