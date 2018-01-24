@@ -1,9 +1,9 @@
 package com.zengularity.benji.s3
 
 import java.net.URLEncoder
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
+import scala.xml.Elem
+import scala.collection.immutable.Iterable
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
@@ -11,11 +11,19 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import akka.util.ByteString
 
-import play.api.libs.ws.{ BodyWritable, StandaloneWSRequest, StandaloneWSResponse }
+import play.api.libs.ws.{ BodyWritable, StandaloneWSRequest }
 import play.api.libs.ws.DefaultBodyWritables._
 import play.api.libs.ws.XMLBodyWritables._
 
-import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams, ObjectVersioning, VersionedObject }
+import com.zengularity.benji.{
+  ByteRange,
+  Bytes,
+  Chunk,
+  ObjectRef,
+  Streams,
+  ObjectVersioning,
+  VersionedObject
+}
 import com.zengularity.benji.ws.{ ContentMD5, Successful }
 
 final class WSS3ObjectRef private[s3] (
@@ -357,48 +365,33 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
-  private case class ObjectsVersions(maybeMax: Option[Long]) extends ref.VersionedListRequest {
+  private case class ObjectsVersions(
+    maybeMax: Option[Long]) extends ref.VersionedListRequest {
+
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
-    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = apply(None)
+    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+      def next(nextToken: String): Source[VersionedObject, NotUsed] =
+        list(Some(nextToken))(next(_))
 
-    private def apply(nextToken: Option[String])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
-      def error(response: StandaloneWSResponse) = s"Could not list all versions within the object $bucket/$name. Response: ${response.status} - ${response.body}"
-      val prefix = "versions&prefix=" + URLEncoder.encode(name, "UTF-8")
-      val query = maybeMax.map(max => s"$prefix&max-keys=$max${nextToken.map(token => s"&marker=${URLEncoder.encode(token, "UTF-8")}").getOrElse("")}")
-      val request = storage.request(Some(bucket), requestTimeout = requestTimeout, query = query.orElse(Some(prefix)))
-
-      S3.getXml[VersionedObject](request)({ xml =>
-        val versions = (xml \ "Version").map(versionFromXml).filter(_.name == name)
-        val markers = (xml \ "DeleteMarker").map(deleteMarkerFromXml).filter(_.name == name)
-        val versionedObjects = versions ++ markers
-        val lastObject = versionedObjects.lastOption
-        val isTruncated = (xml \ "IsTruncated").text.toBoolean
-        val currentPage = Source(versionedObjects)
-
-        lastObject.map(_.name) match {
-          case nextPageToken @ Some(_) if isTruncated => currentPage ++ apply(nextPageToken)
-          case _ => currentPage
-        }
-      }, error)
+      list(Option.empty[String])(next(_))
     }
 
-    private def versionFromXml(content: scala.xml.Node): VersionedObject = {
-      VersionedObject(
-        name = (content \ "Key").text,
-        size = Bytes((content \ "Size").text.toLong),
-        versionCreatedAt = LocalDateTime.parse((content \ "LastModified").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME),
-        versionId = (content \ "VersionId").text,
-        isDeleteMarker = false)
-    }
+    def list(token: Option[String])(andThen: String => Source[VersionedObject, NotUsed])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+      val parse: Elem => Iterable[VersionedObject] = { xml =>
+        val versions = (xml \ "Version").map(Xml.versionDecoder)
+        val markers = (xml \ "DeleteMarker").map(Xml.deleteMarkerDecoder)
 
-    private def deleteMarkerFromXml(content: scala.xml.Node): VersionedObject = {
-      VersionedObject(
-        name = (content \ "Key").text,
-        size = Bytes(0),
-        versionCreatedAt = LocalDateTime.parse((content \ "LastModified").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME),
-        versionId = (content \ "VersionId").text,
-        isDeleteMarker = false)
+        versions ++ markers
+      }
+
+      val prefix = "versions&prefix=" + URLEncoder.encode(ref.name, "UTF-8")
+      val query: Option[String] => Option[String] = { token =>
+        maybeMax.map(max => s"$prefix&max-keys=$max${token.map(tok => s"&marker=${URLEncoder.encode(tok, "UTF-8")}").getOrElse("")}").orElse(Some(prefix))
+      }
+
+      WSS3BucketRef.list[VersionedObject](ref.storage, ref.bucket, token)(
+        query, parse, _.name, andThen)
     }
   }
 
