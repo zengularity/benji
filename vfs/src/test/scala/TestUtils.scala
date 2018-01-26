@@ -20,23 +20,13 @@ object TestUtils {
 
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
 
-  private val rootPath = s"/tmp/${System identityHashCode this}-${System identityHashCode logger}.${System.currentTimeMillis}"
-
-  lazy val vfsTransport = VFSTransport.temporary(rootPath).get
+  lazy val vfsTransport = VFSTransport.temporary(s"benji-${System.currentTimeMillis()}").get
 
   lazy val vfs = VFSStorage(vfsTransport)
 
   // ---
 
   def close(): Unit = if (inited) {
-    try {
-      org.apache.commons.io.FileUtils.deleteDirectory(
-        new java.io.File(rootPath))
-
-    } catch {
-      case e: Throwable => logger.warn("fails to cleanup VFS", e)
-    }
-
     system.terminate()
 
     ()
