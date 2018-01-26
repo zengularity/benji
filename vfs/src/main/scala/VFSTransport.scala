@@ -1,11 +1,13 @@
 package com.zengularity.benji.vfs
 
 import java.net.URI
+import java.nio.file.Files
 
-import scala.util.Try
+import scala.util.{ Success, Try }
 
-import org.apache.commons.vfs2.{ FileSystemManager, FileType, FileTypeSelector, VFS }
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
+import org.apache.commons.vfs2.provider.temp.TemporaryFileProvider
+import org.apache.commons.vfs2.{ FileSystemManager, FileType, FileTypeSelector, VFS }
 
 import com.zengularity.benji.URIProvider
 
@@ -20,13 +22,16 @@ final class VFSTransport(val fsManager: FileSystemManager, _close: () => Unit = 
 
 /** VFS transport factory. */
 object VFSTransport {
-  import java.io.File
+
+  private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
+  private val TemporaryScheme = "temporary"
 
   import org.apache.commons.vfs2.CacheStrategy
   import org.apache.commons.vfs2.cache.NullFilesCache
 
   /**
    * Initializes a transport based on the given FS manager.
+   *
    * @param fsManager the VFS manager
    *
    * {{{
@@ -56,7 +61,7 @@ object VFSTransport {
    * @return Success if the VFSTransport was properly created, otherwise Failure
    */
   def apply[T](config: T)(implicit provider: URIProvider[T]): Try[VFSTransport] =
-    provider(config).map { builtUri =>
+    provider(config).flatMap { builtUri =>
       if (builtUri == null) {
         throw new IllegalArgumentException("URI provider returned a null URI")
       }
@@ -68,26 +73,30 @@ object VFSTransport {
       }
 
       val uri = new URI(builtUri.getSchemeSpecificPart)
+      logger.debug(s"URI: $uri")
+      if (uri.getPath == TemporaryScheme) temporary(s"benji-${System.currentTimeMillis()}")
+      else {
 
-      val mngr = new StandardFileSystemManager
-      mngr.init()
+        val mngr = new StandardFileSystemManager
+        mngr.init()
 
-      val scheme = uri.getScheme
+        val scheme = uri.getScheme
 
-      if (!mngr.hasProvider(scheme)) {
-        throw new IllegalArgumentException(s"Unsupported VFS scheme : $scheme")
+        if (!mngr.hasProvider(scheme)) {
+          throw new IllegalArgumentException(s"Unsupported VFS scheme : $scheme")
+        }
+
+        mngr.setBaseFile(mngr.resolveFile(uri))
+
+        Success(VFSTransport(mngr))
       }
-
-      mngr.setBaseFile(mngr.resolveFile(uri))
-
-      VFSTransport(mngr)
     }
 
   /**
    * Initialies a transport based on a temporary FS manager.
    * If the specified directory doesn't exist, it will be created.
    *
-   * @param directory the path to the directory used as temporary FS root
+   * @param prefix the prefix string to be used in generating the directory's name
    *
    * {{{
    * import com.zengularity.vfs.VFSTransport
@@ -95,25 +104,35 @@ object VFSTransport {
    * implicit def vfsTransport = VFSTransport.temporary("/tmp/foo")
    * }}}
    */
-  def temporary(directory: String): Try[VFSTransport] = Try {
-    val rootDir = new File(directory)
+  def temporary(prefix: String): Try[VFSTransport] = Try {
+    val tmpDir = Files.createTempDirectory(prefix)
+    val rootDir = tmpDir.toFile
 
-    rootDir.mkdir()
+    logger.info(s"Temporary folder is : $tmpDir")
 
     val mngr = new StandardFileSystemManager()
 
     mngr.setCacheStrategy(CacheStrategy.ON_CALL)
     mngr.setFilesCache(new NullFilesCache())
+    mngr.setDefaultProvider(new TemporaryFileProvider(rootDir))
     mngr.init()
 
     mngr.setBaseFile(rootDir)
 
     val cleanup: () => Unit = { () =>
-      mngr.getBaseFile.deleteAll()
-      mngr.getBaseFile.delete(new FileTypeSelector(FileType.FOLDER))
-      rootDir.delete()
+      logger.debug("Closing resources ...")
+      if (mngr.getBaseFile.exists()) {
+        mngr.getBaseFile.deleteAll()
+        mngr.getBaseFile.delete(new FileTypeSelector(FileType.FOLDER))
+      }
+      if (rootDir.exists()) rootDir.delete()
+      logger.debug("Closing resources ...OK")
       ()
     }
+
+    Runtime.getRuntime.addShutdownHook(new Thread {
+      override def run() = cleanup()
+    })
 
     new VFSTransport(mngr, cleanup)
   }

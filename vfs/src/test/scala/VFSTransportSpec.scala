@@ -41,6 +41,10 @@ class VFSTransportSpec extends Specification {
     "return Failure without scheme prefix" in {
       VFSTransport("file:///home/someuser/somedir") must beFailedTry.withThrowable[IllegalArgumentException]
     }
+
+    "return Success when we use temporary as uri" in {
+      VFSTransport("vfs:temporary") must beSuccessfulTry
+    }
   }
 
 }

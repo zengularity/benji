@@ -40,7 +40,7 @@ val appName = "Foo"
 
 def sample1(implicit m: Materializer): Future[Unit] = {
   implicit def ec: ExecutionContext = m.executionContext
-  val vfsTransport = VFSTransport.temporary(s"/tmp/$projectId").get
+  val vfsTransport = VFSTransport.temporary(projectId).get
   lazy val vfs = VFSStorage(vfsTransport)
 
   val buckets: Future[List[Bucket]] = vfs.buckets.collect[List]
@@ -82,7 +82,7 @@ def vfs1: ObjectStorage = {
 
 // Temporary
 def vfs2: Try[ObjectStorage] =
-  VFSTransport.temporary("/tmp/foo").map { vfsTransport =>
+  VFSTransport.temporary("foo").map { vfsTransport =>
     VFSStorage(vfsTransport)
   }
 
