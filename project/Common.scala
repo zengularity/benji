@@ -31,6 +31,9 @@ object Common {
     scalacOptions in (Test, console) ~= {
       _.filterNot { opt => opt.startsWith("-X") || opt.startsWith("-Y") }
     },
+    scalacOptions in (Compile, doc) ~= {
+      _.filterNot { opt => opt.startsWith("-X") || opt.startsWith("-Y") }
+    },
     scalacOptions in Test ++= Seq("-Yrangepos"),
     fork in Test := true,
     mimaPreviousArtifacts := Set(

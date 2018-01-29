@@ -2,24 +2,22 @@ package com.zengularity.benji.s3
 
 import java.net.URI
 
-import javax.inject.Inject
-
-import play.api.libs.ws.StandaloneWSClient
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 import com.zengularity.benji.ObjectStorage
 
-import com.zengularity.benji.spi.{ StorageFactory, StorageScheme }
+import com.zengularity.benji.spi.{ Injector, StorageFactory, StorageScheme }
 
 /**
  * This factory is using `javax.inject`
- * to resolve [[play.api.libs.ws.StandaloneWSClient].
+ * to resolve [[play.api.libs.ws.StandaloneWSClient]].
  */
-class S3Factory @Inject() (
-  wsClient: StandaloneWSClient) extends StorageFactory {
-
+final class S3Factory extends StorageFactory {
   @SuppressWarnings(Array("TryGet"))
-  def apply(uri: URI): ObjectStorage = {
-    @inline implicit def ws = wsClient
+  def apply(injector: Injector, uri: URI): ObjectStorage = {
+    @inline implicit def ws: StandaloneAhcWSClient =
+      injector.instanceOf(classOf[StandaloneAhcWSClient])
+
     S3[URI](uri).get
   }
 }

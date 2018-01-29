@@ -101,6 +101,7 @@ class MyComponent2(
 ) extends OtherComponentsFromContext(context) with BenjiComponentsWithInjector {
   // can be a Controller, a Play custom Module, ApplicationLoader ...
 
+  def benjiInjector = new play.modules.benji.PlayInjector(injector)
   def httpFilters: Seq[play.api.mvc.EssentialFilter] = ???
   def router: play.api.routing.Router = ???
 }

@@ -11,14 +11,15 @@ import play.api._
 import play.api.inject.{ Binding, BindingKey, Module }
 
 import com.zengularity.benji.ObjectStorage
-import com.zengularity.benji.spi.StorageFactory
+import com.zengularity.benji.spi.{ Injector, StorageFactory }
 
 /**
  * Benji module.
  */
 @Singleton
 final class BenjiModule extends Module {
-  def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = apiBindings(BenjiModule.parseConfiguration(configuration)).toSeq
+  def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = bind[Injector].toProvider[PlayInjectorProvider] +: apiBindings(
+    BenjiModule.parseConfiguration(configuration)).toSeq
 
   private def apiBindings(info: Set[(String, URI)]): Set[Binding[ObjectStorage]] = info.flatMap {
     case (name, uri) =>
@@ -123,11 +124,22 @@ private[benji] final class BenjiProvider(
   factoryClass: Class[_ <: StorageFactory],
   uri: URI) extends Provider[ObjectStorage] {
 
-  @Inject var injector: play.api.inject.Injector = _
+  @Inject var injector: Injector = _
 
   lazy val get: ObjectStorage = {
     val factory = injector.instanceOf(factoryClass)
 
-    factory(uri)
+    factory(injector, uri)
   }
+}
+
+private[benji] final class PlayInjectorProvider extends Provider[Injector] {
+  @Inject var injector: play.api.inject.Injector = _
+
+  lazy val get: Injector = new PlayInjector(injector)
+}
+
+final class PlayInjector(
+  underlying: play.api.inject.Injector) extends Injector {
+  def instanceOf[T](cls: Class[T]): T = underlying.instanceOf[T](cls)
 }

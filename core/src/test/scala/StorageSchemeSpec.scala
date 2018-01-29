@@ -3,7 +3,12 @@ package tests.benji
 import java.net.URI
 
 import com.zengularity.benji.ObjectStorage
-import com.zengularity.benji.spi.{ Registry, StorageFactory, StorageScheme }
+import com.zengularity.benji.spi.{
+  Injector,
+  Registry,
+  StorageFactory,
+  StorageScheme
+}
 
 class StorageSchemeSpec extends org.specs2.mutable.Specification {
   "Scheme aware factory" title
@@ -18,7 +23,7 @@ class StorageSchemeSpec extends org.specs2.mutable.Specification {
       val uri = new URI("dummy:foo")
 
       s"be resolved from $uri" in {
-        service(uri) must_== DummyStorage
+        service(DummyInjector, uri) must_== DummyStorage
       }
     }
 
@@ -26,7 +31,7 @@ class StorageSchemeSpec extends org.specs2.mutable.Specification {
       val uri = new URI("foo:dummy")
 
       s"not be resolved $uri" in {
-        service(uri) must throwA[IllegalArgumentException]("foo")
+        service(DummyInjector, uri) must throwA[IllegalArgumentException]("foo")
       }
     }
   }
@@ -56,6 +61,10 @@ sealed class DummyStorage extends ObjectStorage {
 
 object DummyStorage extends DummyStorage
 
+object DummyInjector extends Injector {
+  def instanceOf[T](cls: Class[T]): T = ???
+}
+
 final class DummyScheme extends StorageScheme {
   val scheme = "dummy"
 
@@ -63,7 +72,7 @@ final class DummyScheme extends StorageScheme {
 }
 
 final class DummyFactory extends StorageFactory {
-  def apply(uri: URI): ObjectStorage = {
+  def apply(injector: Injector, uri: URI): ObjectStorage = {
     if (uri.getScheme == "dummy") DummyStorage
     else throw new IllegalArgumentException("foo")
   }
