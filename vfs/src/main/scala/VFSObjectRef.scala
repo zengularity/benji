@@ -29,7 +29,7 @@ final class VFSObjectRef private[vfs] (
   def exists(implicit ec: ExecutionContext): Future[Boolean] =
     Future(file.exists)
 
-  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = Future.failed(new RuntimeException("TODO"))
+  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = Future.failed[Map[String, Seq[String]]](new RuntimeException("TODO"))
 
   val get = new VFSGetRequest()
 
@@ -37,7 +37,8 @@ final class VFSObjectRef private[vfs] (
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      Source.fromFuture(Future {
+      @SuppressWarnings(Array("org.wartremover.warts.Throw"))
+      def in = Future {
         lazy val f = file
 
         val st = f.getContent.getInputStream
@@ -52,10 +53,13 @@ final class VFSObjectRef private[vfs] (
             new LimitedInputStream(st, if (sz < 0) 0 else sz)
           }
         }
-      }.map(in => StreamConverters.fromInputStream(() => in)).recoverWith {
-        case reason: FileNotFoundException => Future.failed[Source[ByteString, NotUsed]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: 404 - ${reason.getMessage}"))
+      }
 
-      }).flatMapMerge(1, identity)
+      Source.fromFuture(in.map(s => StreamConverters.fromInputStream(() => s)).
+        recoverWith {
+          case reason: FileNotFoundException => Future.failed[Source[ByteString, NotUsed]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: 404 - ${reason.getMessage}"))
+
+        }).flatMapMerge(1, identity)
     }
   }
 
@@ -68,7 +72,10 @@ final class VFSObjectRef private[vfs] (
       def upload: Flow[E, A, NotUsed] = {
         lazy val of = file
         lazy val st = of.getContent.getOutputStream
+
+        @SuppressWarnings(Array("org.wartremover.warts.Var" /* local, volatile*/ ))
         @volatile var closed = false
+
         Streams.chunker[E].via(Streams.consumeAtMost(threshold)).via(
           Flow.apply[Chunk].foldAsync[A](z) { (a, chunk) =>
             Future[Chunk] {
@@ -106,9 +113,14 @@ final class VFSObjectRef private[vfs] (
 
   private case class VFSDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
     def apply()(implicit ec: ExecutionContext): Future[Unit] = {
-      Future { file.delete() }.flatMap(successful =>
-        if (ignoreExists || successful) Future.unit
-        else Future.failed(new IllegalArgumentException(s"Could not delete $bucket/$name: doesn't exist")))
+      Future { file.delete() }.flatMap { successful =>
+        if (ignoreExists || successful) {
+          Future.unit
+        } else {
+          Future.failed[Unit](new IllegalArgumentException(
+            s"Could not delete $bucket/$name: doesn't exist"))
+        }
+      }
     }
 
     def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
@@ -155,5 +167,5 @@ final class VFSObjectRef private[vfs] (
 }
 
 object VFSObjectRef {
-  def defaultThreshold = Bytes(8192L)
+  def defaultThreshold: Bytes = Bytes(8192L)
 }

@@ -11,7 +11,11 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import akka.util.ByteString
 
-import play.api.libs.ws.{ BodyWritable, StandaloneWSRequest }
+import play.api.libs.ws.{
+  BodyWritable,
+  StandaloneWSRequest,
+  StandaloneWSResponse
+}
 import play.api.libs.ws.DefaultBodyWritables._
 import play.api.libs.ws.XMLBodyWritables._
 
@@ -32,9 +36,9 @@ final class WSS3ObjectRef private[s3] (
   val name: String) extends ObjectRef with ObjectVersioning { ref =>
 
   /** The maximum number of part (10,000) for a multipart upload to S3/AWS. */
-  val defaultMaxPart = 10000
+  val defaultMaxPart: Int = 10000
 
-  val defaultThreshold = Bytes.megabytes(5)
+  val defaultThreshold: Bytes = Bytes.megabytes(5)
 
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
@@ -57,11 +61,16 @@ final class WSS3ObjectRef private[s3] (
       def req = storage.request(
         Some(bucket), Some(name), requestTimeout = requestTimeout)
 
-      Source.fromFuture(range.fold(req)(r => req.addHttpHeaders(
+      Source.fromFutureSource[ByteString, NotUsed](range.fold(req)(r => req.addHttpHeaders(
         "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap { response =>
-        if (response.status == 200 || response.status == 206) Future.successful(response.bodyAsSource)
-        else Future.failed[Source[ByteString, _]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: ${response.status} - ${response.headers}"))
-      }).flatMapMerge(1, identity(_))
+        if (response.status == 200 || response.status == 206) {
+          Future.successful(response.bodyAsSource.
+            mapMaterializedValue(_ => NotUsed))
+
+        } else {
+          Future.failed[Source[ByteString, NotUsed]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: ${response.status} - ${response.headers}"))
+        }
+      }).mapMaterializedValue(_ => NotUsed)
     }
   }
 
@@ -95,7 +104,8 @@ final class WSS3ObjectRef private[s3] (
      *
      * @param max $maxPartParam
      */
-    def withMaxPart(max: Int) = new RESTPutRequest[E, A](max)
+    def withMaxPart(max: Int): RESTPutRequest[E, A] =
+      new RESTPutRequest[E, A](max)
 
     /**
      * If the `size` is known and if the partitioning according that,
@@ -104,7 +114,7 @@ final class WSS3ObjectRef private[s3] (
      *
      * @param metadata (without the `x-amz-meta-` prefix for the keys)
      */
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
       val th = size.filter(_ > 0).fold(threshold) { sz =>
         val partCount = sz /: threshold
         if (partCount <= maxPart) threshold else Bytes(sz / maxPart)
@@ -143,24 +153,25 @@ final class WSS3ObjectRef private[s3] (
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
      */
     def apply()(implicit ec: ExecutionContext): Future[Unit] = {
-      val existanceCheck = if (ignoreExists) {
+      def checkExists = if (ignoreExists) {
         Future.unit
       } else {
         exists.flatMap {
-          case false => Future.failed(new IllegalArgumentException(s"Could not delete $bucket/$name: doesn't exist"))
+          case false => Future.failed[Unit](new IllegalArgumentException(s"Could not delete $bucket/$name: doesn't exist"))
           case true => Future.unit
         }
       }
-      existanceCheck.flatMap { _ =>
-        storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).delete().map {
-          case Successful(_) =>
-            logger.info(s"Successfully deleted the object $bucket/$name.")
+
+      for {
+        _ <- checkExists
+        _ <- storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).delete().flatMap {
+          case Successful(_) => Future.successful(logger.info(
+            s"Successfully deleted the object $bucket/$name."))
 
           case response =>
-            throw new IllegalStateException(s"Could not delete the object $bucket/$name. Response: ${response.status} - " +
-              s"${response.statusText}; ${response.body}")
+            Future.failed[Unit](new IllegalStateException(s"Could not delete the object $bucket/$name. Response: ${response.status} - ${response.statusText}; ${response.body}"))
         }
-      }
+      } yield ()
     }
 
     def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
@@ -201,12 +212,10 @@ final class WSS3ObjectRef private[s3] (
     storage.request(Some(targetBucketName), Some(targetObjectName),
       requestTimeout = requestTimeout).
       addHttpHeaders("x-amz-copy-source" -> s"/$bucket/$name").
-      put("").map {
-        case Successful(_) =>
-          logger.info(s"Successfully copied the object [$bucket/$name] to [$targetBucketName/$targetObjectName].")
+      put("").flatMap {
+        case Successful(_) => Future.successful(logger.info(s"Successfully copied the object [$bucket/$name] to [$targetBucketName/$targetObjectName]."))
 
-        case response =>
-          throw new IllegalStateException(s"Could not copy the object [$bucket/$name] to [$targetBucketName/$targetObjectName]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+        case response => Future.failed[Unit](new IllegalStateException(s"Could not copy the object [$bucket/$name] to [$targetBucketName/$targetObjectName]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
       }
 
   // Utility methods
@@ -236,12 +245,13 @@ final class WSS3ObjectRef private[s3] (
           metadata.toSeq)): _*)
 
       Source.fromFuture(
-        withContentTypeHeader(req, contentType).put(single.data).map {
-          case Successful(_) =>
-            logger.debug(s"Completed the simple upload for $bucket/$name.")
+        withContentTypeHeader(req, contentType).put(single.data).flatMap {
+          case Successful(_) => Future.successful(logger.debug(
+            s"Completed the simple upload for $bucket/$name."))
 
           case response =>
-            throw new IllegalStateException(s"Could not update the contents of the object $bucket/$name. Response: ${response.status} - ${response.statusText}; ${response.body}")
+            Future.failed[Unit](new IllegalStateException(s"Could not update the contents of the object $bucket/$name. Response: ${response.status} - ${response.statusText}; ${response.body}"))
+
         }.flatMap(_ => f(z, single)))
     }
   }
@@ -281,17 +291,18 @@ final class WSS3ObjectRef private[s3] (
   private def initiateUpload(metadata: Map[String, String])(implicit ec: ExecutionContext): Source[String, NotUsed] = Source fromFuture {
     storage.request(Some(bucket), Some(name), Some("uploads"),
       requestTimeout = requestTimeout).addHttpHeaders(metadata.toSeq: _*).
-      post("").map {
+      post("").flatMap {
         case Successful(response) => {
           val xmlResponse = scala.xml.XML.loadString(response.body)
           val uploadId = (xmlResponse \ "UploadId").text
 
           logger.debug(s"Initiated a multi-part upload for $bucket/$name using the ID $uploadId.")
-          uploadId
+
+          Future.successful(uploadId)
         }
 
         case response =>
-          throw new IllegalStateException(s"Could not initiate the upload for [$bucket/$name]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+          Future.failed[String](new IllegalStateException(s"Could not initiate the upload for [$bucket/$name]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
       }
   }
 
@@ -318,16 +329,18 @@ final class WSS3ObjectRef private[s3] (
       requestTimeout = requestTimeout).addHttpHeaders("Content-MD5" -> ContentMD5(bytes))
 
     withContentTypeHeader(req, contentType).
-      put(bytes).map {
-        case Successful(response) => {
-          logger.trace(s"Uploaded part $partNumber with ${bytes.length} bytes of the upload $uploadId for $bucket/$name.")
+      put(bytes).flatMap {
+        case Successful(Etag(value)) => Future.successful {
+          logger.trace(s"Uploaded part $partNumber with ${bytes.length} bytes of the upload $uploadId for $bucket/$name ($value).")
 
-          response.header("ETag").getOrElse(throw new IllegalStateException(
-            s"Response for the upload [$bucket/$name, $uploadId, part: $partNumber] did not include an ETag header: ${response.headers}."))
+          value
         }
 
+        case response @ Successful(_) =>
+          Future.failed[String](new IllegalStateException(s"Response for the upload [$bucket/$name, $uploadId, part: $partNumber] did not include an ETag header: ${response.headers}."))
+
         case response =>
-          throw new IllegalStateException(s"Could not upload a part for [$bucket/$name, $uploadId, part: $partNumber]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+          Future.failed[String](new IllegalStateException(s"Could not upload a part for [$bucket/$name, $uploadId, part: $partNumber]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
       }
   }
 
@@ -335,28 +348,33 @@ final class WSS3ObjectRef private[s3] (
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html
    */
   private def completeUpload(etags: List[String], uploadId: String)(implicit ec: ExecutionContext): Future[Unit] = {
+    import scala.xml.Elem
+
     storage.request(Some(bucket), Some(name),
       query = Some(s"uploadId=$uploadId"),
       requestTimeout = requestTimeout).post(
         <CompleteMultipartUpload>
           {
-            etags.zipWithIndex.map({
+            etags.zipWithIndex.map[Elem, List[Elem]] {
               case (etag, partNumber) =>
                 // Part numbers start at index 1 rather than 0
                 <Part><PartNumber>{ partNumber + 1 }</PartNumber><ETag>{ etag }</ETag></Part>
-            })
+            }
           }
-        </CompleteMultipartUpload>).map {
-          case Successful(_) => logger.debug(
-            s"Completed the upload $uploadId for $bucket/$name.")
+        </CompleteMultipartUpload>).flatMap {
+          case Successful(_) => Future.successful(logger.debug(
+            s"Completed the upload $uploadId for $bucket/$name."))
 
-          case response =>
-            throw new IllegalStateException(
-              s"Could not complete the upload for [$bucket/$name, $uploadId]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+          case response => Future.failed[Unit](new IllegalStateException(s"Could not complete the upload for [$bucket/$name, $uploadId]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
         }
   }
 
   @inline private def withContentTypeHeader(req: StandaloneWSRequest, contentType: Option[String]): StandaloneWSRequest = contentType.fold(req)(c => req.addHttpHeaders("Content-Type" -> c))
+
+  private object Etag {
+    def unapply(response: StandaloneWSResponse): Option[String] =
+      response.header("ETag")
+  }
 
   override lazy val toString = s"WSS3ObjectRef($bucket, $name)"
 
@@ -371,6 +389,7 @@ final class WSS3ObjectRef private[s3] (
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+      @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
       def next(nextToken: String): Source[VersionedObject, NotUsed] =
         list(Some(nextToken))(next(_))
 

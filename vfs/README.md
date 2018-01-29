@@ -40,21 +40,24 @@ val appName = "Foo"
 
 def sample1(implicit m: Materializer): Future[Unit] = {
   implicit def ec: ExecutionContext = m.executionContext
-  val vfsTransport = VFSTransport.temporary(projectId).get
-  lazy val vfs = VFSStorage(vfsTransport)
 
-  val buckets: Future[List[Bucket]] = vfs.buckets.collect[List]
+  Future.fromTry(VFSTransport.temporary(projectId)).flatMap {
+    vfsTransport: VFSTransport => 
+      lazy val vfs = VFSStorage(vfsTransport)
 
-  buckets.flatMap {
-    _.headOption.fold(Future.successful(println("No found"))) { firstBucket =>
-      val bucketRef: VFSBucketRef = vfs.bucket(firstBucket.name)
-      val objects: Source[Object, NotUsed] = bucketRef.objects()
+      val buckets: Future[List[Bucket]] = vfs.buckets.collect[List]
+
+      buckets.flatMap {
+        _.headOption.fold(Future.successful(println("No found"))) { firstBucket =>
+          val bucketRef: VFSBucketRef = vfs.bucket(firstBucket.name)
+          val objects: Source[Object, NotUsed] = bucketRef.objects()
       
-      objects.runWith(Sink.foreach[Object] { obj =>
-        println(s"- ${obj.name}")
-      }).map(_ => {})
+          objects.runWith(Sink.foreach[Object] { obj =>
+            println(s"- ${obj.name}")
+          }).map(_ => {})
+        }
+      }
     }
-  }
 }
 ```
 

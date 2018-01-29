@@ -1,7 +1,7 @@
 package tests.benji
 
 import scala.concurrent.Future
-import scala.concurrent.duration.{ Duration, FiniteDuration }
+import scala.concurrent.duration.FiniteDuration
 
 import akka.util.ByteString
 import akka.stream.scaladsl.{ Source, Sink }
@@ -11,13 +11,15 @@ import akka.stream.contrib.TestKit.assertAllStagesStopped
 import com.zengularity.benji.{ Chunk, Bytes, Streams }
 
 import org.specs2.concurrent.ExecutionEnv
+import org.specs2.matcher.MatchResult
 
+@SuppressWarnings(Array("org.wartremover.warts.Any"))
 class StreamSpec(implicit ee: ExecutionEnv)
   extends org.specs2.mutable.Specification {
 
   "Streams" title
 
-  val timeout = Duration("5s").asInstanceOf[FiniteDuration]
+  val timeout = FiniteDuration(5L, java.util.concurrent.TimeUnit.SECONDS)
 
   implicit lazy val system = akka.actor.ActorSystem("benji-core-tests")
   implicit def materializer = akka.stream.ActorMaterializer.create(system)
@@ -158,8 +160,9 @@ class StreamSpec(implicit ee: ExecutionEnv)
   /**
    * @param chunkSz the chunk size
    */
-  def withSource[T](chunkSz: Int = 0, by: Byte = 1)(f: Source[ByteString, akka.NotUsed] => T): T = {
+  def withSource(chunkSz: Int = 0, by: Byte = 1)(f: Source[ByteString, akka.NotUsed] => MatchResult[Future[Seq[Chunk]]]): MatchResult[Future[Seq[Chunk]]] = {
     def chunk = ByteString(Array.fill[Byte](chunkSz)(by))
+
     f(Source(List(chunk)))
   }
 }

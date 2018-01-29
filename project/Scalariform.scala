@@ -4,10 +4,10 @@ import sbt._
 object Scalariform {
   import com.typesafe.sbt.SbtScalariform, SbtScalariform._
 
-  lazy val settings =
-    SbtScalariform.scalariformSettings ++ Seq(
-      ScalariformKeys.preferences := formattingPreferences
-    )
+  lazy val settings = Seq(
+    autoImport.scalariformAutoformat := true,
+    ScalariformKeys.preferences := formattingPreferences
+  )
 
   private lazy val formattingPreferences = {
     import scalariform.formatter.preferences._

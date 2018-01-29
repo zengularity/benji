@@ -13,11 +13,12 @@ addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.4.1")
 
 addSbtPlugin("com.github.sbt" % "sbt-findbugs" % "2.0.0")
 
-addSbtPlugin("com.sksamuel.scapegoat" %% "sbt-scapegoat" % "1.0.7")
+addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.2.1")
 
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.1.18")
 
-addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.5")
+addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.6")
 
 // For the the highlight extractor
-libraryDependencies += "commons-io" % "commons-io" % "2.4"
+libraryDependencies ++= Seq(
+  "commons-io" % "commons-io" % "2.4")

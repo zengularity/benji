@@ -59,6 +59,7 @@ object Streams {
 
     val shape = FlowShape.of(in, out)
 
+    @SuppressWarnings(Array("org.wartremover.warts.Var"))
     def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
       new GraphStageLogic(shape) with InHandler with OutHandler {
         private val inbuf = new ByteStringBuilder()
@@ -130,6 +131,7 @@ object Streams {
 
     val shape = FlowShape.of(in, out)
 
+    @SuppressWarnings(Array("org.wartremover.warts.Var"))
     def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
       new GraphStageLogic(shape) with InHandler with OutHandler {
         private val inbuf = new ByteStringBuilder()

@@ -38,6 +38,8 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
     val partCount = 3
     s"Write file in $bucketName bucket using $partCount parts" in {
       val filetest = google.bucket(bucketName).obj(objName)
+
+      @SuppressWarnings(Array("org.wartremover.warts.Var"))
       var b = 0.toByte
       def nextByte = {
         b = (b + 1).toByte

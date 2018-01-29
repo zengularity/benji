@@ -9,6 +9,8 @@ class LimitedInputStream(
   underlying: InputStream,
   limit: Int,
   bufferSize: Int = 8192) extends BufferedInputStream(underlying, bufferSize) {
+
+  @SuppressWarnings(Array("org.wartremover.warts.Var"))
   private var index = 0
 
   override def read(): Int = {

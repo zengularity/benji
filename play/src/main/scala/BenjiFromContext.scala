@@ -53,6 +53,7 @@ abstract class BenjiFromContext(
       case (`name`, uri) => uri
     }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   lazy val parsedUri: URI = parsed.getOrElse(throw configuration.globalError(
     s"Missing Benji configuration for '$name'"))
 }

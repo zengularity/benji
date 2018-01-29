@@ -5,15 +5,16 @@ import scala.concurrent.duration.Duration
 
 import akka.stream.Materializer
 
-import com.zengularity.benji.ws.{ WS => TestWS }
-import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport }
+import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport, WS }
 
 object TestUtils {
   import com.typesafe.config.ConfigFactory
 
   val logger = org.slf4j.LoggerFactory.getLogger("tests")
 
+  @SuppressWarnings(Array("org.wartremover.warts.Var"))
   @volatile private var inited = false
+
   lazy val config = {
     inited = true
     ConfigFactory.load("tests.conf")
@@ -22,20 +23,20 @@ object TestUtils {
   lazy val system = akka.actor.ActorSystem("benji-google-tests")
   lazy val materializer = akka.stream.ActorMaterializer.create(system)
 
-  implicit lazy val WS: play.api.libs.ws.ahc.StandaloneAhcWSClient =
-    TestWS.client()(materializer)
+  implicit lazy val ws: play.api.libs.ws.ahc.StandaloneAhcWSClient =
+    WS.client()(materializer)
 
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
 
-  lazy val configUri = {
+  lazy val configUri: String = {
     val projectId = config.getString("google.storage.projectId")
     val application = s"benji-tests-${System identityHashCode this}"
 
     s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
   }
 
-  lazy val googleTransport: GoogleTransport =
-    GoogleTransport(configUri).get
+  @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
+  lazy val googleTransport: GoogleTransport = GoogleTransport(configUri).get
 
   lazy val google = GoogleStorage(googleTransport)
 
@@ -60,7 +61,7 @@ object TestUtils {
 
     system.terminate()
 
-    try { WS.close() } catch {
+    try { ws.close() } catch {
       case e: Throwable => logger.warn("fails to close WS", e)
     }
   }

@@ -42,7 +42,7 @@ final class Bytes private (val bytes: Long) extends AnyVal {
 /** Bytes companion object */
 object Bytes {
   val MB = 1024L * 1024L
-  val zero = new Bytes(0L)
+  val zero: Bytes = new Bytes(0L)
 
   def apply(bytes: Long): Bytes = new Bytes(bytes)
   def kilobytes(i: Int): Bytes = new Bytes(i * 1024L)

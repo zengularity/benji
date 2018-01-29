@@ -21,7 +21,10 @@ class VFSTransportSpec extends Specification {
     }
 
     "return Failure when given a null URI" in {
-      VFSTransport(null: URI) must beFailedTry.withThrowable[IllegalArgumentException]
+      @SuppressWarnings(Array("org.wartremover.warts.Null"))
+      def throwNull = VFSTransport(null: URI)
+
+      throwNull must beFailedTry.withThrowable[IllegalArgumentException]
     }
 
     "return Success when given a proper uri as String" in {

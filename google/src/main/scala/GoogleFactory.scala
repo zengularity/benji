@@ -10,10 +10,10 @@ import com.zengularity.benji.spi.{ Injector, StorageFactory, StorageScheme }
 
 /**
  * This factory is using `javax.inject`
- * to resolve [[play.api.libs.ws.StandaloneWSClient].
+ * to resolve `play.api.libs.ws.ahc.StandaloneAhcWSClient`.
  */
 final class GoogleFactory extends StorageFactory {
-  @SuppressWarnings(Array("TryGet"))
+  @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   def apply(injector: Injector, uri: URI): ObjectStorage = {
     @inline implicit def ws: StandaloneAhcWSClient =
       injector.instanceOf(classOf[StandaloneAhcWSClient])

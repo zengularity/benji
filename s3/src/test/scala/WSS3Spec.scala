@@ -53,7 +53,10 @@ class WSS3Spec extends Specification {
       }
 
       "when given a null URI" in {
-        S3(null: URI) must beFailedTry.withThrowable[IllegalArgumentException]
+        @SuppressWarnings(Array("org.wartremover.warts.Null"))
+        def test = S3(null: URI)
+
+        test must beFailedTry.withThrowable[IllegalArgumentException]
       }
 
       "without scheme prefix" in {

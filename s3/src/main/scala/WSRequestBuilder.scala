@@ -46,7 +46,7 @@ private[s3] object URLInformation {
  * Builder for requests using the path style
  * (e.g. https://s3.amazonaws.com/bucket-name/object?uploads).
  */
-class PathStyleWSRequestBuilder private[s3] (
+final class PathStyleWSRequestBuilder private[s3] (
   calculator: SignatureCalculator, serverUrl: URL) extends WSRequestBuilder {
 
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {
@@ -75,14 +75,13 @@ class PathStyleWSRequestBuilder private[s3] (
 /**
  * Builds something like "https://bucket-name.s3.amazonaws.com/object?uploads"
  *
- * This only works though, if virtual sub-domains / virtual hosts are enabled
- * for the given server URL. For IP addresses, for example, it will never work,
- * and even in the other cases DNS resolving needs to support that.
+ * This kind of builder is for S3 account where the buckets are virtual hosted
+ * (won't work for IP address or server not supporting virtualhost style).
  *
- * It certainly works for Amazon S3 services,
- * for the other ones you might be better off using path style requests.
+ * This is fine with Amazon S3 services, for others
+ * the `PathStyleWSRequestBuilder` is available.
  */
-class VirtualHostWSRequestBuilder private[s3] (
+final class VirtualHostWSRequestBuilder private[s3] (
   calculator: SignatureCalculator, serverUrl: URL) extends WSRequestBuilder {
 
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {

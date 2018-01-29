@@ -12,11 +12,8 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import play.api.libs.ws.{
-  StandaloneWSClient,
-  StandaloneWSRequest,
-  StandaloneWSResponse
-}
+import play.api.libs.ws.{ StandaloneWSRequest, StandaloneWSResponse }
+import play.api.libs.ws.ahc.{ AhcWSClientConfig, StandaloneAhcWSClient }
 import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
 import com.zengularity.benji.{ Bucket, ObjectStorage, URIProvider }
@@ -29,7 +26,7 @@ import com.zengularity.benji.{ Bucket, ObjectStorage, URIProvider }
  * @define contentTypeParam the MIME type of content
  */
 class WSS3(
-  val transport: StandaloneWSClient,
+  val transport: StandaloneAhcWSClient,
   requestBuilder: WSRequestBuilder,
   val requestTimeout: Option[Long] = None) extends ObjectStorage { self =>
 
@@ -78,7 +75,7 @@ object S3 {
    * @param host the host name (or IP address)
    * @return A WSS3 instance configured to work with the S3-compatible API of a the server
    */
-  def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneWSClient): WSS3 = new WSS3(ws, new PathStyleWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
+  def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new PathStyleWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
 
   /**
    * Returns the S3 client in the virtual host style.
@@ -89,7 +86,7 @@ object S3 {
    * @param host the host name (or IP address)
    * @return A WSS3 instance configured to work with the S3-compatible API of a the server
    */
-  def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneWSClient): WSS3 = new WSS3(ws, new VirtualHostWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
+  def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new VirtualHostWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
 
   /**
    * Tries to create a S3 client from an URI using the following format:
@@ -106,24 +103,8 @@ object S3 {
    * @tparam T the config type to be consumed by the provider typeclass
    * @return Success if the WSS3 was properly created, otherwise Failure
    */
-  def apply[T](config: T)(implicit ws: StandaloneWSClient, provider: URIProvider[T]): Try[WSS3] =
-    provider(config).flatMap { builtUri =>
-      if (builtUri == null) {
-        throw new IllegalArgumentException("URI provider returned a null URI")
-      }
-
-      // URI object fails to parse properly with scheme like "s3:http"
-      // So we check for "s3" scheme and then recreate an URI without it
-      if (builtUri.getScheme != "s3") {
-        throw new IllegalArgumentException("Expected URI with scheme containing \"s3:\"")
-      }
-
-      val uri = new URI(builtUri.getSchemeSpecificPart)
-
-      if (uri.getUserInfo == null) {
-        throw new IllegalArgumentException("Expected URI containing accessKey and secretKey")
-      }
-
+  def apply[T](config: T)(implicit ws: StandaloneAhcWSClient, provider: URIProvider[T]): Try[WSS3] = {
+    def fromUri(uri: URI): Try[WSS3] = {
       val (accessKey, remaining) = uri.getUserInfo.span(_ != ':')
       val secretKey = remaining.drop(1)
 
@@ -151,11 +132,11 @@ object S3 {
         case Some(Seq("path")) =>
           Success(apply(accessKey, secretKey, scheme, host))
 
-        case Some(style) => Failure(new IllegalArgumentException(
+        case Some(style) => Failure[WSS3](new IllegalArgumentException(
           s"Invalid style parameter in URI: $style"))
 
-        case _ => Failure(new IllegalArgumentException(
-          "Missing style parameter in URI"))
+        case _ => Failure[WSS3](new IllegalArgumentException(
+          "Expected style parameter in URI"))
 
       }
 
@@ -165,9 +146,37 @@ object S3 {
       } yield timeout.fold(s3)(s3.withRequestTimeout(_))
     }
 
-  def apply(requestBuilder: WSRequestBuilder)(implicit ws: StandaloneWSClient): WSS3 = new WSS3(ws, requestBuilder)
+    provider(config).flatMap { builtUri =>
+      if (builtUri == null) {
+        Failure[WSS3](new IllegalArgumentException(
+          "URI provider returned a null URI"))
+
+      } else if (builtUri.getScheme != "s3") {
+        // URI object fails to parse properly with scheme like "s3:http"
+        // So we check for "s3" scheme and then recreate an URI without it
+
+        Failure[WSS3](new IllegalArgumentException(
+          "Expected URI with scheme containing \"s3:\""))
+
+      } else {
+        val uri = new URI(builtUri.getSchemeSpecificPart)
+
+        if (uri.getUserInfo == null) {
+          Failure[WSS3](new IllegalArgumentException(
+            "Expected URI containing accessKey and secretKey"))
+        } else {
+          fromUri(uri)
+        }
+      }
+    }
+  }
+
+  def apply(requestBuilder: WSRequestBuilder)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, requestBuilder)
 
   // Utility functions
+
+  /** Returns a WS client (take care to close it once used). */
+  def client(config: AhcWSClientConfig = AhcWSClientConfig())(implicit materializer: Materializer): StandaloneAhcWSClient = StandaloneAhcWSClient(config)
 
   private[s3] def getXml[T](req: => StandaloneWSRequest)(
     f: scala.xml.Elem => Source[T, NotUsed],

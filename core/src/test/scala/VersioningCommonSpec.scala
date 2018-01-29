@@ -20,6 +20,8 @@ import com.zengularity.benji.{
 
 import scala.concurrent.Future
 
+// TODO: Remove annotation
+@SuppressWarnings(Array("org.wartremover.warts.TraversableOps"))
 trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specification =>
   import tests.benji.StreamUtils._
 
@@ -79,10 +81,14 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
 
       "to return all object versions" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
+          @SuppressWarnings(
+            Array("org.wartremover.warts.Null", "org.wartremover.warts.Var"))
           var firstVersion: VersionedObject = null
 
           {
-            vbucket.setVersioning(enabled = true).map(_ => true) must beTrue.await(1, 10.seconds)
+            vbucket.setVersioning(enabled = true).
+              map(_ => true) must beTrue.await(1, 10.seconds)
+
           } and {
             vbucket.objectsVersions.collect[List]() must beEmpty[List[VersionedObject]].await(1, 10.seconds)
           } and {
@@ -131,7 +137,7 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
                           ZoneOffset.UTC) must beBetween(before, after)
 
                       } and {
-                        ver.versionId must not(beEmpty)
+                        ver.versionId must not(beEmpty[String])
                       } and {
                         ver.versionId must_!== firstVersion.versionId
                       }
@@ -253,13 +259,15 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           vbucket.objectsVersions.
             collect[List]() must beLike[List[VersionedObject]] {
-              case v :: Nil => v.versionId must not(beEmpty) and {
-                bucket.obj(v.name).
-                  versioning must beSome[ObjectVersioning].which {
-                    _.version(v.versionId) must_=== vbucket.obj(
-                      v.name, v.versionId)
-                  }
-              }
+              case v :: Nil =>
+                v.versionId must not(beEmpty) and {
+                  bucket.obj(v.name).
+                    versioning must beSome[ObjectVersioning].which {
+                      _.version(v.versionId) must_=== vbucket.obj(
+                        v.name, v.versionId)
+                    }
+                }
+
             }.await(1, 10.seconds)
         }
       }

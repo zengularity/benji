@@ -12,7 +12,7 @@ import scala.util.Failure
 class GoogleTransportSpec extends Specification {
   "GoogleTransport" title
 
-  import TestUtils.WS
+  import TestUtils.ws
 
   val filename = "gcs-test.json"
   val projectId = TestUtils.config.getString("google.storage.projectId")
@@ -61,7 +61,10 @@ class GoogleTransportSpec extends Specification {
       }
 
       "when given a null URI" in {
-        GoogleTransport(null: URI) must beFailedTry.withThrowable[IllegalArgumentException]
+        @SuppressWarnings(Array("org.wartremover.warts.Null"))
+        @inline def test = GoogleTransport(null: URI)
+
+        test must beFailedTry.withThrowable[IllegalArgumentException]
       }
 
       "with wrong scheme" in {

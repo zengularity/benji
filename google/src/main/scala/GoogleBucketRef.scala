@@ -22,7 +22,10 @@ final class GoogleBucketRef private[google] (
   private case class Objects(maybeMax: Option[Long]) extends ref.ListRequest {
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
-    private def apply(nextToken: Option[String])(implicit m: Materializer): Source[Object, NotUsed] = {
+    def apply()(implicit m: Materializer): Source[Object, NotUsed] = list(None)
+
+    @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
+    private def list(nextToken: Option[String])(implicit m: Materializer): Source[Object, NotUsed] = {
       val prepared = gt.client.objects().list(name)
       val maxed = maybeMax.fold(prepared) { prepared.setMaxResults(_) }
 
@@ -42,13 +45,11 @@ final class GoogleBucketRef private[google] (
 
       Option(request.getNextPageToken) match {
         case nextPageToken @ Some(_) =>
-          currentPage ++ apply(nextPageToken)
+          currentPage ++ list(nextPageToken)
 
         case _ => currentPage
       }
     }
-
-    def apply()(implicit m: Materializer): Source[Object, NotUsed] = apply(None)
   }
 
   def objects: ListRequest = Objects(None)
@@ -61,31 +62,34 @@ final class GoogleBucketRef private[google] (
   }
 
   def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext): Future[Boolean] = {
-    if (!checkBefore) create
+    if (!checkBefore) createNew
     else exists.flatMap {
       case true => Future.successful(false)
-      case _ => create
+      case _ => createNew
     }
   }
 
-  private def create(implicit ec: ExecutionContext): Future[Boolean] = Future {
-    val nb = new model.Bucket()
-    nb.setName(name)
+  private def createNew(implicit ec: ExecutionContext): Future[Boolean] =
+    Future {
+      val nb = new model.Bucket()
+      nb.setName(name)
 
-    gt.client.buckets().insert(gt.projectId, nb).execute()
-  }.map(_ => true).recoverWith {
-    case HttpResponse(409, "Conflict") => Future.successful(false)
-    case err => Future.failed[Boolean](err)
-  }
+      gt.client.buckets().insert(gt.projectId, nb).execute()
+    }.map(_ => true).recoverWith {
+      case HttpResponse(409, "Conflict") => Future.successful(false)
+      case err => Future.failed[Boolean](err)
+    }
 
   private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
-    implicit val ec = m.executionContext
+    implicit val ec: ExecutionContext = m.executionContext
+
     Future(objects()).flatMap(_.runFoldAsync(())((_: Unit, e) => obj(e.name).delete.ignoreIfNotExists()))
   }
 
   private case class GoogleDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
     private def delete()(implicit m: Materializer): Future[Unit] = {
-      implicit val ec = m.executionContext
+      implicit val ec: ExecutionContext = m.executionContext
+
       val futureResult = Future { gt.client.buckets().delete(name).execute(); () }
       if (ignoreExists) {
         futureResult.recover { case HttpResponse(404, _) => () }
@@ -95,7 +99,8 @@ final class GoogleBucketRef private[google] (
     }
 
     def apply()(implicit m: Materializer): Future[Unit] = {
-      implicit val ec = m.executionContext
+      implicit val ec: ExecutionContext = m.executionContext
+
       if (isRecursive) emptyBucket().flatMap(_ => delete())
       else delete()
     }

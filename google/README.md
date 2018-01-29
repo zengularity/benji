@@ -52,7 +52,7 @@ import com.zengularity.benji.google.{
 val projectId = "google-project-123456"
 val appName = "Foo"
 
-def credential = GoogleCredential.fromStream(
+def credential: GoogleCredential = GoogleCredential.fromStream(
   new java.io.FileInputStream("/path/to/google-credential.json"))
 
 def sample1(implicit m: Materializer): Future[Unit] = {

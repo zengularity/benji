@@ -15,7 +15,8 @@ import com.zengularity.benji.{ ByteRange, ObjectStorage, ObjectRef }
 
 import scala.concurrent.Future
 
-trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specification =>
+trait StorageCommonSpec extends BenjiMatchers {
+  self: org.specs2.mutable.Specification =>
   import tests.benji.StreamUtils._
 
   def minimalCommonTests(storage: ObjectStorage, defaultBucketName: String)(
@@ -34,16 +35,17 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       {
         bucket must notExistsIn(storage)
       } and {
-        bucket.create() must beTrue.await(1, 10.seconds)
+        bucket must supportCreation
       } and {
         bucket must existsIn(storage)
       } and {
-        bucket.create(checkBefore = true) must beFalse.await(1, 10.seconds)
+        bucket must not(supportCheckedCreation)
       }
     }
 
     s"Lists objects of the empty $bucketName bucket" in assertAllStagesStopped {
-      storage.bucket(bucketName).objects.collect[List]().map(_.size) must beEqualTo(0).await(1, 5.seconds)
+      storage.bucket(bucketName).objects.collect[List]().
+        map(_.size) must beTypedEqualTo(0).await(1, 5.seconds)
     }
 
     s"Write file in $bucketName bucket" in assertAllStagesStopped {
@@ -59,15 +61,18 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       {
         filetest must notExistsIn(bucket)
       } and { // upload file
-        (repeat(20)(body) runWith upload) must beEqualTo(319980).await(1, 10.seconds)
+        (repeat(20)(body) runWith upload) must beTypedEqualTo(319980L).
+          await(1, 10.seconds)
       } and {
         filetest must existsIn(bucket)
       }
     }
 
-    "Get contents of file" in {
-      (storage.bucket(bucketName).obj("testfile.txt").get() runWith consume).aka("response") must
-        beLike[String]({ case response => response.startsWith("hello world !!!") must beTrue }).await(1, 10.seconds)
+    "Get contents of file" in assertAllStagesStopped {
+      storage.bucket(bucketName).obj("testfile.txt").
+        get() runWith consume aka "response" must beLike[String] {
+          case response => response must startWith("hello world !!!")
+        }.await(1, 10.seconds)
     }
   }
 
@@ -90,11 +95,11 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       {
         bucket must notExistsIn(storage)
       } and {
-        bucket.create() must beTrue.await(1, 10.seconds)
+        bucket must supportCreation
       } and {
         bucket must existsIn(storage)
       } and {
-        bucket.delete() must be_==({}).await(1, 10.seconds)
+        bucket.delete() must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
         bucket must notExistsIn(storage)
       }
@@ -117,7 +122,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
         val body = "hello world".getBytes()
 
         Source.single(body).runWith(upload).flatMap(sz => filetest.exists.map(sz -> _)).aka("exists") must
-          beEqualTo(body.length -> true).await(1, 10.seconds)
+          beTypedEqualTo(body.length.toLong -> true).await(1, 10.seconds)
       } and {
         // checking that the upload operation is effective
         // because otherwise the non-recursive delete will unexpectedly succeed
@@ -132,7 +137,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
         bucket must existsIn(storage)
       } and {
         // delete non-empty bucket with recursive delete (should work)
-        bucket.delete.recursive() must be_==({}).await(1, 5.seconds)
+        bucket.delete.recursive() must beTypedEqualTo({}).await(1, 5.seconds)
       } and {
         // check that the bucket is effectively deleted
         bucket must notExistsIn(storage)
@@ -142,7 +147,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
     "Get partial content of a file" in assertAllStagesStopped {
       (storage.bucket(bucketName).obj("testfile.txt").
         get(range = Some(ByteRange(4, 9))) runWith consume).
-        aka("partial content") must beEqualTo("o worl").await(1, 10.seconds)
+        aka("partial content") must beTypedEqualTo("o worl").await(1, 10.seconds)
     }
 
     "Fail to get contents of a non-existing file" in assertAllStagesStopped {
@@ -160,15 +165,15 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       {
         file.exists.aka("exists #1") must beFalse.await(1, 5.seconds)
       } and {
-        { repeat(5) { body } runWith put }.map(_ => {}) must be_==({}).await(1, 10.seconds)
+        { repeat(5) { body } runWith put }.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
         file.exists.aka("exists #2") must beTrue.await(1, 10.seconds)
       } and {
-        file.delete() must be_==({}).await(1, 10.seconds)
+        file.delete() must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
         file.exists.aka("exists #3") must beFalse.await(1, 10.seconds)
       } and {
-        file.delete().failed.map(_ => {}) must be_==({}).await(1, 10.seconds)
+        file.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
       }
     }
 
@@ -191,7 +196,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
           _ <- Future.sequence(Seq(file1.delete(), file2.delete()))
           a <- file1.exists
           b <- file2.exists
-        } yield a -> b) must beEqualTo(false -> false).await(1, 10.seconds)
+        } yield a -> b) must beTypedEqualTo(false -> false).await(1, 10.seconds)
       }
     }
 
@@ -218,7 +223,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
                     _ <- file4.delete()
                     a <- file3.exists
                     b <- file4.exists
-                  } yield a -> b) must beEqualTo(false -> false).
+                  } yield a -> b) must beTypedEqualTo(false -> false).
                     await(1, 10.seconds)
                 }
           }.await(1, 10.seconds))
@@ -228,14 +233,16 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
         _ <- res
         a <- file3.exists
         b <- file4.exists
-      } yield a -> b) must beEqualTo(false -> true).await(1, 10.seconds)
+      } yield a -> b) must beTypedEqualTo(false -> true).await(1, 10.seconds)
 
-      @inline def failed(file3: ObjectRef, file4: ObjectRef, res: Future[Unit]) = res.recoverWith {
-        case _: IllegalStateException => for {
-          a <- file3.exists
-          b <- file4.exists
-        } yield a -> b
-      } must beEqualTo(true -> true).await(1, 10.seconds)
+      @inline def failed(file3: ObjectRef, file4: ObjectRef, res: Future[Unit]) = {
+        res.map(_ => false -> false).recoverWith {
+          case _: IllegalStateException => for {
+            a <- file3.exists
+            b <- file4.exists
+          } yield a -> b
+        } must beTypedEqualTo(true -> true).await(1, 10.seconds)
+      }
 
       @inline def existingTarget: Future[ObjectRef] = {
         val target = storage.bucket(bucketName).obj("testfile4.txt")
@@ -246,7 +253,8 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       }
 
       "if prevent overwrite when target doesn't exist" in assertAllStagesStopped {
-        moveSpec(Future.successful(storage.bucket(bucketName).obj("testfile4.txt")))(successful)
+        moveSpec[(Boolean, Boolean)](Future.successful(
+          storage.bucket(bucketName).obj("testfile4.txt")))(successful)
       }
 
       "if prevent overwrite when target exists" in assertAllStagesStopped {
@@ -268,15 +276,15 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       } and {
         bucket must existsIn(storage)
       } and {
-        bucket.delete.ignoreIfNotExists() must beEqualTo({}).await(1, 10.seconds)
+        bucket.delete.ignoreIfNotExists() must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
         bucket must notExistsIn(storage)
       } and {
-        bucket.delete().failed.map(_ => {}) must beEqualTo({}).await(1, 10.seconds)
+        bucket.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
-        bucket.delete.ignoreIfNotExists() must beEqualTo({}).await(1, 10.seconds)
+        bucket.delete.ignoreIfNotExists() must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
-        bucket.delete().failed.map(_ => {}) must beEqualTo({}).await(1, 10.seconds)
+        bucket.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
       }
     }
 
@@ -290,19 +298,19 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       {
         obj must notExistsIn(bucket)
       } and {
-        obj.delete.ignoreIfNotExists() must beEqualTo({}).await(1, 10.seconds)
+        obj.delete.ignoreIfNotExists() must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
-        upload must beEqualTo({}).await(1, 10.seconds)
+        upload must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
         obj must existsIn(bucket)
       } and {
-        obj.delete() must beEqualTo({}).await(1, 10.seconds)
+        obj.delete() must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
-        obj.delete().failed.map(_ => {}) must beEqualTo({}).await(1, 10.seconds)
+        obj.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
-        obj.delete.ignoreIfNotExists() must beEqualTo({}).await(1, 10.seconds)
+        obj.delete.ignoreIfNotExists() must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
-        obj.delete().failed.map(_ => {}) must beEqualTo({}).await(1, 10.seconds)
+        obj.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
       }
     }
 
@@ -311,7 +319,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
 
       "after preparing bucket" in {
         bucket.objects.collect[List]().
-          map(_.size) must beEqualTo(1).await(1, 5.seconds)
+          map(_.size) must beTypedEqualTo(1).await(1, 5.seconds)
       }
 
       def createFile(name: String) = {
@@ -329,7 +337,7 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
           val filename = s"max-test-file-$i"
 
           res and {
-            createFile(filename) must beEqualTo(1590).await(1, 5.seconds)
+            createFile(filename) must beTypedEqualTo(1590L).await(1, 5.seconds)
           } and {
             bucket.obj(filename).exists must beTrue.await(1, 5.seconds)
           }
@@ -337,9 +345,9 @@ trait StorageCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifi
       }
 
       "using batch size 6" in {
-        bucket.objects.collect[List]().map(_.size) must beEqualTo(17).await(1, 5.seconds) and (
+        bucket.objects.collect[List]().map(_.size) must beTypedEqualTo(17).await(1, 5.seconds) and (
           bucket.objects.withBatchSize(6).collect[List]().
-          map(_.size) must beEqualTo(17).await(1, 5.seconds))
+          map(_.size) must beTypedEqualTo(17).await(1, 5.seconds))
       }
     }
 

@@ -8,7 +8,7 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 import scala.collection.JavaConverters._
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 import play.api.libs.ws.WSSignatureCalculator
 import play.shaded.ahc.io.netty.handler.codec.http.HttpHeaders
@@ -66,14 +66,15 @@ private[s3] class SignatureCalculator(
 
     logger.trace(s"awsStringToSign {\n$str\n}")
 
-    calculateFor(str).map { signature =>
-      requestBuilder.setHeader("Authorization", s"AWS $accessKey:$signature")
-    }.recover {
-      case e =>
-        logger.error("Could not calculate the signature", e)
-    }
+    computeSignature(str) match {
+      case Success(signature) => {
+        requestBuilder.setHeader("Authorization", s"AWS $accessKey:$signature")
+        ()
+      }
 
-    ()
+      case Failure(cause) =>
+        logger.error("Could not calculate the signature", cause)
+    }
   }
 
   private[s3] def signatureUrl(request: Request): String = {
@@ -101,9 +102,8 @@ private[s3] class SignatureCalculator(
   }
 
   /**
-   * If no date header is set,
-   * we'll use this format to include the current date time,
-   * like 'Thu, 23 Apr 2015 15:49:35 +0000'
+   * If no date header is set, the format 'Thu, 23 Apr 2015 15:49:35 +0000'
+   * will be applied on the current date time.
    */
   private val RFC1123_DATE_TIME_FORMATTER =
     DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z").
@@ -117,15 +117,18 @@ private[s3] class SignatureCalculator(
     httpVerb + "\n" +
       contentMd5.getOrElse("") + "\n" +
       contentType.getOrElse("") + s"\n$date\n" +
-      canonicalizedAmzHeadersFor(headers) +
-      canonicalizedResourceFor(style, url, serverHost)
+      canonicalizeHeaders(headers) +
+      canonicalizeResource(style, url, serverHost)
   }
 
   /**
-   * Calculates the signature for the given string to sign.
+   * Computes the authorization signature,
+   * based on the pre-computed string-to-sign.
+   *
    * Use this later on in request headers, like
-   * `Authorization: AWS AWSAccessKeyId:Signature`
-   * where the signature is calculated in the following way:
+   * `Authorization: AWS AWSAccessKeyId:Signature`.
+   *
+   * The computation is performed as bellow:
    *
    * ```
    * Signature = Base64(HMAC-SHA1(YourSecretAccessKeyID, UTF-8-Encoding-Of(StringToSign)))
@@ -133,7 +136,7 @@ private[s3] class SignatureCalculator(
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
    */
-  def calculateFor(data: String): Try[String] = Try {
+  def computeSignature(data: String): Try[String] = Try {
     val mac = Mac.getInstance("HmacSHA1")
     mac.init(new SecretKeySpec(
       secretKey.getBytes("UTF8"), "HmacSHA1"))
@@ -144,9 +147,8 @@ private[s3] class SignatureCalculator(
   // Utility methods
 
   /**
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#RESTAuthenticationConstructingCanonicalizedAmzHeaders
    */
-  def canonicalizedAmzHeadersFor(allHeaders: HttpHeaders): String = {
+  def canonicalizeHeaders(allHeaders: HttpHeaders): String = {
     val amzHeaderNames = allHeaders.names.asScala.filter(
       _.toLowerCase.startsWith("x-amz-")).toList.sortBy(_.toLowerCase)
 
@@ -156,27 +158,17 @@ private[s3] class SignatureCalculator(
     }.mkString
   }
 
-  def canonicalizedAmzHeadersFor(allHeaders: Map[String, Seq[String]]): String = {
-    val amzHeaderNames = allHeaders.keys.filter(
-      _.toLowerCase.startsWith("x-amz-")).toList.sortBy(_.toLowerCase)
-
-    amzHeaderNames.map { amzHeaderName =>
-      amzHeaderName.toLowerCase + ":" +
-        allHeaders(amzHeaderName).mkString(",") + "\n"
-    }.mkString
-  }
-
   @inline private def checkPathSlash(url: URL): String =
     if (url.getPath startsWith "/") url.getPath else "/" + url.getPath
 
   /**
    * For an S3 request URL,
-   * like 'https://my-bucket.s3.amazonaws.com/test-folder/file.txt' this
-   * will return the resource path as required in the authorization signature.
+   * like 'https://my-bucket.s3.amazonaws.com/test-folder/file.txt',
+   * only the resource path as need to compute the signature will be returned.
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheCanonicalizedResourceElement
    */
-  def canonicalizedResourceFor(style: RequestStyle, requestUrl: String, host: String): String = {
+  def canonicalizeResource(style: RequestStyle, requestUrl: String, host: String): String = {
     val url = new URL(requestUrl) // TODO: Unsafe
 
     val query = Option(url.getQuery).fold("")(q => s"?$q")

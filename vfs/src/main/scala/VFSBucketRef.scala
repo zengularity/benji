@@ -64,21 +64,29 @@ final class VFSBucketRef private[vfs] (
   } yield before.map(!_).getOrElse(true)
 
   private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
-    implicit val ec = m.executionContext
+    implicit val ec: ExecutionContext = m.executionContext
+
     // despite what the deleteAll documentation says, deleteAll don't delete the folder itself
     Future { dir.deleteAll(); () }
   }
 
   private case class VFSDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
     private def delete()(implicit m: Materializer): Future[Unit] = {
-      implicit val ec = m.executionContext
-      Future { dir.delete() }.flatMap(successful =>
-        if (ignoreExists || successful) Future.unit
-        else Future.failed(new IllegalStateException("Could not delete bucket")))
+      implicit val ec: ExecutionContext = m.executionContext
+
+      Future { dir.delete() }.flatMap { successful =>
+        if (ignoreExists || successful) {
+          Future.unit
+        } else {
+          Future.failed[Unit](new IllegalStateException(
+            "Could not delete bucket"))
+        }
+      }
     }
 
     def apply()(implicit m: Materializer): Future[Unit] = {
-      implicit val ec = m.executionContext
+      implicit val ec: ExecutionContext = m.executionContext
+
       if (isRecursive) emptyBucket().flatMap(_ => delete())
       else delete()
     }

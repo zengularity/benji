@@ -4,11 +4,9 @@ import java.net.URI
 
 import com.zengularity.benji.spi.{ Injector, Registry, StorageScheme }
 
-import com.zengularity.benji.s3.{
-  S3Factory,
-  S3Scheme,
-  WSS3
-}
+import com.zengularity.benji.spi.{ Registry, StorageScheme }
+
+import com.zengularity.benji.s3.{ S3Factory, S3Scheme, WSS3 }
 
 class S3FactorySpec extends org.specs2.mutable.Specification {
   "S3 factory" title
@@ -19,7 +17,7 @@ class S3FactorySpec extends org.specs2.mutable.Specification {
     def factory = scheme.factoryClass.getDeclaredConstructor().newInstance()
 
     {
-      val uri = TestUtils.virtualHostStyleURL
+      val uri = TestUtils.virtualHostStyleUrl
 
       s"be resolved from ${uri take 8}..." in {
         scheme must beAnInstanceOf[S3Scheme] and {
@@ -60,6 +58,7 @@ class S3FactorySpec extends org.specs2.mutable.Specification {
   object WSInjector extends Injector {
     private val WS = classOf[StandaloneAhcWSClient]
 
+    @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
     def instanceOf[T](cls: Class[T]): T = cls match {
       case WS => StandaloneAhcWSClient().asInstanceOf[T]
       case _ => ???

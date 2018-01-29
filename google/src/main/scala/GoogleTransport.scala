@@ -1,14 +1,15 @@
 package com.zengularity.benji.google
 
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 import scala.collection.JavaConverters._
 
 import java.net.URI
 
 import akka.stream.Materializer
 
-import play.api.libs.ws.{ StandaloneWSClient, StandaloneWSRequest }
+import play.api.libs.ws.StandaloneWSRequest
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
@@ -33,7 +34,7 @@ final class GoogleTransport(
   credential: => GoogleCredential,
   val projectId: String,
   builder: GoogleCredential => Storage,
-  ws: StandaloneWSClient,
+  ws: StandaloneAhcWSClient,
   baseRestUrl: String,
   servicePath: String,
   val requestTimeout: Option[Long] = None,
@@ -44,16 +45,16 @@ final class GoogleTransport(
 
   private lazy val cred = credential
 
-  lazy val client = builder(cred)
+  private[google] lazy val client: Storage = builder(cred)
 
-  @inline def buckets() = client.buckets
+  @inline private[google] def buckets() = client.buckets
 
   /**
    * Returns a new transport instance for the specified project.
    *
    * @param id the ID of the Google project
    */
-  def withProjectId(id: String) =
+  private[google] def withProjectId(id: String) =
     new GoogleTransport(cred, id, builder, ws, servicePath, baseRestUrl)
 
   private[google] def accessToken()(implicit ec: ExecutionContext): Future[String] = {
@@ -65,14 +66,16 @@ final class GoogleTransport(
       Future.successful(cred.getAccessToken)
     } else Future {
       cred.refreshToken()
-      cred.getAccessToken()
+      Option(cred.getAccessToken())
     }.flatMap {
-      case null => Future.failed(new scala.RuntimeException(
+      case Some(token) => {
+        logger.trace(s"Google Access Token refreshed: $token")
+        Future.successful(token)
+      }
+
+      case _ => Future.failed[String](new scala.RuntimeException(
         s"fails to get access token: $projectId"))
 
-      case token =>
-        logger.trace("Google Access Token refreshed")
-        Future.successful(token)
     }
   }
 
@@ -145,7 +148,7 @@ object GoogleTransport {
    * implicit val googleTransport = GoogleTransport(credential, "foo")
    * }}}
    */
-  def apply(credential: GoogleCredential, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: StandaloneWSClient): GoogleTransport = {
+  def apply(credential: GoogleCredential, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: StandaloneAhcWSClient): GoogleTransport = {
     val build = new Storage.Builder(http, json, _: GoogleCredential).
       setApplicationName(application).build()
 
@@ -163,7 +166,9 @@ object GoogleTransport {
    *
    * {{{
    * GoogleTransport("google:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
-   * // or
+   *
+   * // -- or --
+   *
    * GoogleTransport(new java.net.URI("google:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
    * }}}
    *
@@ -172,62 +177,78 @@ object GoogleTransport {
    * @tparam T the config type to be consumed by the provider typeclass
    * @return Success if the GoogleTransport was properly created, otherwise Failure
    */
-  def apply[T](config: T)(implicit provider: URIProvider[T], ws: StandaloneWSClient): Try[GoogleTransport] =
-    provider(config).map { builtUri =>
-      if (builtUri == null) {
-        throw new IllegalArgumentException("URI provider returned a null URI")
-      }
+  def apply[T](config: T)(implicit provider: URIProvider[T], ws: StandaloneAhcWSClient): Try[GoogleTransport] = {
+    def optParam(ps: Map[String, Seq[String]], key: String): Try[Option[String]] = ps.get(key) match {
+      case Some(Seq(s)) => Success(Some(s))
 
-      // URI object fails to parse properly with scheme like "google:http"
-      // So we check for "google" scheme and then recreate an URI without it
-      if (builtUri.getScheme != "google") {
-        throw new IllegalArgumentException("Expected URI with scheme containing \"google:\"")
-      }
+      case Some(Seq()) => Success(Option.empty[String])
 
-      val uri = new URI(builtUri.getSchemeSpecificPart)
+      case Some(_) => Failure[Option[String]](new IllegalArgumentException(
+        s"""Expected exactly one value for "$key" parameter"""))
 
-      val scheme = uri.getScheme
-
-      val credentialStream = scheme match {
-        case "classpath" => getClass.getResourceAsStream("/" + uri.getHost + uri.getPath)
-        case _ => uri.toURL.openStream()
-      }
-
-      val credential = GoogleCredential.fromStream(credentialStream)
-
-      val params = parseQuery(uri)
-
-      val projectId = params.get("projectId") match {
-        case Some(Seq(s)) => s
-        case Some(_) => throw new IllegalArgumentException("Expected exactly one value for 'projectId' parameter")
-        case None => throw new IllegalArgumentException("Expected URI containing 'projectId' parameter")
-      }
-
-      val application = params.get("application") match {
-        case Some(Seq(s)) => s
-        case Some(_) => throw new IllegalArgumentException("Expected exactly one value for 'application' parameter")
-        case _ => throw new IllegalArgumentException("Expected URI containing 'application' parameter")
-      }
-
-      def requestTimeout: Option[Long] = params.get("requestTimeout") match {
-        case Some(Seq(LongVal(l))) => Some(l)
-        case Some(Seq(v)) => throw new IllegalArgumentException(s"Invalid 'requestTimeout' parameter: $v")
-        case Some(ps) => throw new IllegalArgumentException(s"Expected exactly one value for 'requestTimeout' parameter: $ps")
-        case _ => Option.empty[Long]
-      }
-
-      def disableGZip: Option[Boolean] = params.get("disableGZip") match {
-        case Some(Seq(BoolVal(b))) => Some(b)
-        case Some(Seq(v)) => throw new IllegalArgumentException(s"Invalid 'disableGZip' parameter: $v")
-        case Some(ps) => throw new IllegalArgumentException(s"Expected exactly one value for 'disableGZip' parameter: $ps")
-        case _ => Option.empty[Boolean]
-      }
-
-      def tx1 = GoogleTransport(credential, projectId, application)
-      def tx2 = requestTimeout.fold(tx1)(tx1.withRequestTimeout(_))
-
-      disableGZip.fold(tx2)(tx2.withDisableGZip(_))
+      case _ => Success(Option.empty[String])
     }
+
+    def singleParam(ps: Map[String, Seq[String]], key: String): Try[String] =
+      optParam(ps, key).flatMap {
+        case Some(required) => Success(required)
+
+        case _ => Failure[String](new IllegalArgumentException(
+          s"Missing parameter in URI: $key"))
+      }
+
+    provider(config).flatMap { builtUri =>
+      if (builtUri == null) {
+        Failure[GoogleTransport](new IllegalArgumentException("URI provider returned a null URI"))
+      } else if (builtUri.getScheme != "google") {
+        // URI object fails to parse properly with scheme like "google:http"
+        // So we check for "google" scheme and then recreate an URI without it
+
+        Failure[GoogleTransport](new IllegalArgumentException("Expected URI with scheme containing \"google:\""))
+      } else {
+        val uri = new URI(builtUri.getSchemeSpecificPart)
+        val scheme = uri.getScheme
+
+        val credentialStream = scheme match {
+          case "classpath" =>
+            getClass.getResourceAsStream("/" + uri.getHost + uri.getPath)
+
+          case _ => uri.toURL.openStream()
+        }
+
+        val credential = GoogleCredential.fromStream(credentialStream)
+        val params = parseQuery(uri)
+
+        for {
+          projectId <- singleParam(params, "projectId")
+          application <- singleParam(params, "application")
+
+          reqTimeout <- optParam(params, "requestTimeout").flatMap {
+            case Some(LongVal(l)) => Success(Some(l))
+
+            case Some(v) => Failure[Option[Long]](
+              new IllegalArgumentException(
+                s"Invalid 'requestTimeout' parameter: $v"))
+
+            case _ => Success(Option.empty[Long])
+          }
+
+          disableGz <- optParam(params, "disableGZip").flatMap {
+            case Some(BoolVal(b)) => Success(Some(b))
+
+            case Some(v) => Failure[Option[Boolean]](
+              new IllegalArgumentException(
+                s"Invalid 'disableGZip' parameter: $v"))
+
+            case _ => Success(Option.empty[Boolean])
+          }
+
+          tx1 = GoogleTransport(credential, projectId, application)
+          tx2 = reqTimeout.fold(tx1)(tx1.withRequestTimeout(_))
+        } yield disableGz.fold(tx2)(tx2.withDisableGZip(_))
+      }
+    }
+  }
 
   private def parseQuery(uri: URI): Map[String, Seq[String]] =
     new QueryStringDecoder(uri.toString).parameters.asScala.mapValues(_.asScala).toMap
