@@ -35,6 +35,7 @@ final class WSS3BucketRef private[s3] (
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
+      @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
       def next(nextToken: String): Source[Object, NotUsed] =
         list(Some(nextToken))(next(_))
 
@@ -68,29 +69,31 @@ final class WSS3BucketRef private[s3] (
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
    */
   def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext): Future[Boolean] = {
-    if (!checkBefore) create.map(_ => true)
+    if (!checkBefore) createNew.map(_ => true)
     else exists.flatMap {
       case true => Future.successful(false)
-      case _ => create.map(_ => true)
+      case _ => createNew.map(_ => true)
     }
   }
 
-  private def create(implicit ec: ExecutionContext): Future[Unit] = {
-
+  private def createNew(implicit ec: ExecutionContext): Future[Unit] = {
     import play.api.libs.ws.DefaultBodyWritables._
+
     storage.request(Some(name), requestTimeout =
-      requestTimeout).put("").map {
+      requestTimeout).put("").flatMap {
       case Successful(_) =>
-        logger.info(s"Successfully created the bucket $name.")
+        Future.successful(logger.info(
+          s"Successfully created the bucket $name."))
 
       case response =>
-        throw new IllegalStateException(s"Could not create the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}")
+        Future.failed[Unit](new IllegalStateException(s"Could not create the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}"))
 
     }
   }
 
   private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
     implicit val ec: ExecutionContext = m.executionContext
+
     objectsVersions().runFoldAsync(())((_: Unit, e) => {
       if (!e.isDeleteMarker) {
         obj(e.name, e.versionId).delete.ignoreIfNotExists()
@@ -105,21 +108,26 @@ final class WSS3BucketRef private[s3] (
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
      */
     private def delete()(implicit m: Materializer): Future[Unit] = {
-      implicit val ec = m.executionContext
-      storage.request(Some(name), requestTimeout = requestTimeout).delete().map {
-        case Successful(_) =>
-          logger.info(s"Successfully deleted the bucket $name.")
+      implicit val ec: ExecutionContext = m.executionContext
 
-        case response if ignoreExists && response.status == 404 =>
-          logger.info(s"Bucket $name was not found when deleting. (Success)")
+      storage.request(Some(name), requestTimeout = requestTimeout).
+        delete().flatMap {
+          case Successful(_) =>
+            Future.successful(logger.info(
+              s"Successfully deleted the bucket $name."))
 
-        case response =>
-          throw new IllegalStateException(s"Could not delete the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}")
-      }
+          case response if ignoreExists && response.status == 404 =>
+            Future.successful(logger.info(
+              s"Bucket $name was not found when deleting. (Success)"))
+
+          case response =>
+            Future.failed[Unit](new IllegalStateException(s"Could not delete the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}"))
+        }
     }
 
     def apply()(implicit m: Materializer): Future[Unit] = {
-      implicit val ec = m.executionContext
+      implicit val ec: ExecutionContext = m.executionContext
+
       if (isRecursive) emptyBucket().flatMap(_ => delete())
       else delete()
     }
@@ -134,26 +142,27 @@ final class WSS3BucketRef private[s3] (
   def obj(objectName: String): WSS3ObjectRef =
     new WSS3ObjectRef(storage, name, objectName)
 
-  override val toString = s"WSS3BucketRef($name)"
+  override val toString: String = s"WSS3BucketRef($name)"
 
   def versioning: Option[BucketVersioning] = Some(this)
 
-  def isVersioned(implicit ec: ExecutionContext): Future[Boolean] = {
-    storage.request(Some(name), requestTimeout = storage.requestTimeout, query = Some("versioning")).get().map(response => {
-      val xml = scala.xml.XML.loadString(response.body)
-      val status: Option[scala.xml.Node] = xml \ "Status" match {
-        case Seq() => None
-        case Seq(s) => Some(s)
-        case _ => throw new java.io.IOException("Unexpected multiple VersioningConfiguration.Status children from S3")
+  def isVersioned(implicit ec: ExecutionContext): Future[Boolean] = for {
+    xml <- storage.request(
+      Some(name),
+      requestTimeout = storage.requestTimeout,
+      query = Some("versioning")).get().map { response =>
+        scala.xml.XML.loadString(response.body)
       }
 
-      status.exists(_.text match {
-        case "Enabled" => true
-        case "Suspended" => false
-        case _ => throw new java.io.IOException("Unexpected VersioningConfiguration.Status content from S3")
-      })
-    })
-  }
+    status <- (xml \ "Status") match {
+      case Seq(n) if (n.text == "Enabled") => Future.successful(true)
+      case Seq(n) if (n.text == "Suspended") => Future.successful(false)
+      case Seq() => Future.successful(false)
+
+      case s =>
+        Future.failed[Boolean](new IllegalStateException(s"Unexpected multiple VersioningConfiguration.Status children from S3: $s"))
+    }
+  } yield status
 
   def setVersioning(enabled: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
     import play.api.libs.ws.DefaultBodyWritables._
@@ -179,6 +188,7 @@ final class WSS3BucketRef private[s3] (
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+      @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
       def next(nextToken: String): Source[VersionedObject, NotUsed] =
         list(Some(nextToken))(next(_))
 

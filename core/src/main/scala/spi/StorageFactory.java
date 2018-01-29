@@ -9,10 +9,10 @@ public interface StorageFactory
 
     /**
      * Returns an `ObjectStorage` instance configured appropriately.
+     * Throws IllegalArgumentException if URI is not supported by the factory (e.g. the scheme of the URI is not supported)
      *
      * @param injector the injector to be used to resolve the dependencies
      * @param configurationUri the configuration URI
-     * @throws IllegalArgumentException if URI is not supported by the factory (e.g. the scheme of the URI is not supported)
      */
     public ObjectStorage apply(Injector injector, URI configurationUri)
         throws IllegalArgumentException;

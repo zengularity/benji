@@ -21,12 +21,12 @@ trait BenjiComponentsWithInjector extends BenjiComponents {
   def benjiInjector: com.zengularity.benji.spi.Injector
 
   final lazy val benji: ObjectStorage = {
-    @SuppressWarnings(Array("TryGet"))
+    @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
     def provider = BenjiModule.provider(parsedUri).get
 
     val p = provider
 
-    p.injector = benjiInjector
+    p.benjiInjector = benjiInjector
 
     p.get
   }

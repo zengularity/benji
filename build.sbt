@@ -11,7 +11,7 @@ lazy val core = project.in(file("core")).
     name := "benji-core",
     libraryDependencies ++= Seq(
       "commons-codec" % "commons-codec" % "1.10",
-      "org.slf4j" % "slf4j-api" % "1.7.21" % Provided
+      Dependencies.slf4jApi % Provided
     )
   )
 
@@ -29,6 +29,7 @@ lazy val s3 = project.in(file("s3")).
     name := "benji-s3",
     libraryDependencies ++= Seq(
       Dependencies.playWSXml,
+      Dependencies.playAhcWS,
       "org.scala-lang.modules" %% "scala-xml" % scalaXmlVer.value % Provided)
   ).dependsOn(core % "test->test;compile->compile")
 
@@ -37,6 +38,7 @@ lazy val google = project.in(file("google")).
     name := "benji-google",
     libraryDependencies ++= Seq(
       Dependencies.playWSJson,
+      Dependencies.playAhcWS,
       "com.google.apis" % "google-api-services-storage" % "v1-rev112-1.23.0")
   ).dependsOn(core % "test->test;compile->compile")
 
@@ -45,22 +47,22 @@ lazy val vfs = project.in(file("vfs")).
     name := "benji-vfs",
     libraryDependencies ++= Seq(
       "org.apache.commons" % "commons-vfs2" % "2.1",
+      Dependencies.slf4jApi,
       "commons-io" % "commons-io" % "2.4" % Test)
   ).dependsOn(core % "test->test;compile->compile")
 
 lazy val play = project.in(file("play")).
-  settings(Common.settings: _*).
-  settings(
+  settings(Common.settings ++ Seq(
     sources in (Compile, doc) := {
       val compiled = (sources in Compile).value
 
       if (scalaVersion.value startsWith "2.12") {
         compiled.filter { _.getName endsWith "NamedDatabase.java" }
       } else compiled
-  }).
-  settings(
+    },
     name := "benji-play",
     libraryDependencies ++= Seq(
+      Dependencies.playAhcWS,
       "com.typesafe.play" %% "play" % playVer % Provided,
       playTest),
     sources in (Compile, doc) := {
@@ -68,12 +70,21 @@ lazy val play = project.in(file("play")).
 
       compiled.filter { _.getName endsWith "NamedStorage.java" }
     }
-  ).dependsOn(core % "test->test;compile->compile", vfs % "test->compile")
+  )).dependsOn(core % "test->test;compile->compile", vfs % "test->compile")
 
 lazy val benji = (project in file(".")).
   enablePlugins(ScalaUnidocPlugin).
     settings(
-      libraryDependencies ++= wsStream,
+      libraryDependencies ++= wsStream ++ Seq(Dependencies.playAhcWS),
+      pomPostProcess := Common.transformPomDependencies { depSpec =>
+        // Filter in POM the dependencies only required to compile sample in doc
+
+        if ((depSpec \ "artifactId").text startsWith "benji-") {
+          Some(depSpec)
+        } else {
+          Option.empty
+        }
+      },
       excludeFilter in doc := "play",
       scalacOptions ++= Seq("-Ywarn-unused-import", "-unchecked"),
       scalacOptions in (Compile, doc) ++= List(

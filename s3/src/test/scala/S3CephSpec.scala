@@ -56,6 +56,8 @@ class S3CephSpec extends org.specs2.mutable.Specification with StorageCommonSpec
 
       "with a maximum of 2 parts instead of 3" in withMatEx { implicit ee: EE =>
         val obj = ceph.bucket(bucketName).obj("testfile3.txt")
+
+        @SuppressWarnings(Array("org.wartremover.warts.Var"))
         @volatile var partCount = 0
 
         // part = max part (max size up to the default threshold)

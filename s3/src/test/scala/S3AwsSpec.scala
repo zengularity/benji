@@ -9,7 +9,7 @@ import org.specs2.mutable.Specification
 
 import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
-class S3AwsSpec extends Specification with AwsTests {
+final class S3AwsSpec extends Specification with AwsTests {
   "S3 Amazon" title
 
   sequential

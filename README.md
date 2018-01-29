@@ -6,7 +6,7 @@ This library is a Scala framework for Object Storage (e.g. S3/Amazon, S3/CEPH, G
 
 The project is using [SBT](http://www.scala-sbt.org/).
 
-    sbt publish-local
+    sbt publishLocal
 
 ## Usage
 

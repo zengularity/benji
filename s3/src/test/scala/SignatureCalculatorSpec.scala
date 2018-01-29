@@ -12,6 +12,7 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
 
   "Canolicalized signature url" should {
     "keep sub-resource parameter (e.g. ?acl)" in {
+      @SuppressWarnings(Array("org.wartremover.warts.Null"))
       val req = new RequestBuilder("http://localhost/").
         addQueryParam("acl", null).build()
 
@@ -32,7 +33,7 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
     val path = "/johnsmith/photos/puppy.jpg"
 
     def resForTest(style: RequestStyle, url: String, host: String, path: String) = s"be '$path' for $url with $host" in {
-      calculator.canonicalizedResourceFor(style, url, host) must_== path
+      calculator.canonicalizeResource(style, url, host) must_== path
     }
     def vhResTest(url: String, host: String, path: String) =
       resForTest(VirtualHostRequest, url, host, path)
@@ -64,21 +65,21 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
       awsHost, "/johnsmith/?acl")
 
     "required to list objects within a bucket with /" in {
-      calculator.canonicalizedResourceFor(
+      calculator.canonicalizeResource(
         VirtualHostRequest,
         "https://bucket-name.s3.amazonaws.com/",
         host = "s3.amazonaws.com") must_== "/bucket-name/"
     }
 
     "required to list objects within a bucket" in {
-      calculator.canonicalizedResourceFor(
+      calculator.canonicalizeResource(
         VirtualHostRequest,
         "https://bucket-name.s3.amazonaws.com",
         host = "s3.amazonaws.com") must_== "/bucket-name/"
     }
 
     "required to do multi-part object uploads" in {
-      calculator.canonicalizedResourceFor(
+      calculator.canonicalizeResource(
         VirtualHostRequest,
         "https://bucket-name.s3.amazonaws.com/object?uploads",
         host = "s3.amazonaws.com") must_== "/bucket-name/object?uploads"
@@ -86,19 +87,7 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
   }
 
   "Calculate the canonicalized AMZ headers element" should {
-    "SignatureCalculator canonicalizedAmzHeadersFor" in {
-      calculator.canonicalizedAmzHeadersFor(Map(
-        "x-amz-acl" -> Seq("public-read"),
-        "X-Amz-Meta-ReviewedBy" -> Seq(
-          "joe@johnsmith.net", "jane@johnsmith.net"),
-        "X-Amz-Meta-FileChecksum" -> Seq("0x02661779"),
-        "X-Amz-Meta-ChecksumAlgorithm" -> Seq("crc32"))) must_== "x-amz-acl:public-read\n" +
-        "x-amz-meta-checksumalgorithm:crc32\n" +
-        "x-amz-meta-filechecksum:0x02661779\n" +
-        "x-amz-meta-reviewedby:joe@johnsmith.net,jane@johnsmith.net\n"
-    }
-
-    "SignatureCalculator canonicalizedAmzHeadersFor with header map" in {
+    "SignatureCalculator canonicalizeHeaders" in {
       val headers = new DefaultHttpHeaders()
 
       headers.add("x-amz-acl", "public-read")
@@ -107,7 +96,24 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
       headers.add("X-Amz-Meta-FileChecksum", "0x02661779")
       headers.add("X-Amz-Meta-ChecksumAlgorithm", "crc32")
 
-      calculator.canonicalizedAmzHeadersFor(headers).
+      calculator.canonicalizeHeaders(headers) must_== (
+        "x-amz-acl:public-read\n" +
+        "x-amz-meta-checksumalgorithm:crc32\n" +
+        "x-amz-meta-filechecksum:0x02661779\n" +
+        "x-amz-meta-reviewedby:joe@johnsmith.net,jane@johnsmith.net\n")
+
+    }
+
+    "SignatureCalculator canonicalizeHeaders with header map" in {
+      val headers = new DefaultHttpHeaders()
+
+      headers.add("x-amz-acl", "public-read")
+      headers.add("X-Amz-Meta-ReviewedBy", "joe@johnsmith.net")
+      headers.add("X-Amz-Meta-ReviewedBy", "jane@johnsmith.net")
+      headers.add("X-Amz-Meta-FileChecksum", "0x02661779")
+      headers.add("X-Amz-Meta-ChecksumAlgorithm", "crc32")
+
+      calculator.canonicalizeHeaders(headers).
         aka("canonicalized") must_== "x-amz-acl:public-read\n" +
         "x-amz-meta-checksumalgorithm:crc32\n" +
         "x-amz-meta-filechecksum:0x02661779\n" +
@@ -262,29 +268,30 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
   "Calculated authentication signature" should {
     val signature1 = "5m+HAmc5JsrgyDelh9+a2dNrzN8="
     s"be '$signature1' for request #1" in {
-      calculator.calculateFor(
+      calculator.computeSignature(
         "GET\n\n\n\n" +
           "x-amz-date:Thu, 17 Nov 2005 18:49:58 GMT\n" +
           "x-amz-magic:abracadabra\n" +
-          "/quotes/nelson").get aka "signature" must_== signature1
+          "/quotes/nelson") aka "signature" must beSuccessfulTry(signature1)
     }
 
     val signature2 = "jZNOcbfWmD/A/f3hSvVzXZjM2HU="
     s"be '$signature2' for request #2" in {
-      calculator.calculateFor(
+      calculator.computeSignature(
         "PUT\n" +
           "c8fdb181845a4ca6b8fec737b3581d76\n" +
           "text/html\n" +
           "Thu, 17 Nov 2005 18:49:58 GMT\n" +
           "x-amz-magic:abracadabra\n" +
           "x-amz-meta-author:foo@bar.com\n" +
-          "/quotes/nelson").get aka "signature" must_== signature2
+          "/quotes/nelson") aka "signature" must beSuccessfulTry(signature2)
     }
 
     val signature3 = "vjbyPxybdZaNmGa+yT272YEAiv4="
     s"be '$signature3' for request #3" in {
-      calculator.calculateFor(
-        "GET\n\n\n1141889120\n/quotes/nelson").get aka "signature" must_== signature3
+      calculator.computeSignature(
+        "GET\n\n\n1141889120\n/quotes/nelson").
+        aka("signature") must beSuccessfulTry(signature3)
     }
   }
 

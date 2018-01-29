@@ -38,6 +38,8 @@ class VFSStorageSpec(implicit ee: ExecutionEnv) extends org.specs2.mutable.Speci
     val partCount = 3
     s"Write file in $bucketName bucket using $partCount parts" in assertAllStagesStopped {
       val filetest = vfs.bucket(bucketName).obj("testfile.txt")
+
+      @SuppressWarnings(Array("org.wartremover.warts.Var"))
       var b = 0.toByte
       def nextByte = {
         b = (b + 1).toByte

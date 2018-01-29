@@ -4,17 +4,21 @@ import scala.collection.immutable.Set
 
 final class Registry private[spi] () {
   lazy val factories: Map[String, Class[_ <: StorageFactory]] = {
-    val builder = Map.newBuilder[String, Class[_ <: StorageFactory]]
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
     val services = loader.iterator
 
-    while (services.hasNext) {
-      val s = services.next()
+    @annotation.tailrec
+    def append(m: Map[String, Class[_ <: StorageFactory]]): Map[String, Class[_ <: StorageFactory]] = {
+      if (!services.hasNext) {
+        m
+      } else {
+        val s = services.next()
 
-      builder += (s.scheme -> s.factoryClass)
+        append(m + (s.scheme -> s.factoryClass))
+      }
     }
 
-    builder.result()
+    append(Map.empty[String, Class[_ <: StorageFactory]])
   }
 
   /** Returns the class of the factory corresponding to the specified scheme. */

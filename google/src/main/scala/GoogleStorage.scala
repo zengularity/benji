@@ -22,13 +22,13 @@ class GoogleStorage(
   val disableGZip: Boolean) extends ObjectStorage { self =>
   import scala.collection.JavaConverters._
 
-  def withRequestTimeout(timeout: Long) =
+  def withRequestTimeout(timeout: Long): GoogleStorage =
     new GoogleStorage(transport, Some(timeout), disableGZip)
 
   /**
    * Returns a new instance with GZip compression disabled.
    */
-  def withDisabledGZip(disabled: Boolean) =
+  def withDisabledGZip(disabled: Boolean): GoogleStorage =
     new GoogleStorage(transport, requestTimeout, disabled)
 
   def bucket(name: String) = new GoogleBucketRef(this, name)

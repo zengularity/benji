@@ -60,6 +60,7 @@ class GoogleFactorySpec extends org.specs2.mutable.Specification {
   object WSInjector extends Injector {
     private val WS = classOf[StandaloneAhcWSClient]
 
+    @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
     def instanceOf[T](cls: Class[T]): T = cls match {
       case WS => StandaloneAhcWSClient().asInstanceOf[T]
       case _ => ???

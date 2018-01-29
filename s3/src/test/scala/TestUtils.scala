@@ -6,7 +6,6 @@ import scala.concurrent.{ Await, ExecutionContext, Future }
 import akka.stream.Materializer
 import akka.stream.contrib.TestKit
 
-import com.zengularity.benji.ws.{ WS => TestWS }
 import com.zengularity.benji.s3.S3
 
 object TestUtils {
@@ -14,7 +13,9 @@ object TestUtils {
 
   val logger = org.slf4j.LoggerFactory.getLogger("tests")
 
+  @SuppressWarnings(Array("org.wartremover.warts.Var"))
   @volatile private var inited = false
+
   lazy val config = {
     inited = true
     ConfigFactory.load("tests.conf")
@@ -24,7 +25,7 @@ object TestUtils {
   lazy val materializer = akka.stream.ActorMaterializer.create(system)
 
   implicit lazy val WS: play.api.libs.ws.ahc.StandaloneAhcWSClient =
-    TestWS.client()(materializer)
+    S3.client()(materializer)
 
   lazy val (awsAccessKey, awsSecretKey, awsHost, awsProtocol) = (
     config.getString("aws.s3.accessKey"),
@@ -43,8 +44,12 @@ object TestUtils {
   lazy val awsVirtualHost =
     S3.virtualHost(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
 
-  lazy val virtualHostStyleURL = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost"
-  lazy val awsFromVirtualHostStyleURL = S3(virtualHostStyleURL).get
+  val virtualHostStyleUrl = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost"
+
+  @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
+  lazy val awsFromVirtualHostStyleURL = S3(virtualHostStyleUrl).get
+
+  @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   lazy val awsFromPathStyleURL = S3(s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=path").get
 
   lazy val ceph = S3(cephAccessKey, cephSecretKey, cephProtocol, cephHost)

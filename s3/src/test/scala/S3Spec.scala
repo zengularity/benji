@@ -25,6 +25,7 @@ trait S3Spec { _: org.specs2.mutable.Specification =>
       }
 
       val ls = {
+        @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
         def unsafe = bucket.objects.withBatchSize(6).
           asInstanceOf[bucket.ListRequest with StructType]
 
@@ -34,7 +35,10 @@ trait S3Spec { _: org.specs2.mutable.Specification =>
       def count[T] =
         akka.stream.scaladsl.Sink.fold[Int, T](0) { (i, _) => i + 1 }
 
+      @SuppressWarnings(Array("org.wartremover.warts.Var"))
       @volatile var tok1 = Option.empty[String]
+
+      @SuppressWarnings(Array("org.wartremover.warts.Var"))
       @volatile var tok2 = Option.empty[String]
 
       ls.list(Option.empty[String])({ t =>

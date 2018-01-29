@@ -72,6 +72,7 @@ final class DummyScheme extends StorageScheme {
 }
 
 final class DummyFactory extends StorageFactory {
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   def apply(injector: Injector, uri: URI): ObjectStorage = {
     if (uri.getScheme == "dummy") DummyStorage
     else throw new IllegalArgumentException("foo")

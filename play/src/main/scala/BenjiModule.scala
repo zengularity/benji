@@ -18,13 +18,16 @@ import com.zengularity.benji.spi.{ Injector, StorageFactory }
  */
 @Singleton
 final class BenjiModule extends Module {
+  @SuppressWarnings(Array(
+    "org.wartremover.warts.Any",
+    "org.wartremover.warts.Nothing"))
   def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = bind[Injector].toProvider[PlayInjectorProvider] +: apiBindings(
     BenjiModule.parseConfiguration(configuration)).toSeq
 
   private def apiBindings(info: Set[(String, URI)]): Set[Binding[ObjectStorage]] = info.flatMap {
     case (name, uri) =>
       val provider: Provider[ObjectStorage] = {
-        @SuppressWarnings(Array("TryGet"))
+        @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
         def unsafe = BenjiModule.provider(uri).get
 
         unsafe
@@ -49,6 +52,9 @@ private[benji] object BenjiModule {
     BindingKey(classOf[ObjectStorage]).qualifiedWith(new NamedStorageImpl(name))
 
   object ValidUri {
+    @SuppressWarnings(Array(
+      "org.wartremover.warts.AsInstanceOf",
+      "org.wartremover.warts.IsInstanceOf"))
     def unapply(value: com.typesafe.config.ConfigValue): Option[URI] =
       if (!value.unwrapped.isInstanceOf[String]) None
       else {
@@ -76,7 +82,7 @@ private[benji] object BenjiModule {
     case Some(subConf) => {
       val parsed = Set.newBuilder[(String, URI)]
 
-      subConf.entrySet.iterator.foreach {
+      subConf.entrySet.iterator.foreach[Unit] {
         case ("uri", ValidUri(uri)) =>
           parsed += "default" -> uri
 
@@ -115,7 +121,7 @@ private[benji] object BenjiModule {
     registry.factoryClass(configUri.getScheme) match {
       case Some(cls) => Try(new BenjiProvider(cls, configUri))
 
-      case _ => Failure(new IllegalArgumentException(
+      case _ => Failure[BenjiProvider](new IllegalArgumentException(
         s"Unsupported storage URI: $configUri"))
     }
 }
@@ -124,16 +130,22 @@ private[benji] final class BenjiProvider(
   factoryClass: Class[_ <: StorageFactory],
   uri: URI) extends Provider[ObjectStorage] {
 
-  @Inject var injector: Injector = _
+  @SuppressWarnings(Array(
+    "org.wartremover.warts.Var",
+    "org.wartremover.warts.Null"))
+  @Inject var benjiInjector: Injector = _
 
   lazy val get: ObjectStorage = {
-    val factory = injector.instanceOf(factoryClass)
+    val factory = benjiInjector.instanceOf(factoryClass)
 
-    factory(injector, uri)
+    factory(benjiInjector, uri)
   }
 }
 
 private[benji] final class PlayInjectorProvider extends Provider[Injector] {
+  @SuppressWarnings(Array(
+    "org.wartremover.warts.Null",
+    "org.wartremover.warts.Var"))
   @Inject var injector: play.api.inject.Injector = _
 
   lazy val get: Injector = new PlayInjector(injector)

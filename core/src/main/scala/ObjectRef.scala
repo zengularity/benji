@@ -104,13 +104,12 @@ trait ObjectRef { ref =>
    * @param target $targetParam
    * @param preventOverwrite $preventOverwriteParam (default: true)
    */
-  def moveTo(target: ObjectRef, preventOverwrite: Boolean = true)(implicit ec: ExecutionContext): Future[Unit] = target match {
+  final def moveTo(target: ObjectRef, preventOverwrite: Boolean = true)(implicit ec: ExecutionContext): Future[Unit] = target match {
     case ObjectRef(targetBucketName, targetObjectName) =>
       moveTo(targetBucketName, targetObjectName, preventOverwrite)
 
-    case _ =>
-      throw new IllegalArgumentException(
-        s"Target object you specified [$target] is unknown.")
+    case _ => Future.failed[Unit](new IllegalArgumentException(
+      s"Target object you specified [$target] is unknown."))
   }
 
   /**
@@ -131,9 +130,8 @@ trait ObjectRef { ref =>
     case ObjectRef(targetBucketName, targetObjectName) =>
       copyTo(targetBucketName, targetObjectName)
 
-    case _ =>
-      throw new IllegalArgumentException(
-        s"Target object you specified [$target] is unknown.")
+    case _ => Future.failed[Unit](new IllegalArgumentException(
+      s"Target object you specified [$target] is unknown."))
   }
 
   /**
@@ -164,7 +162,7 @@ trait ObjectRef { ref =>
   trait PutRequest[E, A] {
 
     @deprecated("Use `apply` with metadata", "1.3.1")
-    final def apply(z: => A, threshold: Bytes, size: Option[Long])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = apply(z, threshold, size, Map.empty)(f)
+    final def apply(z: => A, threshold: Bytes, size: Option[Long])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = apply(z, threshold, size, Map.empty[String, String])(f)
 
     /**
      * Applies this request to the specified object.
@@ -173,7 +171,7 @@ trait ObjectRef { ref =>
      * @param size $putSizeParam
      * @param metadata the object metadata
      */
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]]
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]]
   }
 
   /**

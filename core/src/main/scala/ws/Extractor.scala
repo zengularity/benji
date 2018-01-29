@@ -4,7 +4,7 @@ import java.util.Base64
 
 import akka.util.ByteString
 
-import play.api.libs.ws.ahc.StandaloneAhcWSResponse
+import play.api.libs.ws.StandaloneWSResponse
 
 /**
  * Extractor to match on successful HTTP response,
@@ -22,7 +22,7 @@ import play.api.libs.ws.ahc.StandaloneAhcWSResponse
 object Successful {
   // The S3 REST API only ever returns OK or NO_CONTENT ...
   // which is why I'll only check these two.
-  def unapply(response: StandaloneAhcWSResponse): Option[StandaloneAhcWSResponse] = {
+  def unapply(response: StandaloneWSResponse): Option[StandaloneWSResponse] = {
     if (response.status == 200 ||
       response.status == 204 ||
       response.status == 206) {
@@ -44,7 +44,7 @@ object Successful {
  * }}}
  */
 object Ok {
-  def unapply(response: StandaloneAhcWSResponse): Option[StandaloneAhcWSResponse] =
+  def unapply(response: StandaloneWSResponse): Option[StandaloneWSResponse] =
     if (response.status == 200) Some(response) else None
 }
 

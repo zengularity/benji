@@ -10,10 +10,9 @@ import akka.util.ByteString
 
 import play.api.libs.json.{ JsObject, JsString, Json }
 
-import play.api.libs.ws.BodyWritable
+import play.api.libs.ws.{ BodyWritable, StandaloneWSResponse }
 import play.api.libs.ws.DefaultBodyWritables._
 import play.api.libs.ws.JsonBodyWritables._
-import play.api.libs.ws.ahc.StandaloneAhcWSResponse
 
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.services.storage.model.StorageObject
@@ -46,13 +45,13 @@ final class GoogleObjectRef private[google] (
   }.flatMap {
     Json.parse(_) match {
       case JsObject(fields) => Future(fields.toMap.flatMap {
-        case (key, JsString(value)) => Some(key -> Seq(value))
+        case (key, JsString(value)) => Seq(key -> Seq(value))
 
         case ("metadata", JsObject(metadata)) => metadata.collect {
           case (key, JsString(value)) => s"metadata.${key}" -> Seq(value)
         }
 
-        case _ => Option.empty[(String, Seq[String])] // unsupported
+        case _ => Seq.empty[(String, Seq[String])] // unsupported
       })
 
       case js => Future.failed[Map[String, Seq[String]]](new IllegalStateException(s"Could not get the metadata of the object $name in the bucket $bucket. JSON response: ${Json stringify js}"))
@@ -70,8 +69,11 @@ final class GoogleObjectRef private[google] (
 
         req.setRequestHeaders {
           val headers = new com.google.api.client.http.HttpHeaders()
-          headers.setRange(range.
-            map(r => s"bytes=${r.start}-${r.end}").getOrElse(null))
+
+          range.foreach { r =>
+            headers.setRange(s"bytes=${r.start}-${r.end}")
+          }
+
           headers
         }
 
@@ -94,7 +96,7 @@ final class GoogleObjectRef private[google] (
   final class RESTPutRequest[E, A] private[google] ()
     extends ref.PutRequest[E, A] {
 
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty)(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
       def flowChunks = Streams.chunker[E].via(Streams.consumeAtMost(threshold))
 
       flowChunks.prefixAndTail(1).flatMapMerge[A, NotUsed](1, {
@@ -119,11 +121,18 @@ final class GoogleObjectRef private[google] (
 
   private case class GoogleDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
     def apply()(implicit ec: ExecutionContext): Future[Unit] = {
-      val futureResult = Future { gt.client.objects().delete(bucket, name).execute(); () }
+      val futureResult = Future {
+        gt.client.objects().delete(bucket, name).execute(); ()
+      }
+
       if (ignoreExists) {
         futureResult.recover { case HttpResponse(404, _) => () }
       } else {
-        futureResult.recoverWith { case HttpResponse(404, _) => throw new IllegalArgumentException(s"Could not delete $bucket/$name: doesn't exist") }
+        futureResult.recoverWith {
+          case HttpResponse(404, _) =>
+            Future.failed[Unit](new IllegalArgumentException(
+              s"Could not delete $bucket/$name: doesn't exist"))
+        }
       }
     }
 
@@ -146,18 +155,22 @@ final class GoogleObjectRef private[google] (
         }
       }
       _ <- Future {
-        gt.client.objects().copy(bucket, name,
+        @SuppressWarnings(Array("org.wartremover.warts.Null"))
+        @inline def unsafe = gt.client.objects().copy(bucket, name,
           targetBucketName, targetObjectName, null).execute()
 
-      }.recoverWith {
-        case reason =>
-          targetObj.delete.ignoreIfNotExists().filter(_ => false).
-            recoverWith { case _ => Future.failed[Unit](reason) }
+        unsafe
+      }.map(_ => {}).recoverWith {
+        case reason => targetObj.delete.ignoreIfNotExists().filter(_ => false).
+          recoverWith {
+            case _ => Future.failed[Unit](reason)
+          }
       }
       _ <- delete() /* the previous reference */
     } yield ()
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Null"))
   def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] = Future {
     gt.client.objects().
       copy(bucket, name, targetBucketName, targetObjectName, null).execute()
@@ -311,8 +324,9 @@ final class GoogleObjectRef private[google] (
     implicit def ec: ExecutionContext = m.executionContext
 
     gt.withWSRequest2(url) { req =>
+      val limit = globalSz.fold("*")(_.toString)
       val reqRange =
-        s"bytes $offset-${offset + bytes.size - 1}/${globalSz getOrElse "*"}"
+        s"bytes $offset-${offset + bytes.size - 1}/${limit}"
 
       val uploadReq = req.addHttpHeaders(
         "Content-Length" -> bytes.size.toString,
@@ -333,7 +347,7 @@ final class GoogleObjectRef private[google] (
           partResponse(response, offset, bytes.size, url)
 
         case response =>
-          throw new IllegalStateException(s"Could not upload a part for [$bucket/$name, $url, range: $reqRange]. Response: ${response.status} - ${response.statusText}; ${response.body}")
+          Future.failed[String](new IllegalStateException(s"Could not upload a part for [$bucket/$name, $url, range: $reqRange]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
       }
     }
   }
@@ -345,7 +359,7 @@ final class GoogleObjectRef private[google] (
    * @param url the request URL of the given response
    * @return the uploaded range if successful
    */
-  @inline private def partResponse(response: StandaloneAhcWSResponse, offset: Long, sz: Int, url: String): Future[String] = response.header("Range") match {
+  @inline private def partResponse(response: StandaloneWSResponse, offset: Long, sz: Int, url: String): Future[String] = response.header("Range") match {
     case Some(range) => Future.successful {
       logger.trace(s"Uploaded part @$offset with $sz bytes: $url")
       range
@@ -363,10 +377,10 @@ object GoogleObjectRef {
   /**
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#uploading_the_file_in_chunks
    */
-  val defaultThreshold = Bytes.kilobytes(256)
+  val defaultThreshold: Bytes = Bytes.kilobytes(256)
 
   private[google] object ResumeIncomplete {
-    def unapply(response: StandaloneAhcWSResponse): Option[StandaloneAhcWSResponse] =
+    def unapply(response: StandaloneWSResponse): Option[StandaloneWSResponse] =
       if (response.status == 308) Some(response) else None
   }
 }
