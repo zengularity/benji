@@ -18,7 +18,7 @@ trait BenjiComponents {
 
 trait BenjiComponentsWithInjector extends BenjiComponents {
   /** The injector used to resolve the storage dependencies */
-  def injector: play.api.inject.Injector
+  def benjiInjector: com.zengularity.benji.spi.Injector
 
   final lazy val benji: ObjectStorage = {
     @SuppressWarnings(Array("TryGet"))
@@ -26,7 +26,7 @@ trait BenjiComponentsWithInjector extends BenjiComponents {
 
     val p = provider
 
-    p.injector = injector
+    p.injector = benjiInjector
 
     p.get
   }

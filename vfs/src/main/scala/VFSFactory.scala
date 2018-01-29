@@ -4,11 +4,12 @@ import java.net.URI
 
 import com.zengularity.benji.ObjectStorage
 
-import com.zengularity.benji.spi.{ StorageFactory, StorageScheme }
+import com.zengularity.benji.spi.{ Injector, StorageFactory, StorageScheme }
 
 final class VFSFactory extends StorageFactory {
   @SuppressWarnings(Array("TryGet"))
-  def apply(uri: URI): ObjectStorage = VFSStorage(VFSTransport[URI](uri).get)
+  def apply(injector: Injector, uri: URI): ObjectStorage =
+    VFSStorage(VFSTransport[URI](uri).get)
 }
 
 final class VFSScheme extends StorageScheme {

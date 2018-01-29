@@ -3,6 +3,8 @@ package play.modules.benji
 import java.net.URI
 
 import play.api.{ ApplicationLoader, BuiltInComponentsFromContext }
+import play.api.inject.{ Injector, SimpleInjector }
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 /**
  * Can be used for a custom application loader.
@@ -32,6 +34,19 @@ abstract class BenjiFromContext(
    * Initializes Benji components from context using the default configuration.
    */
   def this(context: ApplicationLoader.Context) = this(context, "default")
+
+  /**
+   * Default implements just returns the initial injector.
+   * Overrides this one to be able to pimp the injector.
+   */
+  protected def configureBenji(initialInjector: Injector): Injector = {
+    val i = new SimpleInjector(initialInjector)
+
+    i + StandaloneAhcWSClient()
+  }
+
+  final def benjiInjector: com.zengularity.benji.spi.Injector =
+    new PlayInjector(configureBenji(injector))
 
   private lazy val parsed: Option[URI] =
     BenjiModule.parseConfiguration(configuration).collectFirst {
