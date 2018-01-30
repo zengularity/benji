@@ -112,6 +112,7 @@ def sample2a(implicit m: Materializer): GoogleStorage = {
 }
 
 // Using configuration URI
+@SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
 def sample2b(implicit m: Materializer): GoogleStorage = {
   implicit val ws: StandaloneAhcWSClient = StandaloneAhcWSClient()
 
