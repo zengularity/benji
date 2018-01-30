@@ -1,7 +1,5 @@
 package com.zengularity.benji.s3
 
-import java.net.URLEncoder
-
 import scala.xml.Elem
 import scala.collection.immutable.Iterable
 import scala.concurrent.{ ExecutionContext, Future }
@@ -28,6 +26,7 @@ import com.zengularity.benji.{
   ObjectVersioning,
   VersionedObject
 }
+import com.zengularity.benji.s3.QueryParameters._
 import com.zengularity.benji.ws.{ ContentMD5, Successful }
 
 final class WSS3ObjectRef private[s3] (
@@ -404,13 +403,11 @@ final class WSS3ObjectRef private[s3] (
         versions ++ markers
       }
 
-      val prefix = "versions&prefix=" + URLEncoder.encode(ref.name, "UTF-8")
       val query: Option[String] => Option[String] = { token =>
-        maybeMax.map(max => s"$prefix&max-keys=$max${token.map(tok => s"&marker=${URLEncoder.encode(tok, "UTF-8")}").getOrElse("")}").orElse(Some(prefix))
+        buildQuery(versionParam, prefixParam(ref.name), maxParam(maybeMax), tokenParam(token))
       }
 
-      WSS3BucketRef.list[VersionedObject](ref.storage, ref.bucket, token)(
-        query, parse, _.name, andThen)
+      WSS3BucketRef.list[VersionedObject](ref.storage, ref.bucket, token)(query, parse, _.name, andThen)
     }
   }
 

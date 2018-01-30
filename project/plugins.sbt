@@ -17,7 +17,7 @@ addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.2.1")
 
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.1.18")
 
-addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.6")
+addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.5")
 
 // For the the highlight extractor
 libraryDependencies ++= Seq(

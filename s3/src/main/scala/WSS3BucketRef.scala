@@ -1,7 +1,5 @@
 package com.zengularity.benji.s3
 
-import java.net.URLEncoder
-
 import scala.xml.Elem
 import scala.collection.immutable.Iterable
 import scala.concurrent.{ ExecutionContext, Future }
@@ -18,7 +16,7 @@ import com.zengularity.benji.{
   BucketVersioning,
   VersionedObject
 }
-
+import com.zengularity.benji.s3.QueryParameters._
 import com.zengularity.benji.ws.Successful
 
 final class WSS3BucketRef private[s3] (
@@ -48,7 +46,7 @@ final class WSS3BucketRef private[s3] (
       }
 
       val query: Option[String] => Option[String] = { token =>
-        maybeMax.map(max => s"max-keys=$max${token.map(tok => s"&marker=${URLEncoder.encode(tok, "UTF-8")}").getOrElse("")}")
+        buildQuery(maxParam(maybeMax), tokenParam(token))
       }
 
       WSS3BucketRef.list[Object](ref.storage, ref.name, token)(
@@ -204,12 +202,10 @@ final class WSS3BucketRef private[s3] (
       }
 
       val query: Option[String] => Option[String] = { token =>
-        maybeMax.map(max => s"versions&max-keys=$max${token.map(token => s"&marker=${URLEncoder.encode(token, "UTF-8")}").getOrElse("")}").
-          orElse(Some("versions"))
+        buildQuery(versionParam, maxParam(maybeMax), tokenParam(token))
       }
 
-      WSS3BucketRef.list[VersionedObject](
-        ref.storage, ref.name, token)(query, parse, _.name, andThen)
+      WSS3BucketRef.list[VersionedObject](ref.storage, ref.name, token)(query, parse, _.name, andThen)
     }
 
   }
