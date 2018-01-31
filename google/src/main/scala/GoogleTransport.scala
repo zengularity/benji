@@ -6,8 +6,6 @@ import scala.collection.JavaConverters._
 
 import java.net.URI
 
-import akka.stream.Materializer
-
 import play.api.libs.ws.StandaloneWSRequest
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
@@ -83,16 +81,14 @@ final class GoogleTransport(
    * @param service the service name (e.g. `upload`)
    * @param path a path (after the base REST URL)
    */
-  private[google] def withWSRequest1[T](service: String, path: String)(f: StandaloneWSRequest => Future[T])(implicit m: Materializer): Future[T] = withWSRequest2(s"$baseRestUrl/$service/$servicePath$path") { req =>
+  private[google] def withWSRequest1[T](service: String, path: String)(f: StandaloneWSRequest => Future[T])(implicit ec: ExecutionContext): Future[T] = withWSRequest2(s"$baseRestUrl$service/$servicePath$path") { req =>
     f(req.addHttpHeaders("Content-Type" -> "application/json; charset=UTF-8"))
   }
 
   /**
    * @param url the full URL to be requested
    */
-  private[google] def withWSRequest2[T](url: String)(f: StandaloneWSRequest => Future[T])(implicit m: Materializer): Future[T] = {
-    implicit def ec: ExecutionContext = m.executionContext
-
+  private[google] def withWSRequest2[T](url: String)(f: StandaloneWSRequest => Future[T])(implicit ec: ExecutionContext): Future[T] = {
     accessToken.flatMap { token =>
       logger.trace(s"Prepare WS request: $url")
 

@@ -20,14 +20,14 @@ case class Object(name: String, size: Bytes, lastModifiedAt: LocalDateTime)
  * @param size the binary size of the object or 0 when it's a delete marker
  * @param versionCreatedAt the time when this version was created
  * @param versionId the id of the version
- * @param isDeleteMarker indicates whether this version is a delete marker
+ * @param isLatest indicates whether this version is the current version of the object or not.
  */
 case class VersionedObject(
   name: String,
   size: Bytes,
   versionCreatedAt: LocalDateTime,
   versionId: String,
-  isDeleteMarker: Boolean)
+  isLatest: Boolean)
 
 /**
  * An explicit range of bytes.

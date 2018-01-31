@@ -1,5 +1,7 @@
 package com.zengularity.benji.google
 
+import java.time.{ Instant, LocalDateTime, ZoneOffset }
+
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -17,14 +19,15 @@ import play.api.libs.ws.JsonBodyWritables._
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.services.storage.model.StorageObject
 
-import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams, ObjectVersioning }
+import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams, ObjectVersioning, VersionedObjectRef, VersionedObject }
 import com.zengularity.benji.ws.{ ContentMD5, Ok, Successful }
 
 final class GoogleObjectRef private[google] (
   val storage: GoogleStorage,
   val bucket: String,
-  val name: String) extends ObjectRef { ref =>
+  val name: String) extends ObjectRef with ObjectVersioning { ref =>
   import GoogleObjectRef.ResumeIncomplete
+  import scala.collection.JavaConverters.collectionAsScalaIterable
 
   @inline def defaultThreshold = GoogleObjectRef.defaultThreshold
 
@@ -279,7 +282,7 @@ final class GoogleObjectRef private[google] (
 
     Source.fromFuture(gt
       .withWSRequest1(
-        "upload", s"/b/${UriUtils.encodePathSegment(bucket, "UTF-8")}/o") { req =>
+        "/upload", s"/b/${UriUtils.encodePathSegment(bucket, "UTF-8")}/o") { req =>
           contentType.fold(req) { typ =>
             req.addHttpHeaders(
               "Content-Type" -> "application/json",
@@ -370,7 +373,50 @@ final class GoogleObjectRef private[google] (
 
   override lazy val toString = s"GoogleObjectRef($bucket, $name)"
 
-  def versioning: Option[ObjectVersioning] = None
+  def versioning: Option[ObjectVersioning] = Some(this)
+
+  private case class ObjectsVersions(maybeMax: Option[Long]) extends ref.VersionedListRequest {
+    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
+
+    @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
+    private def apply(nextToken: Option[String])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+      val prepared = gt.client.objects().list(bucket).setVersions(true)
+      val maxed = maybeMax.fold(prepared) { prepared.setMaxResults(_) }
+
+      val request =
+        nextToken.fold(maxed.execute()) { maxed.setPageToken(_).execute() }
+
+      val currentPage = Option(request.getItems) match {
+        case Some(items) =>
+          Source.fromIterator[VersionedObject] { () =>
+            val collection = collectionAsScalaIterable(items).filter(_.getName == name)
+            collection.iterator.map { obj: StorageObject =>
+              VersionedObject(
+                obj.getName,
+                Bytes(obj.getSize.longValue),
+                LocalDateTime.ofInstant(Instant.ofEpochMilli(obj.getUpdated.getValue), ZoneOffset.UTC),
+                obj.getGeneration.toString,
+                obj.getTimeDeleted == null)
+            }
+          }
+
+        case _ => Source.empty[VersionedObject]
+      }
+
+      Option(request.getNextPageToken) match {
+        case nextPageToken @ Some(_) =>
+          currentPage ++ apply(nextPageToken)
+
+        case _ => currentPage
+      }
+    }
+
+    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = apply(None)
+  }
+
+  def versions: VersionedListRequest = ObjectsVersions(None)
+
+  def version(versionId: String): VersionedObjectRef = GoogleVersionedObjectRef(storage, bucket, name, versionId)
 }
 
 object GoogleObjectRef {

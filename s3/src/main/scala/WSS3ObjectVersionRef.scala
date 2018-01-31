@@ -10,7 +10,7 @@ import akka.stream.scaladsl.Source
 import com.zengularity.benji.{ VersionedObjectRef, ByteRange }
 import com.zengularity.benji.ws.Successful
 
-final case class WSS3ObjectVersionRef(
+final case class WSS3VersionedObjectRef(
   storage: WSS3,
   bucket: String,
   name: String,

@@ -108,7 +108,8 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
                 } and {
                   firstVer.versionId must not(beEmpty)
                 } and {
-                  firstVersion = firstVer
+                  // future usage of firstVersion will be when firstVersion is no more the latest
+                  firstVersion = firstVer.copy(isLatest = false)
                   ok
                 }
               }.await(1, 10.seconds)
@@ -148,14 +149,33 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
         }
       }
 
+      "to keep all object versions when versioning is disabled" in {
+        bucket.versioning must beSome[BucketVersioning].which { vbucket =>
+          @SuppressWarnings(Array("org.wartremover.warts.Null", "org.wartremover.warts.Var"))
+          var allVersions: Set[VersionedObject] = null
+
+          {
+            createObject(bucket, objectName, "hello again !") must beTrue.await(1, 10.seconds)
+          } and {
+            val req = vbucket.objectsVersions.collect[Set]()
+            req.foreach(allVersions = _)
+            req.map(_.size) must beTypedEqualTo(3).await(1, 10.seconds)
+          } and {
+            vbucket.setVersioning(enabled = false).map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
+          } and {
+            vbucket.objectsVersions.collect[Set]() must beTypedEqualTo(allVersions).await(1, 10.seconds)
+          }
+        }
+      }
+
       "to delete recursively non-empty versioned bucket" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           {
             bucket must existsIn(storage)
           } and {
-            bucket.delete.
-              recursive() must beTypedEqualTo({}).await(1, 10.seconds)
-
+            vbucket.setVersioning(enabled = true).map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
+          } and {
+            bucket.delete.recursive() must beTypedEqualTo({}).await(1, 10.seconds)
           } and {
             bucket must notExistsIn(storage)
           } and {
@@ -316,7 +336,7 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
                   } and {
                     v1.versionId must not(beEmpty)
                   } and {
-                    v1.isDeleteMarker must beFalse
+                    v1.isLatest must beFalse
                   } and {
                     v2.name must_=== testObjName
                   } and {
@@ -331,10 +351,45 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
                   } and {
                     v2.versionId must not(beEmpty)
                   } and {
-                    v2.isDeleteMarker must beFalse
+                    v2.isLatest must beTrue
                   }
                 }.await(1, 10.seconds)
               }
+          }
+        }
+      }
+
+      "to handle properly object deletion" in {
+        val testObjName = "test obj name"
+        val obj = bucket.obj(testObjName)
+
+        obj.versioning must beSome[ObjectVersioning].which { vobj =>
+          {
+            vobj.versions.collect[List]().map { l =>
+              {
+                l must haveSize(2)
+              } and {
+                forall(l) { _.name must beTypedEqualTo(testObjName) }
+              } and {
+                l must contain(beLike[VersionedObject] { case o: VersionedObject if o.isLatest => ok }).exactly(1)
+              }
+            }.await(1, 10.seconds)
+          } and {
+            obj must existsIn(bucket)
+          } and {
+            obj.delete().map(_ => true).aka("delete") must beTypedEqualTo(true).await(1, 10.seconds)
+          } and {
+            vobj.versions.collect[List]().map { l =>
+              {
+                l must haveSize(2)
+              } and {
+                forall(l) { _.name must beTypedEqualTo(testObjName) }
+              } and {
+                l must contain(beLike[VersionedObject] { case o: VersionedObject if o.isLatest => ok }).exactly(0)
+              }
+            }.await(1, 10.seconds)
+          } and {
+            obj must notExistsIn(bucket)
           }
         }
       }

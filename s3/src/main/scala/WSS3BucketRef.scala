@@ -93,11 +93,7 @@ final class WSS3BucketRef private[s3] (
     implicit val ec: ExecutionContext = m.executionContext
 
     objectsVersions().runFoldAsync(())((_: Unit, e) => {
-      if (!e.isDeleteMarker) {
-        obj(e.name, e.versionId).delete.ignoreIfNotExists()
-      } else {
-        Future.unit
-      }
+      obj(e.name, e.versionId).delete.ignoreIfNotExists()
     })
   }
 
@@ -195,10 +191,7 @@ final class WSS3BucketRef private[s3] (
 
     def list(token: Option[String])(andThen: String => Source[VersionedObject, NotUsed])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       val parse: Elem => Iterable[VersionedObject] = { xml =>
-        val versions = (xml \ "Version").map(Xml.versionDecoder)
-        val markers = (xml \ "DeleteMarker").map(Xml.deleteMarkerDecoder)
-
-        versions ++ markers
+        (xml \ "Version").map(Xml.versionDecoder)
       }
 
       val query: Option[String] => Option[String] = { token =>
@@ -212,7 +205,7 @@ final class WSS3BucketRef private[s3] (
 
   def objectsVersions: VersionedListRequest = ObjectsVersions(None)
 
-  def obj(objectName: String, versionId: String): WSS3ObjectVersionRef = WSS3ObjectVersionRef(storage, name, objectName, versionId)
+  def obj(objectName: String, versionId: String): WSS3VersionedObjectRef = WSS3VersionedObjectRef(storage, name, objectName, versionId)
 }
 
 object WSS3BucketRef {
