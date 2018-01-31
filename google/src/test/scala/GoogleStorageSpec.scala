@@ -13,10 +13,10 @@ import org.specs2.concurrent.ExecutionEnv
 
 import com.zengularity.benji.google.GoogleObjectRef
 
-import tests.benji.StorageCommonSpec
+import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
 class GoogleStorageSpec(implicit ee: ExecutionEnv)
-  extends org.specs2.mutable.Specification with StorageCommonSpec {
+  extends org.specs2.mutable.Specification with StorageCommonSpec with VersioningCommonSpec {
 
   import TestUtils.google
   import tests.benji.StreamUtils._
@@ -32,6 +32,7 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
     val objName = "testfile.txt"
 
     commonTests(google, bucketName)
+    commonVersioningTests(google)
 
     val fileStart = "hello world !!!"
 

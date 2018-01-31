@@ -21,7 +21,8 @@ trait BucketVersioning {
   def isVersioned(implicit ec: ExecutionContext): Future[Boolean]
 
   /**
-   * Enables or disables the versioning of objects on this bucket.
+   * Enables or disables the versioning of objects on this bucket,
+   * existing versions history will not be erased when versioning is disabled.
    */
   def setVersioning(enabled: Boolean)(implicit ec: ExecutionContext): Future[Unit]
 

@@ -24,7 +24,8 @@ import com.zengularity.benji.{
   ObjectRef,
   Streams,
   ObjectVersioning,
-  VersionedObject
+  VersionedObject,
+  VersionedObjectRef
 }
 import com.zengularity.benji.s3.QueryParameters._
 import com.zengularity.benji.ws.{ ContentMD5, Successful }
@@ -397,10 +398,7 @@ final class WSS3ObjectRef private[s3] (
 
     def list(token: Option[String])(andThen: String => Source[VersionedObject, NotUsed])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       val parse: Elem => Iterable[VersionedObject] = { xml =>
-        val versions = (xml \ "Version").map(Xml.versionDecoder)
-        val markers = (xml \ "DeleteMarker").map(Xml.deleteMarkerDecoder)
-
-        versions ++ markers
+        (xml \ "Version").map(Xml.versionDecoder)
       }
 
       val query: Option[String] => Option[String] = { token =>
@@ -413,5 +411,5 @@ final class WSS3ObjectRef private[s3] (
 
   def versions: VersionedListRequest = ObjectsVersions(None)
 
-  def version(versionId: String): WSS3ObjectVersionRef = WSS3ObjectVersionRef(storage, bucket, name, versionId)
+  def version(versionId: String): VersionedObjectRef = WSS3VersionedObjectRef(storage, bucket, name, versionId)
 }

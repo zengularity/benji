@@ -15,21 +15,14 @@ private[s3] object Xml {
       size = size(content),
       lastModifiedAt = lastModified(content))
 
-  def versionDecoder(content: Node): VersionedObject =
+  def versionDecoder(content: Node): VersionedObject = {
     VersionedObject(
       name = (content \ "Key").text,
       size = size(content),
       versionCreatedAt = lastModified(content),
       versionId = (content \ "VersionId").text,
-      isDeleteMarker = false)
-
-  def deleteMarkerDecoder(content: Node): VersionedObject =
-    VersionedObject(
-      name = (content \ "Key").text,
-      size = Bytes.zero,
-      versionCreatedAt = lastModified(content),
-      versionId = (content \ "VersionId").text,
-      isDeleteMarker = false)
+      isLatest = (content \ "IsLatest").text.toBoolean)
+  }
 
   // ---
 
