@@ -45,6 +45,9 @@ object Wart {
     scalacOptions in (Compile, console) ~= {
       _.filterNot(_.contains("wartremover"))
     },
+    scalacOptions in (Compile, doc) ~= {
+      _.filterNot(_ startsWith "-P:wartremover")
+    },
     scalacOptions in (Test, console) ~= {
       _.filterNot(_.contains("wartremover"))
     }

@@ -1,0 +1,36 @@
+@()
+
+<html>
+  <head>
+    <title>Benji Demo /</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="page-header">
+        <h1>Benji Demo</h1>
+      </div>
+
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h2>List buckets</h2>
+        </div>
+
+        <div class="panel-body">
+          <p>
+            <a href="@{com.zengularity.benji.demo.controllers.routes.BenjiController.listBuckets}">/api/buckets</a> (JSON)
+          </p>
+
+          <pre>
+            curl -X GET http://$HOST/@{com.zengularity.benji.demo.controllers.routes.BenjiController.listBuckets}/api/buckets
+          </pre>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="container">
+          <p class="text-muted">&copy; Zengularity</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

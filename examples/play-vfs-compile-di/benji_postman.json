@@ -1,0 +1,113 @@
+{
+  "variables": [],
+  "info": {
+    "name": "Benji",
+    "_postman_id": "81537478-1cd8-4f9a-a68b-3f8fe6318817",
+    "description": "",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Buckets",
+      "request": {
+        "url": "localhost:9000/api/buckets",
+        "method": "GET",
+        "header": [],
+        "body": {},
+        "description": "List all the buckets "
+      },
+      "response": []
+    },
+    {
+      "name": "List all the objects of a bucket",
+      "request": {
+        "url": "localhost:9000/api/buckets/$bucketName/objects",
+        "method": "GET",
+        "header": [],
+        "body": {},
+        "description": "List all the objects of the bucket specified in the URI."
+      },
+      "response": []
+    },
+    {
+      "name": "Create a bucket",
+      "request": {
+        "url": "localhost:9000/api/buckets/$bucketName",
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "nebula",
+              "value": "",
+              "description": "",
+              "type": "file"
+            }
+          ]
+        },
+        "description": "Create a bucket. The bucket name is specified in the uri"
+      },
+      "response": []
+    },
+    {
+      "name": "Upload an object",
+      "request": {
+        "url": "localhost:9000/api/buckets/$bucketName/objects",
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "filename",
+              "value": "",
+              "description": "",
+              "type": "file"
+            }
+          ]
+        },
+        "description": "Upload one or more files to the bucket. The bucket name is specified in the uri. The object name is related to the value of the key parameter in the form."
+      },
+      "response": []
+    },
+    {
+      "name": "Download an object",
+      "request": {
+        "url": "localhost:9000/api/buckets/$bucketName/objects/$objectName",
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "file",
+          "file": {
+            "src": ""
+          }
+        },
+        "description": "Downlaod an object. The bucket name and the object name are specified in the uri. The response is chunked, so you may use direclty in a browser."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete a bucket",
+      "request": {
+        "url": "localhost:9000/api/buckets/$bucketName",
+        "method": "DELETE",
+        "header": [],
+        "body": {},
+        "description": "Delete a bucket. The bucket name is specified in the URI."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete an object",
+      "request": {
+        "url": "localhost:9000/api/buckets/$bucketName/objects/$objectName",
+        "method": "DELETE",
+        "header": [],
+        "body": {},
+        "description": "Delete an object inside a bucket. The bucket name and the object name are specified in the uri."
+      },
+      "response": []
+    }
+  ]
+}
