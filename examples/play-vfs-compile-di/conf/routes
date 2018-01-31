@@ -1,0 +1,19 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# Application's entry point
+GET           /                                                   com.zengularity.benji.demo.controllers.BenjiController.index
+
+GET           /api/buckets                                        com.zengularity.benji.demo.controllers.BenjiController.listBuckets
+POST          /api/buckets/:bucketName                            com.zengularity.benji.demo.controllers.BenjiController.createBucket(bucketName: String)
+DELETE        /api/buckets/:bucketName                            com.zengularity.benji.demo.controllers.BenjiController.deleteBucket(bucketName: String)
+
+GET           /api/buckets/:bucketName/objects                    com.zengularity.benji.demo.controllers.BenjiController.listObjects(bucketName: String)
+GET           /api/buckets/:bucketName/objects/:objectName        com.zengularity.benji.demo.controllers.BenjiController.getObject(bucketName: String, objectName: String)
+POST          /api/buckets/:bucketName/objects                    com.zengularity.benji.demo.controllers.BenjiController.createObject(bucketName: String)
+DELETE        /api/buckets/:bucketName/objects/:objectName        com.zengularity.benji.demo.controllers.BenjiController.deleteObject(bucketName: String, objectName: String)
+
+
+# Map static resources from the /public folder to the /assets URL path
+GET           /assets/*file                                       controllers.Assets.versioned(path="/public", file: Asset)
