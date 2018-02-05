@@ -1,9 +1,12 @@
 package com.zengularity.benji.s3
 
+import java.util.Base64
+
 import java.net.URL
+
 import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneOffset }
-import java.util.Base64
+
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
@@ -102,8 +105,8 @@ private[s3] class SignatureCalculator(
   }
 
   /**
-   * If no date header is set, the format 'Thu, 23 Apr 2015 15:49:35 +0000'
-   * will be applied on the current date time.
+   * If the `Date` header is not already set, the format 'Thu, 31 Jan 2016 13:45:16 +0000'
+   * will be applied on the current date time to set a new header value.
    */
   private val RFC1123_DATE_TIME_FORMATTER =
     DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z").
@@ -125,23 +128,24 @@ private[s3] class SignatureCalculator(
    * Computes the authorization signature,
    * based on the pre-computed string-to-sign.
    *
-   * Use this later on in request headers, like
-   * `Authorization: AWS AWSAccessKeyId:Signature`.
+   * The computed signature must be used in the appropriate header:
+   * `Authorization: AWS \$awsSecretKey:\$computedSignature`.
    *
    * The computation is performed as bellow:
    *
    * ```
-   * Signature = Base64(HMAC-SHA1(YourSecretAccessKeyID, UTF-8-Encoding-Of(StringToSign)))
+   * computedSignature = base64(HmacSHA1(awsSecretKey, encodeAsUtf8(stringToSign)))
    * ```
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
    */
   def computeSignature(data: String): Try[String] = Try {
-    val mac = Mac.getInstance("HmacSHA1")
-    mac.init(new SecretKeySpec(
+    val signatureMac = Mac.getInstance("HmacSHA1")
+
+    signatureMac.init(new SecretKeySpec(
       secretKey.getBytes("UTF8"), "HmacSHA1"))
 
-    Base64.getEncoder.encodeToString(mac.doFinal(data.getBytes("UTF8")))
+    Base64.getEncoder.encodeToString(signatureMac doFinal data.getBytes("UTF8"))
   }
 
   // Utility methods
@@ -158,13 +162,16 @@ private[s3] class SignatureCalculator(
     }.mkString
   }
 
-  @inline private def checkPathSlash(url: URL): String =
-    if (url.getPath startsWith "/") url.getPath else "/" + url.getPath
+  @inline private def checkPathSlash(url: URL): String = {
+    val path = url.getPath
+    if (path startsWith "/") path else "/" + path
+  }
 
   /**
-   * For an S3 request URL,
-   * like 'https://my-bucket.s3.amazonaws.com/test-folder/file.txt',
-   * only the resource path as need to compute the signature will be returned.
+   * Considering a S3 URL of the form
+   * 'https://my-bucket.s3.amazonaws.com/test-folder/file.txt',
+   * only the path of the resource (e.g. '/test-folder/file.txt') needed
+   * (to compute the signature) will be returned.
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheCanonicalizedResourceElement
    */

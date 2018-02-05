@@ -20,6 +20,11 @@ scalacOptions ++= Seq(
   "-opt:_"
 )
 
+resolvers ++= Seq( // TODO: Remove once published
+  "Tatami Releases" at "https://raw.github.com/cchantep/tatami/master/releases",
+  "Tatami Snapshots" at "https://raw.github.com/cchantep/tatami/master/snapshots"
+)
+
 libraryDependencies ++= Seq(
   "com.zengularity" %% "benji-vfs" % "1.4.0-SNAPSHOT",
   "com.zengularity" %% "benji-play" % "1.4.0-SNAPSHOT",
