@@ -34,24 +34,26 @@ object WSRequestBuilder {
 private[s3] object URLInformation {
   /** Extracts (protocol scheme, host with port) from the given url. */
   def unapply(url: URL): Option[(String, String)] = {
-    val hostWithPort = if (url.getPort > 0) {
+    val hostAndPort = if (url.getPort > 0) {
       s"${url.getHost}:${url.getPort}"
     } else url.getHost
 
-    Some(url.getProtocol -> hostWithPort)
+    Some(url.getProtocol -> hostAndPort)
   }
 }
 
 /**
  * Builder for requests using the path style
  * (e.g. https://s3.amazonaws.com/bucket-name/object?uploads).
+ *
+ * @param s3Url the server URL
  */
 final class PathStyleWSRequestBuilder private[s3] (
-  calculator: SignatureCalculator, serverUrl: URL) extends WSRequestBuilder {
+  calculator: SignatureCalculator, s3Url: URL) extends WSRequestBuilder {
 
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {
     val url = new StringBuilder()
-    val URLInformation(scheme, host) = serverUrl
+    val URLInformation(scheme, host) = s3Url
 
     url.append(scheme).append("://").append(host).append('/')
 
@@ -68,7 +70,7 @@ final class PathStyleWSRequestBuilder private[s3] (
     }
 
     WSRequestBuilder.build(
-      ws, calculator, url.toString, serverUrl.getHost, "path")
+      ws, calculator, url.toString, s3Url.getHost, "path")
   }
 }
 
@@ -82,11 +84,11 @@ final class PathStyleWSRequestBuilder private[s3] (
  * the `PathStyleWSRequestBuilder` is available.
  */
 final class VirtualHostWSRequestBuilder private[s3] (
-  calculator: SignatureCalculator, serverUrl: URL) extends WSRequestBuilder {
+  calculator: SignatureCalculator, s3Url: URL) extends WSRequestBuilder {
 
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {
     val url = new StringBuilder()
-    val URLInformation(scheme, host) = serverUrl
+    val URLInformation(scheme, host) = s3Url
 
     url.append(scheme).append("://")
 

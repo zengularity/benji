@@ -30,6 +30,7 @@ object Common {
       "-Ywarn-nullary-unit",
       "-g:vars"
     ),
+    javacOptions in (Compile, compile) ++= Seq("-target", "1.8"),
     scalacOptions in (Compile, console) ~= {
       _.filterNot { opt => opt.startsWith("-X") || opt.startsWith("-Y") }
     },
