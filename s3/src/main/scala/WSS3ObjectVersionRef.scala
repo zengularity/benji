@@ -7,7 +7,13 @@ import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.benji.{ VersionedObjectRef, ByteRange }
+import com.zengularity.benji.{
+  ByteRange,
+  VersionedObjectRef,
+  VersionedObject,
+  Bytes
+}
+
 import com.zengularity.benji.ws.Successful
 
 final case class WSS3VersionedObjectRef(
@@ -19,28 +25,74 @@ final case class WSS3VersionedObjectRef(
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
 
-  private class WSS3DeleteRequest(
-    ignoreExists: Boolean) extends DeleteRequest {
+  private[s3] case class WSS3DeleteRequest(ignoreExists: Boolean = false, skipMarkers: Boolean = false) extends DeleteRequest {
+
+    @inline
+    private def isDeleteMarker(version: VersionedObject) = version.size.bytes == -1
+
+    private def markersToDelete()(implicit m: Materializer): Future[Seq[VersionedObject]] = {
+      implicit val ec: ExecutionContext = m.executionContext
+
+      new WSS3ObjectRef(storage, bucket, name)
+        .ObjectsVersions()
+        .withDeleteMarkers
+        .collect[List]()
+        .map(versionsWithSelf => {
+          // versions as they'll be after deleting this VersionedObjectRef
+          val versions = versionsWithSelf.filter(_.versionId != versionId)
+
+          // There are two cases where we automatically delete some deleteMarkers after deleting this version :
+          //  1. When there will be only deleteMarkers left, we completely delete the object (forall condition)
+          //  2. Otherwise, we will delete deleteMarkers that are not currently the latest version (filter condition)
+          if (versions.forall(isDeleteMarker)) {
+            versions
+          } else {
+            versions.filter(v => isDeleteMarker(v) && !v.isLatest)
+          }
+        })
+    }
+
+    private def deleteSingle(v: VersionedObject)(implicit m: Materializer): Future[Unit] = {
+      implicit val ec: ExecutionContext = m.executionContext
+
+      storage.request(Some(bucket), Some(v.name), query = Some(s"versionId=${v.versionId}"), requestTimeout = requestTimeout).delete().flatMap {
+        case Successful(_) => Future.successful(logger.info(s"Successfully deleted the version " +
+          s"$bucket/${v.name}/${v.versionId}."))
+
+        case response if ignoreExists && response.status == 404 =>
+          Future.successful(logger.info(s"Version $bucket/${v.name}/${v.versionId} was not found when deleting. " +
+            s"(Success)"))
+
+        case response =>
+          Future.failed[Unit](new IllegalStateException(s"Could not delete the version $bucket/${v.name}/${v.versionId}" +
+            s". Response: ${response.status} - ${response.statusText}; ${response.body}"))
+      }
+    }
+
+    private def multiDeleteSimulated(versions: Seq[VersionedObject])(implicit m: Materializer): Future[Unit] = {
+      implicit val ec: ExecutionContext = m.executionContext
+
+      Future.sequence(versions.map(deleteSingle)).map(_ => {})
+    }
 
     /**
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
      */
-    def apply()(implicit ec: ExecutionContext): Future[Unit] = {
-      storage.request(Some(bucket), Some(name), query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout).delete().flatMap {
-        case Successful(_) => Future.successful(logger.info(s"Successfully deleted the version $bucket/$name/$versionId."))
+    def apply()(implicit m: Materializer): Future[Unit] = {
+      implicit val ec: ExecutionContext = m.executionContext
 
-        case response if ignoreExists && response.status == 404 =>
-          Future.successful(logger.info(s"Version $bucket/$name/$versionId was not found when deleting. (Success)"))
+      val self = VersionedObject(name, Bytes(0), java.time.LocalDateTime.MIN, versionId, isLatest = false)
 
-        case response =>
-          Future.failed[Unit](new IllegalStateException(s"Could not delete the version $bucket/$name/$versionId. Response: ${response.status} - ${response.statusText}; ${response.body}"))
-      }
+      if (skipMarkers) multiDeleteSimulated(Seq(self))
+      else markersToDelete().flatMap(markers => multiDeleteSimulated(self +: markers))
     }
 
-    def ignoreIfNotExists: DeleteRequest = new WSS3DeleteRequest(true)
+    def ignoreIfNotExists: WSS3DeleteRequest = copy(ignoreExists = true)
+
+    def skipMarkersCheck: WSS3DeleteRequest = copy(skipMarkers = true)
   }
 
-  def delete: DeleteRequest = new WSS3DeleteRequest(false)
+  def delete: DeleteRequest = WSS3DeleteRequest()
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html

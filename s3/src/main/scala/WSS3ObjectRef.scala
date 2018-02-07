@@ -387,10 +387,12 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
-  private case class ObjectsVersions(
-    maybeMax: Option[Long]) extends ref.VersionedListRequest {
+  private[s3] case class ObjectsVersions(
+    maybeMax: Option[Long] = None, includeDeleteMarkers: Boolean = false) extends ref.VersionedListRequest {
 
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
+
+    def withDeleteMarkers: ObjectsVersions = this.copy(includeDeleteMarkers = true)
 
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
@@ -402,7 +404,11 @@ final class WSS3ObjectRef private[s3] (
 
     def list(token: Option[String])(andThen: String => Source[VersionedObject, NotUsed])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       val parse: Elem => Iterable[VersionedObject] = { xml =>
-        (xml \ "Version").map(Xml.versionDecoder)
+        if (includeDeleteMarkers) {
+          (xml \ "Version").map(Xml.versionDecoder) ++ (xml \ "DeleteMarker").map(Xml.deleteMarkerDecoder)
+        } else {
+          (xml \ "Version").map(Xml.versionDecoder)
+        }
       }
 
       val query: Option[String] => Option[String] = { token =>

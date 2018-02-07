@@ -24,6 +24,15 @@ private[s3] object Xml {
       isLatest = (content \ "IsLatest").text.toBoolean)
   }
 
+  def deleteMarkerDecoder(content: Node): VersionedObject = {
+    VersionedObject(
+      name = (content \ "Key").text,
+      size = Bytes(-1),
+      versionCreatedAt = lastModified(content),
+      versionId = (content \ "VersionId").text,
+      isLatest = (content \ "IsLatest").text.toBoolean)
+  }
+
   // ---
 
   @inline private def size(content: Node): Bytes =

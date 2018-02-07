@@ -90,10 +90,10 @@ final class WSS3BucketRef private[s3] (
   }
 
   private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
-    implicit val ec: ExecutionContext = m.executionContext
-
-    objectsVersions().runFoldAsync(())((_: Unit, e) => {
-      obj(e.name, e.versionId).delete.ignoreIfNotExists()
+    // We want to delete all versions including deleteMarkers for this bucket to be considered empty.
+    ObjectsVersions().withDeleteMarkers().runFoldAsync(())((_: Unit, e) => {
+      // As we will delete all deleteMarkers we disable the auto-delete of deleteMarkers using "skipMarkersCheck"
+      obj(e.name, e.versionId).WSS3DeleteRequest().skipMarkersCheck.ignoreIfNotExists()
     })
   }
 
@@ -178,8 +178,10 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
-  private case class ObjectsVersions(maybeMax: Option[Long]) extends ref.VersionedListRequest {
+  private case class ObjectsVersions(maybeMax: Option[Long] = None, includeDeleteMarkers: Boolean = false) extends ref.VersionedListRequest {
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
+
+    def withDeleteMarkers = this.copy(includeDeleteMarkers = true)
 
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
@@ -191,7 +193,11 @@ final class WSS3BucketRef private[s3] (
 
     def list(token: Option[String])(andThen: String => Source[VersionedObject, NotUsed])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       val parse: Elem => Iterable[VersionedObject] = { xml =>
-        (xml \ "Version").map(Xml.versionDecoder)
+        if (includeDeleteMarkers) {
+          (xml \ "Version").map(Xml.versionDecoder) ++ (xml \ "DeleteMarker").map(Xml.deleteMarkerDecoder)
+        } else {
+          (xml \ "Version").map(Xml.versionDecoder)
+        }
       }
 
       val query: Option[String] => Option[String] = { token =>
@@ -203,7 +209,7 @@ final class WSS3BucketRef private[s3] (
 
   }
 
-  def objectsVersions: VersionedListRequest = ObjectsVersions(None)
+  def objectsVersions: VersionedListRequest = ObjectsVersions()
 
   def obj(objectName: String, versionId: String): WSS3VersionedObjectRef = WSS3VersionedObjectRef(storage, name, objectName, versionId)
 }

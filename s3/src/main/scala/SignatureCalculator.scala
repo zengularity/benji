@@ -46,7 +46,7 @@ private[s3] class SignatureCalculator(
 
   val logger = org.slf4j.LoggerFactory.getLogger("com.zengularity.s3")
 
-  private val subResourceParameters = Seq("acl", "lifecycle", "location", "logging", "notification", "partNumber", "policy", "requestPayment", "torrent", "uploadId", "uploads", "versionId", "versioning", "versions", "website")
+  private val subResourceParameters = Seq("acl", "lifecycle", "location", "logging", "notification", "partNumber", "policy", "requestPayment", "torrent", "uploadId", "uploads", "versionId", "versioning", "versions", "website", "delete")
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader

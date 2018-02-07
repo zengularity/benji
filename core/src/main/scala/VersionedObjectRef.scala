@@ -33,7 +33,7 @@ trait VersionedObjectRef {
     /**
      * Deletes the current object
      */
-    def apply()(implicit ec: ExecutionContext): Future[Unit]
+    def apply()(implicit m: Materializer): Future[Unit]
 
     /**
      * Updates the request, so that it will not raise an error if the referenced object doesn't exist when executed

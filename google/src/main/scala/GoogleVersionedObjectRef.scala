@@ -18,7 +18,9 @@ final case class GoogleVersionedObjectRef(storage: GoogleStorage, bucket: String
   private val generation: Long = versionId.toLong
 
   private case class GoogleDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
-    def apply()(implicit ec: ExecutionContext): Future[Unit] = {
+    def apply()(implicit m: Materializer): Future[Unit] = {
+      implicit val ec: ExecutionContext = m.executionContext
+
       val futureResult = Future { gt.client.objects().delete(bucket, name).setGeneration(generation).execute(); () }
       if (ignoreExists) {
         futureResult.recover { case HttpResponse(404, _) => () }
