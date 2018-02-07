@@ -1,6 +1,8 @@
 package com.zengularity.benji.vfs
 
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.control.NonFatal
+import scala.util.{ Failure, Success, Try }
 
 import akka.NotUsed
 import akka.stream.Materializer
@@ -13,7 +15,7 @@ import org.apache.commons.vfs2.{
   FileType,
   FileTypeSelector
 }
-
+import play.api.libs.json.Json
 import play.api.libs.ws.BodyWritable
 
 import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams, ObjectVersioning }
@@ -23,13 +25,37 @@ final class VFSObjectRef private[vfs] (
   val bucket: String,
   val name: String) extends ObjectRef { ref =>
 
+  private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
   val defaultThreshold = VFSObjectRef.defaultThreshold
   @inline private def transport = storage.transport
 
   def exists(implicit ec: ExecutionContext): Future[Boolean] =
     Future(file.exists)
 
-  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = Future.failed[Map[String, Seq[String]]](new RuntimeException("TODO"))
+  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = {
+    Future {
+      metadataFile.exists()
+    }.flatMap { exists =>
+      if (exists) {
+        val inputStream = metadataFile.getContent.getInputStream
+        Future.fromTry {
+          Try {
+            val json = Json.parse(inputStream)
+            json.as[Map[String, String]].mapValues(str => Seq(str))
+          }
+        }.andThen {
+          case _ =>
+            try {
+              inputStream.close()
+            } catch {
+              case NonFatal(err) => logger.warn(s"Fails to close inputstream", err)
+            }
+        }
+      } else Future.successful(Map.empty[String, Seq[String]])
+    }
+  }
+
+  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = headers()
 
   val get = new VFSGetRequest()
 
@@ -69,6 +95,30 @@ final class VFSObjectRef private[vfs] (
     def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
+      def writeMetadata(): Try[Unit] = {
+        val json = Json.toJson(metadata)
+        val jsonBytes = Json.toBytes(json)
+        Try {
+          metadataFile.getContent.getOutputStream
+        }.flatMap { out =>
+          try {
+            out.write(jsonBytes)
+            out.flush()
+            Success(())
+          } catch {
+            case NonFatal(err) =>
+              logger.warn(s"Cannot write metadata", err)
+              Failure[Unit](err)
+          } finally {
+            try {
+              out.close()
+            } catch {
+              case NonFatal(err) => logger.warn(s"Fails to close outputstream, ${err.getMessage}", err)
+            }
+          }
+        }
+      }
+
       def upload: Flow[E, A, NotUsed] = {
         lazy val of = file
         lazy val st = of.getContent.getOutputStream
@@ -103,7 +153,10 @@ final class VFSObjectRef private[vfs] (
             else Future.failed[E](new NoSuchElementException(s"Target bucket doesn't exist: $bucket"))
           }
         }
-      }.via(upload)
+      }.via(upload).map { current =>
+        writeMetadata()
+        current
+      }
 
       flow.toMat(Sink.head[A]) { (_, mat) => mat }
     }
@@ -113,7 +166,10 @@ final class VFSObjectRef private[vfs] (
 
   private case class VFSDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
     def apply()(implicit ec: ExecutionContext): Future[Unit] = {
-      Future { file.delete() }.flatMap { successful =>
+      Future {
+        metadataFile.delete()
+        file.delete()
+      }.flatMap { successful =>
         if (ignoreExists || successful) {
           Future.unit
         } else {
@@ -132,6 +188,9 @@ final class VFSObjectRef private[vfs] (
     def target = transport.fsManager.resolveFile(
       s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
 
+    def targetMetadata = transport.fsManager.resolveFile(
+      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName.metadata")
+
     lazy val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
 
     for {
@@ -144,7 +203,11 @@ final class VFSObjectRef private[vfs] (
           case _ => Future.successful({})
         }
       }
-      _ <- Future(file.moveTo(target))
+      _ <- Future {
+        file.moveTo(target)
+        if (targetMetadata.exists())
+          metadataFile.moveTo(targetMetadata)
+      }
     } yield ()
   }
 
@@ -154,12 +217,22 @@ final class VFSObjectRef private[vfs] (
     def target = transport.fsManager.resolveFile(
       s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
 
-    Future(target.copyFrom(file, copySelector))
+    def targetMetadata = transport.fsManager.resolveFile(
+      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName.metadata")
+
+    Future {
+      target.copyFrom(file, copySelector)
+      if (targetMetadata.exists())
+        targetMetadata.copyFrom(metadataFile, copySelector)
+    }
   }
 
   // Utility methods
   @inline private def file =
     transport.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name")
+
+  @inline private def metadataFile =
+    transport.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name.metadata")
 
   override lazy val toString = s"VFSObjectRef($bucket, $name)"
 

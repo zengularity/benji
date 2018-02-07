@@ -8,7 +8,7 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import org.apache.commons.vfs2.{ FileName, FileType, FileTypeSelector }
+import org.apache.commons.vfs2.{ FileName, FileType }
 
 import com.zengularity.benji.{ BucketRef, BucketVersioning, Bytes, Object }
 
@@ -20,7 +20,7 @@ final class VFSBucketRef private[vfs] (
 
   object objects extends ref.ListRequest {
     private val rootPath = s"${storage.transport.fsManager.getBaseFile.getName.getPath}${FileName.SEPARATOR}$name${FileName.SEPARATOR}"
-    private val selector = new FileTypeSelector(FileType.FILE)
+    private val selector = new BenjiFileSelector(FileType.FILE)
 
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
@@ -33,7 +33,6 @@ final class VFSBucketRef private[vfs] (
             case Some(itm) if itm.nonEmpty =>
               itm.map { o =>
                 val content = o.getContent
-
                 Object(
                   o.getName.getPath.stripPrefix(rootPath),
                   Bytes(content.getSize),

@@ -128,6 +128,9 @@ trait StorageCommonSpec extends BenjiMatchers {
         // because otherwise the non-recursive delete will unexpectedly succeed
         filetest.exists must beTrue.await(1, 10.seconds)
       } and {
+        // checking that metadata are persisted
+        filetest.metadata() must havePairs("foo" -> Seq("bar")).await(1, 10.seconds)
+      } and {
         // trying to delete non-empty bucket with non recursive deletes (should not work)
         (for {
           _ <- bucket.delete().failed

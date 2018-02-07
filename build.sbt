@@ -47,6 +47,7 @@ lazy val vfs = project.in(file("vfs")).
     name := "benji-vfs",
     libraryDependencies ++= Seq(
       "org.apache.commons" % "commons-vfs2" % "2.1",
+      "com.typesafe.play" %% "play-json" % "2.6.7",
       Dependencies.slf4jApi,
       "commons-io" % "commons-io" % "2.4" % Test)
   ).dependsOn(core % "test->test;compile->compile")

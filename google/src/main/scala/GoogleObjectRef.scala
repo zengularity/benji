@@ -51,14 +51,18 @@ final class GoogleObjectRef private[google] (
         case (key, JsString(value)) => Seq(key -> Seq(value))
 
         case ("metadata", JsObject(metadata)) => metadata.collect {
-          case (key, JsString(value)) => s"metadata.${key}" -> Seq(value)
+          case (key, JsString(value)) => s"metadata.$key" -> Seq(value)
         }
 
         case _ => Seq.empty[(String, Seq[String])] // unsupported
       })
 
-      case js => Future.failed[Map[String, Seq[String]]](new IllegalStateException(s"Could not get the metadata of the object $name in the bucket $bucket. JSON response: ${Json stringify js}"))
+      case js => Future.failed[Map[String, Seq[String]]](new IllegalStateException(s"Could not get the headers of the object $name in the bucket $bucket. JSON response: ${Json stringify js}"))
     }
+  }
+
+  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = headers().map { headers =>
+    headers.collect { case (key, value) if key.startsWith("metadata") => key.stripPrefix("metadata.") -> value }
   }
 
   val get = new GoogleGetRequest()
