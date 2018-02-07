@@ -51,7 +51,7 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
           } and {
             bucket must existsIn(storage)
           } and {
-            vbucket.isVersioned must beFalse.await(1, 10.seconds)
+            vbucket.isVersioned.aka("is versioned when created") must beFalse.await(1, 10.seconds)
           } and {
             vbucket.setVersioning(enabled = true).
               map(_ => true) must beTrue.await(1, 10.seconds)
@@ -63,7 +63,7 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
               map(_ => true) must beTrue.await(1, 10.seconds)
 
           } and {
-            vbucket.isVersioned must beFalse.await(1, 10.seconds)
+            vbucket.isVersioned.aka("is versioned after versioning is disabled") must beFalse.await(1, 10.seconds)
           }
         }
       }
