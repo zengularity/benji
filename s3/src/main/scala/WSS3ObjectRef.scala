@@ -89,6 +89,10 @@ final class WSS3ObjectRef private[s3] (
     }
   }
 
+  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = headers().map { headers =>
+    headers.collect { case (key, value) if key.startsWith("x-amz-meta-") => key.stripPrefix("x-amz-meta-") -> value }
+  }
+
   /**
    * A S3 PUT request.
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html and http://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html

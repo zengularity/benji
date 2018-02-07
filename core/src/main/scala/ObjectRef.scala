@@ -55,6 +55,11 @@ trait ObjectRef { ref =>
   def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
 
   /**
+   * Returns the metadata associated with the currently referenced object
+   */
+  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
+
+  /**
    * Prepares the request to get the contents of this object.
    */
   def get: GetRequest
