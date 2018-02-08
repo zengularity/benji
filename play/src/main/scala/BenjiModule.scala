@@ -1,14 +1,16 @@
 package play.modules.benji
 
 import java.net.URI
-
 import javax.inject._
 
 import scala.util.{ Failure, Success, Try }
 import scala.collection.immutable.Set
 
+import akka.stream.Materializer
+
 import play.api._
 import play.api.inject.{ Binding, BindingKey, Module }
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 import com.zengularity.benji.ObjectStorage
 import com.zengularity.benji.spi.{ Injector, StorageFactory }
@@ -21,8 +23,10 @@ final class BenjiModule extends Module {
   @SuppressWarnings(Array(
     "org.wartremover.warts.Any",
     "org.wartremover.warts.Nothing"))
-  def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = bind[Injector].toProvider[PlayInjectorProvider] +: apiBindings(
-    BenjiModule.parseConfiguration(configuration)).toSeq
+  def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] =
+    bind[Injector].toProvider[PlayInjectorProvider] +:
+      bind[StandaloneAhcWSClient].toProvider[WSProvider] +:
+      apiBindings(BenjiModule.parseConfiguration(configuration)).toSeq
 
   private def apiBindings(info: Set[(String, URI)]): Set[Binding[ObjectStorage]] = info.flatMap {
     case (name, uri) =>
@@ -154,4 +158,14 @@ private[benji] final class PlayInjectorProvider extends Provider[Injector] {
 final class PlayInjector(
   underlying: play.api.inject.Injector) extends Injector {
   def instanceOf[T](cls: Class[T]): T = underlying.instanceOf[T](cls)
+}
+
+private[benji] final class WSProvider extends Provider[StandaloneAhcWSClient] {
+  @SuppressWarnings(Array("org.wartremover.warts.Null", "org.wartremover.warts.Var"))
+  @Inject var materializer: Materializer = _
+
+  lazy val get: StandaloneAhcWSClient = {
+    implicit def m: Materializer = materializer
+    StandaloneAhcWSClient()
+  }
 }

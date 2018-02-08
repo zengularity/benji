@@ -1,4 +1,4 @@
-name := "benji-vfs-play-demo"
+name := "benji-s3-play-demo"
 
 scalaVersion := "2.12.4"
 
@@ -20,14 +20,10 @@ scalacOptions ++= Seq(
   "-opt:_"
 )
 
-resolvers ++= Seq( // TODO: Remove once published
-  "Tatami Releases" at "https://raw.github.com/cchantep/tatami/master/releases",
-  "Tatami Snapshots" at "https://raw.github.com/cchantep/tatami/master/snapshots"
-)
-
 libraryDependencies ++= Seq(
-  "com.zengularity" %% "benji-vfs" % "1.4.0-SNAPSHOT",
+  guice,
+  "com.zengularity" %% "benji-s3" % "1.4.0-SNAPSHOT",
   "com.zengularity" %% "benji-play" % "1.4.0-SNAPSHOT",
 )
 
-lazy val playVfs = (project in file(".")).enablePlugins(PlayScala)
+lazy val playS3 = (project in file(".")).enablePlugins(PlayScala)
