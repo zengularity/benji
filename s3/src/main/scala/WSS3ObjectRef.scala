@@ -404,11 +404,13 @@ final class WSS3ObjectRef private[s3] (
 
     def list(token: Option[String])(andThen: String => Source[VersionedObject, NotUsed])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       val parse: Elem => Iterable[VersionedObject] = { xml =>
-        if (includeDeleteMarkers) {
-          (xml \ "Version").map(Xml.versionDecoder) ++ (xml \ "DeleteMarker").map(Xml.deleteMarkerDecoder)
-        } else {
-          (xml \ "Version").map(Xml.versionDecoder)
-        }
+        {
+          if (includeDeleteMarkers) {
+            (xml \ "Version").map(Xml.versionDecoder) ++ (xml \ "DeleteMarker").map(Xml.deleteMarkerDecoder)
+          } else {
+            (xml \ "Version").map(Xml.versionDecoder)
+          }
+        }.filter(_.name == name)
       }
 
       val query: Option[String] => Option[String] = { token =>
