@@ -310,8 +310,12 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
               await(1, 10.seconds)
 
           } and {
+            createObject(bucket, testObjName + " other", "test excluded") must beTrue.
+              await(1, 10.seconds)
+
+          } and {
             vbucket.objectsVersions.collect[List]().
-              map(_.length) must beTypedEqualTo(3).await(1, 10.seconds)
+              map(_.length) must beTypedEqualTo(4).await(1, 10.seconds)
 
           } and {
             bucket.obj(testObjName).
