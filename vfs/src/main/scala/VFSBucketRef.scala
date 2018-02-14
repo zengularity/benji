@@ -11,6 +11,7 @@ import akka.stream.scaladsl.Source
 import org.apache.commons.vfs2.{ FileName, FileType }
 
 import com.zengularity.benji.{ BucketRef, BucketVersioning, Bytes, Object }
+import com.zengularity.benji.exception.{ BucketNotFoundException, BucketAlreadyExistsException, BucketNotEmptyException }
 
 final class VFSBucketRef private[vfs] (
   val storage: VFSStorage,
@@ -22,6 +23,7 @@ final class VFSBucketRef private[vfs] (
     private val rootPath = s"${storage.transport.fsManager.getBaseFile.getName.getPath}${FileName.SEPARATOR}$name${FileName.SEPARATOR}"
     private val selector = new BenjiFileSelector(FileType.FILE)
 
+    @SuppressWarnings(Array("org.wartremover.warts.Throw"))
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
@@ -39,7 +41,10 @@ final class VFSBucketRef private[vfs] (
                   LocalDateTime.ofInstant(Instant.ofEpochMilli(content.getLastModifiedTime), ZoneOffset.UTC))
 
               }.iterator
-            case _ => Iterator.empty
+            case Some(_) =>
+              Iterator.empty
+            case None =>
+              throw BucketNotFoundException(name)
           }
         }
       }).flatMapMerge(1, identity)
@@ -54,13 +59,17 @@ final class VFSBucketRef private[vfs] (
   def exists(implicit ec: ExecutionContext): Future[Boolean] =
     Future(dir.exists)
 
-  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext): Future[Boolean] = for {
-    before <- {
-      if (checkBefore) exists.map(Some(_))
-      else Future.successful(Option.empty[Boolean])
+  def create(failsIfExists: Boolean = false)(implicit ec: ExecutionContext): Future[Unit] = {
+    val before = if (failsIfExists) {
+      exists.flatMap {
+        case true => Future.failed[Unit](BucketAlreadyExistsException(name))
+        case false => Future.successful({})
+      }
+    } else {
+      Future.successful({})
     }
-    _ <- Future(dir.createFolder())
-  } yield before.map(!_).getOrElse(true)
+    before.map(_ => dir.createFolder())
+  }
 
   private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
     implicit val ec: ExecutionContext = m.executionContext
@@ -74,11 +83,14 @@ final class VFSBucketRef private[vfs] (
       implicit val ec: ExecutionContext = m.executionContext
 
       Future { dir.delete() }.flatMap { successful =>
-        if (ignoreExists || successful) {
+        if (successful) {
           Future.unit
         } else {
-          Future.failed[Unit](new IllegalStateException(
-            "Could not delete bucket"))
+          Future { dir.exists() }.flatMap {
+            case true => Future.failed[Unit](BucketNotEmptyException(ref))
+            case false if ignoreExists => Future.unit
+            case false => Future.failed[Unit](BucketNotFoundException(ref))
+          }
         }
       }
     }

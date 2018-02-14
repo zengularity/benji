@@ -4,6 +4,7 @@ import java.time.{ Instant, LocalDateTime, ZoneOffset }
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Success, Failure }
 
 import akka.NotUsed
 import akka.stream.Materializer
@@ -19,7 +20,17 @@ import play.api.libs.ws.JsonBodyWritables._
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.services.storage.model.StorageObject
 
-import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams, ObjectVersioning, VersionedObjectRef, VersionedObject }
+import com.zengularity.benji.exception.ObjectNotFoundException
+import com.zengularity.benji.{
+  ByteRange,
+  Bytes,
+  Chunk,
+  ObjectRef,
+  Streams,
+  ObjectVersioning,
+  VersionedObjectRef,
+  VersionedObject
+}
 import com.zengularity.benji.ws.{ ContentMD5, Ok, Successful }
 
 final class GoogleObjectRef private[google] (
@@ -59,7 +70,7 @@ final class GoogleObjectRef private[google] (
 
       case js => Future.failed[Map[String, Seq[String]]](new IllegalStateException(s"Could not get the headers of the object $name in the bucket $bucket. JSON response: ${Json stringify js}"))
     }
-  }
+  }.recoverWith(ErrorHandler.ofObjectToFuture(s"Could not get the headers of the object $name in the bucket $bucket", ref))
 
   def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = headers().map { headers =>
     headers.collect { case (key, value) if key.startsWith("metadata") => key.stripPrefix("metadata.") -> value }
@@ -71,7 +82,7 @@ final class GoogleObjectRef private[google] (
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      Source.fromFuture(Future {
+      Source.fromFutureSource(Future {
         val req = gt.client.objects().get(bucket, name)
 
         req.setRequestHeaders {
@@ -86,15 +97,10 @@ final class GoogleObjectRef private[google] (
 
         req.setDisableGZipContent(storage.disableGZip)
 
-        req.executeMediaAsInputStream() // using alt=media
-      }.map(in => StreamConverters.fromInputStream(() => in)).recoverWith {
-        case HttpResponse(status, msg) =>
-          Future.failed[Source[ByteString, NotUsed]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: $status - $msg"))
-
-        case cause =>
-          Future.failed[Source[ByteString, NotUsed]](cause)
-      }).flatMapMerge(1, identity)
-    }
+        val in = req.executeMediaAsInputStream() // using alt=media
+        StreamConverters.fromInputStream(() => in)
+      }.recoverWith(ErrorHandler.ofObjectToFuture(s"Could not get the contents of the object $name in the bucket $bucket", ref)))
+    }.mapMaterializedValue(_ => NotUsed)
   }
 
   /**
@@ -130,16 +136,12 @@ final class GoogleObjectRef private[google] (
     def apply()(implicit ec: ExecutionContext): Future[Unit] = {
       val futureResult = Future {
         gt.client.objects().delete(bucket, name).execute(); ()
-      }
+      }.recoverWith(ErrorHandler.ofObjectToFuture(s"Could not delete object $name inside bucket $bucket", ref))
 
       if (ignoreExists) {
-        futureResult.recover { case HttpResponse(404, _) => () }
+        futureResult.recover { case ObjectNotFoundException(_, _) => () }
       } else {
-        futureResult.recoverWith {
-          case HttpResponse(404, _) =>
-            Future.failed[Unit](new IllegalArgumentException(
-              s"Could not delete $bucket/$name: doesn't exist"))
-        }
+        futureResult
       }
     }
 
@@ -224,7 +226,10 @@ final class GoogleObjectRef private[google] (
         req.setDisableGZipContent(storage.disableGZip)
 
         req.execute()
-      }.flatMap(_ => f(z, single)))
+      }.transformWith {
+        case Success(_) => f(z, single)
+        case Failure(t) => ErrorHandler.ofBucketToFuture(s"Could not upload $name in $bucket", bucket)(t)
+      })
     }
   }
 
@@ -304,14 +309,8 @@ final class GoogleObjectRef private[google] (
                 case _ =>
                   Future.failed[String](new scala.RuntimeException(s"missing upload URL: ${response.status} - ${response.statusText}: ${response.headers}"))
               }
-              case failed =>
-                Future.failed[String] {
-                  val msg = s"Could not initiate the upload for [$bucket/$name]. Response: ${failed.status} - ${failed.statusText}"
-
-                  logger.debug(s"$msg\r\b${failed.body}")
-
-                  new IllegalStateException(msg)
-                }
+              case response =>
+                ErrorHandler.ofBucketFromResponse(s"Could not initiate upload for $name in bucket $bucket", bucket)(response)
             }
         })
   }
@@ -354,7 +353,7 @@ final class GoogleObjectRef private[google] (
           partResponse(response, offset, bytes.size, url)
 
         case response =>
-          Future.failed[String](new IllegalStateException(s"Could not upload a part for [$bucket/$name, $url, range: $reqRange]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
+          ErrorHandler.ofBucketFromResponse(s"Could not upload a part for [$bucket/$name, $url, range: $reqRange]", bucket)(response)
       }
     }
   }
@@ -382,40 +381,49 @@ final class GoogleObjectRef private[google] (
   private case class ObjectsVersions(maybeMax: Option[Long]) extends ref.VersionedListRequest {
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
-    @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
-    private def apply(nextToken: Option[String])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
-      val prepared = gt.client.objects().list(bucket).setVersions(true)
-      val maxed = maybeMax.fold(prepared) { prepared.setMaxResults(_) }
+    @SuppressWarnings(Array("org.wartremover.warts.Recursion", "org.wartremover.warts.Throw"))
+    private def apply(nextToken: Option[String], maybeEmpty: Boolean)(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+      implicit val ec: ExecutionContext = m.executionContext
 
-      val request =
-        nextToken.fold(maxed.execute()) { maxed.setPageToken(_).execute() }
+      Source.fromFutureSource(Future {
+        val prepared = gt.client.objects().list(bucket).setVersions(true).setPrefix(name)
+        val maxed = maybeMax.fold(prepared) { prepared.setMaxResults(_) }
 
-      val currentPage = Option(request.getItems) match {
-        case Some(items) =>
-          Source.fromIterator[VersionedObject] { () =>
+        val request =
+          nextToken.fold(maxed.execute()) { maxed.setPageToken(_).execute() }
+
+        val (currentPage, empty) = Option(request.getItems) match {
+          case Some(items) =>
             val collection = collectionAsScalaIterable(items).filter(_.getName == name)
-            collection.iterator.map { obj: StorageObject =>
-              VersionedObject(
-                obj.getName,
-                Bytes(obj.getSize.longValue),
-                LocalDateTime.ofInstant(Instant.ofEpochMilli(obj.getUpdated.getValue), ZoneOffset.UTC),
-                obj.getGeneration.toString,
-                obj.getTimeDeleted == null)
+            val source = Source.fromIterator[VersionedObject] { () =>
+              collection.iterator.map { obj: StorageObject =>
+                VersionedObject(
+                  obj.getName,
+                  Bytes(obj.getSize.longValue),
+                  LocalDateTime.ofInstant(Instant.ofEpochMilli(obj.getUpdated.getValue), ZoneOffset.UTC),
+                  obj.getGeneration.toString,
+                  obj.getTimeDeleted == null)
+              }
             }
-          }
+            (source, collection.isEmpty)
 
-        case _ => Source.empty[VersionedObject]
-      }
+          case _ => (Source.empty[VersionedObject], true)
+        }
 
-      Option(request.getNextPageToken) match {
-        case nextPageToken @ Some(_) =>
-          currentPage ++ apply(nextPageToken)
+        Option(request.getNextPageToken) match {
+          case nextPageToken @ Some(_) =>
+            currentPage ++ apply(nextPageToken, maybeEmpty = maybeEmpty && empty)
 
-        case _ => currentPage
-      }
-    }
+          case _ =>
+            if (maybeEmpty && empty)
+              throw ObjectNotFoundException(ref)
+            else
+              currentPage
+        }
+      }.recoverWith(ErrorHandler.ofObjectToFuture(s"Could not list versions of object $name inside bucket $bucket", ref)))
+    }.mapMaterializedValue(_ => NotUsed)
 
-    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = apply(None)
+    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = apply(None, maybeEmpty = true)
   }
 
   def versions: VersionedListRequest = ObjectsVersions(None)

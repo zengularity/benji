@@ -168,7 +168,7 @@ def putToS3[A : BodyWritable](storage: WSS3, bucketName: String, objName: String
   for {
     bucketRef <- { // get-or-create
       val ref = storage.bucket(bucketName)
-      ref.create(checkBefore = true).map(_ => ref)
+      ref.create(failsIfExists = true).map(_ => ref)
     }
     storageObj = bucketRef.obj(objName)
     _ <- data runWith storageObj.put[A]

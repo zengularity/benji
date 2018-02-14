@@ -7,12 +7,8 @@ import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.benji.{
-  ByteRange,
-  VersionedObjectRef,
-  VersionedObject,
-  Bytes
-}
+import com.zengularity.benji.{ ByteRange, VersionedObjectRef, VersionedObject, Bytes }
+import com.zengularity.benji.exception.{ VersionNotFoundException, ObjectNotFoundException }
 
 import com.zengularity.benji.ws.Successful
 
@@ -20,7 +16,7 @@ final case class WSS3VersionedObjectRef(
   storage: WSS3,
   bucket: String,
   name: String,
-  versionId: String) extends VersionedObjectRef {
+  versionId: String) extends VersionedObjectRef { ref =>
 
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
@@ -37,35 +33,40 @@ final case class WSS3VersionedObjectRef(
         .ObjectsVersions()
         .withDeleteMarkers
         .collect[List]()
-        .map(versionsWithSelf => {
-          // versions as they'll be after deleting this VersionedObjectRef
-          val versions = versionsWithSelf.filter(_.versionId != versionId)
-
-          // There are two cases where we automatically delete some deleteMarkers after deleting this version :
-          //  1. When there will be only deleteMarkers left, we completely delete the object (forall condition)
-          //  2. Otherwise, we will delete deleteMarkers that are not currently the latest version (filter condition)
-          if (versions.forall(isDeleteMarker)) {
-            versions
+        .flatMap(versionsWithSelf => {
+          if (!versionsWithSelf.exists(_.versionId == versionId)) {
+            Future.failed[Seq[VersionedObject]](VersionNotFoundException(ref))
           } else {
-            versions.filter(v => isDeleteMarker(v) && !v.isLatest)
+            // versions as they'll be after deleting this VersionedObjectRef
+            val versions = versionsWithSelf.filter(_.versionId != versionId)
+
+            // There are two cases where we automatically delete some deleteMarkers after deleting this version :
+            //  1. When there will be only deleteMarkers left, we completely delete the object (forall condition)
+            //  2. Otherwise, we will delete deleteMarkers that are not currently the latest version (filter condition)
+            if (versions.forall(isDeleteMarker)) {
+              Future.successful(versions)
+            } else {
+              Future.successful(versions.filter(v => isDeleteMarker(v) && !v.isLatest))
+            }
           }
-        })
+        }).recoverWith { case ObjectNotFoundException(_, _) => Future.failed[Seq[VersionedObject]](VersionNotFoundException(ref)) }
     }
 
     private def deleteSingle(v: VersionedObject)(implicit m: Materializer): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
       storage.request(Some(bucket), Some(v.name), query = Some(s"versionId=${v.versionId}"), requestTimeout = requestTimeout).delete().flatMap {
-        case Successful(_) => Future.successful(logger.info(s"Successfully deleted the version " +
-          s"$bucket/${v.name}/${v.versionId}."))
-
-        case response if ignoreExists && response.status == 404 =>
-          Future.successful(logger.info(s"Version $bucket/${v.name}/${v.versionId} was not found when deleting. " +
-            s"(Success)"))
+        case Successful(_) =>
+          Future.successful(logger.info(s"Successfully deleted the version $bucket/${v.name}/${v.versionId}."))
 
         case response =>
-          Future.failed[Unit](new IllegalStateException(s"Could not delete the version $bucket/${v.name}/${v.versionId}" +
-            s". Response: ${response.status} - ${response.statusText}; ${response.body}"))
+          val errorHandler = ErrorHandler.ofVersion(s"Could not delete version $versionId from object $name within bucket $bucket", ref)(_)
+          errorHandler(response) match {
+            case VersionNotFoundException(_, _, _) if ignoreExists =>
+              Future.successful(logger.info(s"Version $bucket/${v.name}/${v.versionId} was not found when deleting. (Success)"))
+
+            case throwable => Future.failed[Unit](throwable)
+          }
       }
     }
 
@@ -104,12 +105,14 @@ final case class WSS3VersionedObjectRef(
       def req = storage.request(Some(bucket), Some(name), query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout)
 
       Source.fromFutureSource(range.fold(req)(r => req.addHttpHeaders(
-        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap { response =>
-        if (response.status == 200 || response.status == 206) {
-          Future.successful(response.bodyAsSource.
-            mapMaterializedValue(_ => NotUsed))
-        } else Future.failed[Source[ByteString, NotUsed]](new IllegalStateException(s"Could not get the contents of $bucket/$name/$versionId. Response: ${response.status} - ${response.headers}"))
-      }).mapMaterializedValue { _: Future[NotUsed] => NotUsed }
+        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap {
+        case response if response.status == 200 || response.status == 206 =>
+          Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed))
+
+        case response =>
+          val err = ErrorHandler.ofVersion(s"Could not get the contents of the version $versionId in object $name in the bucket $bucket", ref)(response)
+          Future.failed[Source[ByteString, NotUsed]](err)
+      }).mapMaterializedValue(_ => NotUsed)
     }
   }
 

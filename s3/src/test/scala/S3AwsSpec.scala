@@ -49,7 +49,7 @@ sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S
 
     withMatEx { implicit ee: EE =>
       commonTests(s3f, bucketName)
-      commonVersioningTests(s3f)
+      commonVersioningTests(s3f, sampleVersionId = "t1Uelqn.uwzanWblaNOrIWpgWapViNXY")
     }
 
     s3Suite(s3f, bucketName, "testfile.txt")

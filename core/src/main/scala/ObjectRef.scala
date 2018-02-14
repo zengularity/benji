@@ -67,13 +67,13 @@ trait ObjectRef { ref =>
   /**
    * @tparam E $consumerInputTParam
    */
-  def put[E](implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[NotUsed]] = put[E, NotUsed](NotUsed.getInstance)((_, _) => Future.successful(NotUsed.getInstance))
+  def put[E](implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[NotUsed]] = put[E, NotUsed](NotUsed)((_, _) => Future.successful(NotUsed))
 
   /**
    * @tparam E $consumerInputTParam
    * @param size $putSizeParam
    */
-  def put[E](size: Long)(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[NotUsed]] = put[E, NotUsed](NotUsed.getInstance, size = Some(size))((_, _) => Future.successful(NotUsed.getInstance))
+  def put[E](size: Long)(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[NotUsed]] = put[E, NotUsed](NotUsed, size = Some(size))((_, _) => Future.successful(NotUsed))
 
   /**
    * @tparam E $consumerInputTParam
@@ -81,7 +81,7 @@ trait ObjectRef { ref =>
    *
    * {{{
    * def upload[T <: ObjectStorage[_]](obj: ObjectRef[T], data: ByteString) =
-   *   obj.put[ByteString, Unit](NotUsed.getInstance)((_, _) => Future.successful(NotUsed.getInstance))
+   *   obj.put[ByteString, Unit](NotUsed)((_, _) => Future.successful(NotUsed))
    * }}}
    */
   def put[E, A]: PutRequest[E, A]
