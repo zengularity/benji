@@ -39,7 +39,7 @@ trait BenjiMatchers { self: Matchers =>
   def supportCreation(implicit ee: ExecutionEnv): Matcher[BucketRef] = {
     implicit val ec = ee.executionContext
 
-    beTrue.await(1, 5.seconds) ^^ { bucket: BucketRef =>
+    beTypedEqualTo({}).await(1, 5.seconds) ^^ { bucket: BucketRef =>
       bucket.create()
     }
   }
@@ -47,8 +47,8 @@ trait BenjiMatchers { self: Matchers =>
   def supportCheckedCreation(implicit ee: ExecutionEnv): Matcher[BucketRef] = {
     implicit val ec = ee.executionContext
 
-    beTrue.await(1, 5.seconds) ^^ { bucket: BucketRef =>
-      bucket.create(checkBefore = true)
+    beTypedEqualTo[Unit]({}).await(1, 5.seconds) ^^ { bucket: BucketRef =>
+      bucket.create(failsIfExists = true)
     }
   }
 

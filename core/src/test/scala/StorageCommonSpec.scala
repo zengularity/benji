@@ -15,7 +15,7 @@ import com.zengularity.benji.{ ByteRange, ObjectStorage, ObjectRef }
 
 import scala.concurrent.Future
 
-trait StorageCommonSpec extends BenjiMatchers {
+trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
   self: org.specs2.mutable.Specification =>
   import tests.benji.StreamUtils._
 
@@ -38,8 +38,6 @@ trait StorageCommonSpec extends BenjiMatchers {
         bucket must supportCreation
       } and {
         bucket must existsIn(storage)
-      } and {
-        bucket must not(supportCheckedCreation)
       }
     }
 
@@ -87,6 +85,7 @@ trait StorageCommonSpec extends BenjiMatchers {
     sequential
 
     minimalCommonTests(storage, defaultBucketName)
+    errorCommonTests(storage)
 
     "Create & delete buckets" in assertAllStagesStopped {
       val name = s"benji-test-2${System identityHashCode storage}"
@@ -112,7 +111,7 @@ trait StorageCommonSpec extends BenjiMatchers {
 
       bucket must notExistsIn(storage) and {
         // creating bucket
-        bucket.create() must beTrue.await(1, 5.seconds)
+        bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 5.seconds)
       } and {
         bucket must existsIn(storage)
       } and {
@@ -151,13 +150,6 @@ trait StorageCommonSpec extends BenjiMatchers {
       (storage.bucket(bucketName).obj("testfile.txt").
         get(range = Some(ByteRange(4, 9))) runWith consume).
         aka("partial content") must beTypedEqualTo("o worl").await(1, 10.seconds)
-    }
-
-    "Fail to get contents of a non-existing file" in assertAllStagesStopped {
-      storage.bucket(bucketName).obj("test-folder/DoesNotExist.txt").
-        get() runWith consume must throwA[IllegalStateException].like({
-          case e => e.getMessage must startWith(s"Could not get the contents of the object test-folder/DoesNotExist.txt in the bucket $bucketName. Response: 404")
-        }).await(1, 10.seconds)
     }
 
     "Write and delete file" in assertAllStagesStopped {
@@ -218,11 +210,7 @@ trait StorageCommonSpec extends BenjiMatchers {
                   onMove(file3, file4, file3.moveTo(file4, preventOverwrite))
                 } and {
                   (for {
-                    _ <- file3.delete().recoverWith {
-                      case _: IllegalArgumentException =>
-                        Future.successful({})
-                      case err => Future.failed[Unit](err)
-                    }
+                    _ <- file3.delete.ignoreIfNotExists()
                     _ <- file4.delete()
                     a <- file3.exists
                     b <- file4.exists
@@ -275,7 +263,7 @@ trait StorageCommonSpec extends BenjiMatchers {
       {
         bucket must notExistsIn(storage)
       } and {
-        bucket.create() must beTrue.await(1, 10.seconds)
+        bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
         bucket must existsIn(storage)
       } and {
@@ -370,9 +358,20 @@ trait StorageCommonSpec extends BenjiMatchers {
       }
     }
 
+    "Return false when checking object existence of a non-existing bucket" in {
+      val bucket = storage.bucket("unknown_bucket")
+      val newObj = bucket.obj("new_object.txt")
+
+      {
+        bucket must notExistsIn(storage)
+      } and {
+        newObj.exists must beFalse.await(1, 10.seconds)
+      }
+    }
+
     "Versioning feature should be consistant between buckets and objects" in {
       val bucket = storage.bucket(bucketName)
-      val obj = bucket.obj("test-benji-versioning-obj")
+      val obj = bucket.obj("benji-test-versioning-obj")
 
       bucket.versioning.isDefined must_=== obj.versioning.isDefined
     }

@@ -18,7 +18,15 @@ import org.apache.commons.vfs2.{
 import play.api.libs.json.Json
 import play.api.libs.ws.BodyWritable
 
-import com.zengularity.benji.{ ByteRange, Bytes, Chunk, ObjectRef, Streams, ObjectVersioning }
+import com.zengularity.benji.exception.{ ObjectNotFoundException, BucketNotFoundException }
+import com.zengularity.benji.{
+  ByteRange,
+  Bytes,
+  Chunk,
+  ObjectRef,
+  Streams,
+  ObjectVersioning
+}
 
 final class VFSObjectRef private[vfs] (
   val storage: VFSStorage,
@@ -51,7 +59,12 @@ final class VFSObjectRef private[vfs] (
               case NonFatal(err) => logger.warn(s"Fails to close inputstream", err)
             }
         }
-      } else Future.successful(Map.empty[String, Seq[String]])
+      } else {
+        Future { file.exists() }.flatMap {
+          case true => Future.successful(Map.empty[String, Seq[String]])
+          case false => Future.failed[Map[String, Seq[String]]](ObjectNotFoundException(ref))
+        }
+      }
     }
   }
 
@@ -83,7 +96,9 @@ final class VFSObjectRef private[vfs] (
 
       Source.fromFuture(in.map(s => StreamConverters.fromInputStream(() => s)).
         recoverWith {
-          case reason: FileNotFoundException => Future.failed[Source[ByteString, NotUsed]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: 404 - ${reason.getMessage}"))
+          case reason: FileNotFoundException =>
+            logger.info(s"Could not get the contents of the object $name in the bucket $bucket : $reason")
+            Future.failed[Source[ByteString, NotUsed]](ObjectNotFoundException(ref))
 
         }).flatMapMerge(1, identity)
     }
@@ -150,7 +165,7 @@ final class VFSObjectRef private[vfs] (
         Source.fromFuture {
           storage.bucket(bucket).exists.flatMap { exists =>
             if (exists) Future.successful(entry)
-            else Future.failed[E](new NoSuchElementException(s"Target bucket doesn't exist: $bucket"))
+            else Future.failed[E](BucketNotFoundException(bucket))
           }
         }
       }.via(upload).map { current =>
@@ -173,8 +188,7 @@ final class VFSObjectRef private[vfs] (
         if (ignoreExists || successful) {
           Future.unit
         } else {
-          Future.failed[Unit](new IllegalArgumentException(
-            s"Could not delete $bucket/$name: doesn't exist"))
+          Future.failed[Unit](ObjectNotFoundException(ref))
         }
       }
     }

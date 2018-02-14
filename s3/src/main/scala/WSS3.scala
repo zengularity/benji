@@ -45,6 +45,8 @@ class WSS3(
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html
    */
   object buckets extends self.BucketsRequest {
+    def error(response: StandaloneWSResponse): Throwable = new IllegalStateException(s"Could not get a list of all buckets. Response: ${response.status} - ${response.body}")
+
     def apply()(implicit m: Materializer): Source[Bucket, NotUsed] =
       S3.getXml[Bucket](request(requestTimeout = requestTimeout))({ xml =>
         def buckets = xml \ "Buckets" \ "Bucket"
@@ -54,7 +56,7 @@ class WSS3(
             name = (bucket \ "Name").text,
             creationTime = LocalDateTime.parse((bucket \ "CreationDate").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
         })
-      }, { response => s"Could not get a list of all buckets. Response: ${response.status} - $response" })
+      }, error)
 
     // TODO: Use pagination
   }
@@ -180,20 +182,20 @@ object S3 {
 
   private[s3] def getXml[T](req: => StandaloneWSRequest)(
     f: scala.xml.Elem => Source[T, NotUsed],
-    err: StandaloneWSResponse => String)(implicit m: Materializer): Source[T, NotUsed] = {
+    err: StandaloneWSResponse => Throwable)(implicit m: Materializer): Source[T, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     Source.fromFuture(req.withMethod("GET").stream().flatMap { response =>
       if (response.status == 200 || response.status == 206) {
 
-        Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed.getInstance).
+        Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed).
           fold(StringBuilder.newBuilder) {
             _ ++= _.utf8String
           }.
           flatMapConcat { buf =>
             f(scala.xml.XML.loadString(buf.result()))
           })
-      } else Future.failed[Source[T, NotUsed]](new IllegalStateException(err(response)))
+      } else Future.failed[Source[T, NotUsed]](err(response))
     }).flatMapConcat(identity)
   }
 

@@ -10,12 +10,8 @@ import akka.stream.scaladsl.Source
 
 import play.api.libs.ws.StandaloneWSResponse
 
-import com.zengularity.benji.{
-  BucketRef,
-  Object,
-  BucketVersioning,
-  VersionedObject
-}
+import com.zengularity.benji.{ BucketRef, BucketVersioning, Object, VersionedObject }
+import com.zengularity.benji.exception.{ BucketAlreadyExistsException, BucketNotFoundException }
 import com.zengularity.benji.s3.QueryParameters._
 import com.zengularity.benji.ws.Successful
 
@@ -49,7 +45,9 @@ final class WSS3BucketRef private[s3] (
         buildQuery(maxParam(maybeMax), tokenParam(token))
       }
 
-      WSS3BucketRef.list[Object](ref.storage, ref.name, token)(
+      val errorHandler = ErrorHandler.ofBucket(s"Could not list objects within the bucket $name", ref)(_)
+
+      WSS3BucketRef.list[Object](ref.storage, ref.name, token, errorHandler)(
         query, parse, _.name, andThen)
     }
   }
@@ -66,26 +64,30 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
    */
-  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext): Future[Boolean] = {
-    if (!checkBefore) createNew.map(_ => true)
-    else exists.flatMap {
-      case true => Future.successful(false)
-      case _ => createNew.map(_ => true)
+  def create(failsIfExists: Boolean = false)(implicit ec: ExecutionContext): Future[Unit] = {
+    val before = if (failsIfExists) {
+      exists.flatMap {
+        case true => Future.failed[Unit](BucketAlreadyExistsException(name))
+        case false => Future.successful({})
+      }
+    } else {
+      Future.successful({})
     }
+    before.flatMap(_ => createNew(failsIfExists))
   }
 
-  private def createNew(implicit ec: ExecutionContext): Future[Unit] = {
+  private def createNew(failsIfExists: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
     import play.api.libs.ws.DefaultBodyWritables._
 
-    storage.request(Some(name), requestTimeout =
-      requestTimeout).put("").flatMap {
+    storage.request(Some(name), requestTimeout = requestTimeout).put("").flatMap {
       case Successful(_) =>
-        Future.successful(logger.info(
-          s"Successfully created the bucket $name."))
+        Future.successful(logger.info(s"Successfully created the bucket $name."))
 
       case response =>
-        Future.failed[Unit](new IllegalStateException(s"Could not create the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}"))
-
+        ErrorHandler.ofBucket(s"Could not create the bucket $name.", ref)(response) match {
+          case BucketAlreadyExistsException(_) if !failsIfExists => Future.successful({})
+          case throwable => Future.failed[Unit](throwable)
+        }
     }
   }
 
@@ -110,12 +112,11 @@ final class WSS3BucketRef private[s3] (
             Future.successful(logger.info(
               s"Successfully deleted the bucket $name."))
 
-          case response if ignoreExists && response.status == 404 =>
-            Future.successful(logger.info(
-              s"Bucket $name was not found when deleting. (Success)"))
-
-          case response =>
-            Future.failed[Unit](new IllegalStateException(s"Could not delete the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}"))
+          case response => ErrorHandler.ofBucket(s"Could not delete the bucket $name", ref)(response) match {
+            case BucketNotFoundException(_) if ignoreExists =>
+              Future.successful(logger.info(s"Bucket $name was not found when deleting. (Success)"))
+            case throwable => Future.failed[Unit](throwable)
+          }
         }
     }
 
@@ -140,23 +141,27 @@ final class WSS3BucketRef private[s3] (
 
   def versioning: Option[BucketVersioning] = Some(this)
 
-  def isVersioned(implicit ec: ExecutionContext): Future[Boolean] = for {
-    xml <- storage.request(
+  def isVersioned(implicit ec: ExecutionContext): Future[Boolean] = {
+    val request = storage.request(
       Some(name),
       requestTimeout = storage.requestTimeout,
-      query = Some("versioning")).get().map { response =>
-        scala.xml.XML.loadString(response.body)
-      }
+      query = Some("versioning")).get()
 
-    status <- (xml \ "Status") match {
-      case Seq(n) if (n.text == "Enabled") => Future.successful(true)
-      case Seq(n) if (n.text == "Suspended") => Future.successful(false)
-      case Seq() => Future.successful(false)
-
-      case s =>
-        Future.failed[Boolean](new IllegalStateException(s"Unexpected multiple VersioningConfiguration.Status children from S3: $s"))
-    }
-  } yield status
+    request.flatMap({
+      case Successful(response) =>
+        val xml = scala.xml.XML.loadString(response.body)
+        xml \ "Status" match {
+          case Seq(n) if n.text == "Enabled" => Future.successful(true)
+          case Seq(n) if n.text == "Suspended" => Future.successful(false)
+          case Seq() => Future.successful(false)
+          case s =>
+            Future.failed[Boolean](new IllegalStateException(s"Unexpected multiple VersioningConfiguration.Status children from S3: $s"))
+        }
+      case response =>
+        val error = ErrorHandler.ofBucket(s"Could not check versioning of bucket $name", ref)(response)
+        Future.failed[Boolean](error)
+    })
+  }
 
   def setVersioning(enabled: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
     import play.api.libs.ws.DefaultBodyWritables._
@@ -170,8 +175,8 @@ final class WSS3BucketRef private[s3] (
     req.put(body.toString()).flatMap {
       case Successful(_) => Future.unit
       case response =>
-        val exc = new IllegalStateException(s"Could not change versionning of the bucket $name. Response: ${response.status} - ${response.statusText}; ${response.body}")
-        Future.failed[Unit](exc)
+        val error = ErrorHandler.ofBucket(s"Could not change versionning of the bucket $name", ref)(response)
+        Future.failed[Unit](error)
     }
   }
 
@@ -204,7 +209,9 @@ final class WSS3BucketRef private[s3] (
         buildQuery(versionParam, maxParam(maybeMax), tokenParam(token))
       }
 
-      WSS3BucketRef.list[VersionedObject](ref.storage, ref.name, token)(query, parse, _.name, andThen)
+      val errorHandler = ErrorHandler.ofBucket(s"Could not list versions within the bucket $name", ref)(_)
+
+      WSS3BucketRef.list[VersionedObject](ref.storage, ref.name, token, errorHandler)(query, parse, _.name, andThen)
     }
 
   }
@@ -219,14 +226,13 @@ object WSS3BucketRef {
    * @param name the bucket name
    * @param token the continuation token
    */
-  private[s3] def list[T](storage: WSS3, name: String, token: Option[String])(
+  private[s3] def list[T](storage: WSS3, name: String, token: Option[String], errorHandler: StandaloneWSResponse => Throwable)(
     query: Option[String] => Option[String],
     parse: Elem => Iterable[T],
     marker: T => String,
-    andThen: String => Source[T, NotUsed])(implicit m: Materializer): Source[T, NotUsed] = {
+    andThen: String => Source[T, NotUsed],
+    whenEmpty: Option[Throwable] = None)(implicit m: Materializer): Source[T, NotUsed] = {
     @inline def requestTimeout = storage.requestTimeout
-
-    def error(response: StandaloneWSResponse) = s"Could not list objects within the bucket $name. Response: ${response.status} - ${response.body}"
 
     val request = storage.request(
       Some(name), requestTimeout = requestTimeout, query = query(token))
@@ -235,14 +241,19 @@ object WSS3BucketRef {
       def isTruncated = (xml \ "IsTruncated").text.toBoolean
 
       val parsed = parse(xml)
-      def currentPage = Source(parsed)
 
-      parsed.lastOption.map(marker) match {
-        case Some(tok) if isTruncated =>
-          currentPage ++ andThen(tok)
+      whenEmpty match {
+        case Some(throwable) if parsed.isEmpty => Source.failed[T](throwable)
+        case _ =>
+          def currentPage = Source(parsed)
 
-        case _ => currentPage
+          parsed.lastOption.map(marker) match {
+            case Some(tok) if isTruncated =>
+              currentPage ++ andThen(tok)
+
+            case _ => currentPage
+          }
       }
-    }, error)
+    }, errorHandler)
   }
 }

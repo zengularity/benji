@@ -27,7 +27,7 @@ class S3CephSpec extends org.specs2.mutable.Specification with StorageCommonSpec
 
     withMatEx { implicit ee: EE =>
       commonTests(ceph, bucketName)
-      commonVersioningTests(ceph)
+      commonVersioningTests(ceph, sampleVersionId = "t1Uelqn.uwzanWblaNOrIWpgWapViNXY")
     }
 
     s3Suite(ceph, bucketName, objName)

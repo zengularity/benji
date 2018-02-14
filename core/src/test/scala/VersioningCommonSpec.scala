@@ -22,10 +22,10 @@ import scala.concurrent.Future
 
 // TODO: Remove annotation
 @SuppressWarnings(Array("org.wartremover.warts.TraversableOps"))
-trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specification =>
+trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: org.specs2.mutable.Specification =>
   import tests.benji.StreamUtils._
 
-  def commonVersioningTests(storage: ObjectStorage)(
+  def commonVersioningTests(storage: ObjectStorage, sampleVersionId: String)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv,
@@ -47,7 +47,7 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
           {
             bucket must notExistsIn(storage)
           } and {
-            bucket.create() must beTrue.await(1, 10.seconds)
+            bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
           } and {
             bucket must existsIn(storage)
           } and {
@@ -180,15 +180,13 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
             bucket must notExistsIn(storage)
           } and {
             // checking that after delete there's no content left when recreating
-            bucket.create() must beTrue.await(1, 10.seconds)
+            bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
           } and {
             vbucket.isVersioned must beFalse.await(1, 10.seconds)
           } and {
             vbucket.objectsVersions.collect[List]() must beEmpty[List[VersionedObject]].await(1, 10.seconds)
           } and {
-            bucket.delete.
-              recursive() must beTypedEqualTo({}).await(1, 10.seconds)
-
+            bucket.delete.recursive() must beTypedEqualTo({}).await(1, 10.seconds)
           } and {
             bucket must notExistsIn(storage)
           }
@@ -198,7 +196,7 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
       "to get the content a specific version by reference" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           {
-            bucket.create() must beTrue.await(1, 10.seconds)
+            bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
           } and {
             vbucket.setVersioning(enabled = true).
               map(_ => true) must beTrue.await(1, 10.seconds)
@@ -310,6 +308,7 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
               await(1, 10.seconds)
 
           } and {
+            // this allow to test that we're not just using prefix in listings
             createObject(bucket, testObjName + " other", "test excluded") must beTrue.
               await(1, 10.seconds)
 
@@ -398,5 +397,7 @@ trait VersioningCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Spec
         }
       }
     }
+
+    versioningErrorCommonTests(storage, sampleVersionId)
   }
 }

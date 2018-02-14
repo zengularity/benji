@@ -8,9 +8,10 @@ import akka.stream.scaladsl.{ Source, StreamConverters }
 import akka.util.ByteString
 
 import com.zengularity.benji.{ ByteRange, VersionedObjectRef, Bytes }
+import com.zengularity.benji.exception.VersionNotFoundException
 
 final case class GoogleVersionedObjectRef(storage: GoogleStorage, bucket: String, name: String, versionId: String)
-  extends VersionedObjectRef {
+  extends VersionedObjectRef { ref =>
   @inline def defaultThreshold: Bytes = GoogleObjectRef.defaultThreshold
 
   @inline private def gt = storage.transport
@@ -21,14 +22,12 @@ final case class GoogleVersionedObjectRef(storage: GoogleStorage, bucket: String
     def apply()(implicit m: Materializer): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
-      val futureResult = Future { gt.client.objects().delete(bucket, name).setGeneration(generation).execute(); () }
+      val rawResult = Future { gt.client.objects().delete(bucket, name).setGeneration(generation).execute(); () }
+      val result = rawResult.recoverWith(ErrorHandler.ofVersionToFuture(s"Could not delete version $versionId from object $name within bucket $bucket", ref))
       if (ignoreExists) {
-        futureResult.recover { case HttpResponse(404, _) => () }
+        result.recover { case VersionNotFoundException(_, _, _) => () }
       } else {
-        futureResult.recoverWith {
-          case HttpResponse(404, _) =>
-            Future.failed[Unit](new IllegalArgumentException(s"Could not delete $bucket/$name/$generation: doesn't exist"))
-        }
+        result
       }
     }
 
@@ -49,7 +48,7 @@ final case class GoogleVersionedObjectRef(storage: GoogleStorage, bucket: String
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      Source.fromFuture(Future {
+      Source.fromFutureSource(Future {
         val req = gt.client.objects().get(bucket, name).setGeneration(generation)
 
         req.setRequestHeaders {
@@ -64,15 +63,10 @@ final case class GoogleVersionedObjectRef(storage: GoogleStorage, bucket: String
 
         req.setDisableGZipContent(storage.disableGZip)
 
-        req.executeMediaAsInputStream() // using alt=media
-      }.map(in => StreamConverters.fromInputStream(() => in)).recoverWith {
-        case HttpResponse(status, msg) =>
-          Future.failed[Source[ByteString, NotUsed]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: $status - $msg"))
-
-        case cause =>
-          Future.failed[Source[ByteString, NotUsed]](cause)
-      }).flatMapMerge(1, identity)
-    }
+        val in = req.executeMediaAsInputStream() // using alt=media
+        StreamConverters.fromInputStream(() => in)
+      }.recoverWith(ErrorHandler.ofVersionToFuture(s"Could not get the contents of the version $versionId in object $name in the bucket $bucket", ref)))
+    }.mapMaterializedValue(_ => NotUsed)
   }
 
   /**

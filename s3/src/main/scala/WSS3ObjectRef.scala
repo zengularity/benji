@@ -29,6 +29,7 @@ import com.zengularity.benji.{
 }
 import com.zengularity.benji.s3.QueryParameters._
 import com.zengularity.benji.ws.{ ContentMD5, Successful }
+import com.zengularity.benji.exception.ObjectNotFoundException
 
 final class WSS3ObjectRef private[s3] (
   val storage: WSS3,
@@ -62,14 +63,12 @@ final class WSS3ObjectRef private[s3] (
         Some(bucket), Some(name), requestTimeout = requestTimeout)
 
       Source.fromFutureSource[ByteString, NotUsed](range.fold(req)(r => req.addHttpHeaders(
-        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap { response =>
-        if (response.status == 200 || response.status == 206) {
-          Future.successful(response.bodyAsSource.
-            mapMaterializedValue(_ => NotUsed))
-
-        } else {
-          Future.failed[Source[ByteString, NotUsed]](new IllegalStateException(s"Could not get the contents of the object $name in the bucket $bucket. Response: ${response.status} - ${response.headers}"))
-        }
+        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap {
+        case response if response.status == 200 || response.status == 206 =>
+          Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed))
+        case response =>
+          val err = ErrorHandler.ofObject(s"Could not get the contents of the object $name in the bucket $bucket", ref)(response)
+          Future.failed[Source[ByteString, NotUsed]](err)
       }).mapMaterializedValue(_ => NotUsed)
     }
   }
@@ -80,12 +79,11 @@ final class WSS3ObjectRef private[s3] (
     def req = storage.request(
       Some(bucket), Some(name), requestTimeout = requestTimeout)
 
-    req.head().flatMap { response =>
-      if (response.status != 200) {
-        Future.failed[Map[String, Seq[String]]](new IllegalArgumentException(s"Could not get the head of the object $name in the bucket $bucket. Response: ${response.status} - ${response.statusText}"))
-      } else {
-        Future(response.headers)
-      }
+    req.head().flatMap {
+      case response if response.status == 200 => Future(response.headers)
+      case response =>
+        val error = ErrorHandler.ofObject(s"Could not get the head of the object $name in the bucket $bucket", ref)(response)
+        Future.failed[Map[String, Seq[String]]](error)
     }
   }
 
@@ -153,30 +151,33 @@ final class WSS3ObjectRef private[s3] (
   def put[E, A] = new RESTPutRequest[E, A](defaultMaxPart)
 
   private case class WSS3DeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
+
     /**
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
      */
-    def apply()(implicit ec: ExecutionContext): Future[Unit] = {
-      def checkExists = if (ignoreExists) {
-        Future.unit
-      } else {
-        exists.flatMap {
-          case false => Future.failed[Unit](new IllegalArgumentException(s"Could not delete $bucket/$name: doesn't exist"))
-          case true => Future.unit
+    private def delete(implicit ec: ExecutionContext): Future[Unit] = {
+      storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).delete().flatMap {
+        case Successful(_) =>
+          logger.info(s"Successfully deleted the object $bucket/$name.")
+          Future.unit
+
+        case response => ErrorHandler.ofObject(s"Could not delete object $name inside $bucket", ref)(response) match {
+          case ObjectNotFoundException(_, _) if ignoreExists => Future.unit
+          case throwable => Future.failed[Unit](throwable)
         }
       }
-
-      for {
-        _ <- checkExists
-        _ <- storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).delete().flatMap {
-          case Successful(_) => Future.successful(logger.info(
-            s"Successfully deleted the object $bucket/$name."))
-
-          case response =>
-            Future.failed[Unit](new IllegalStateException(s"Could not delete the object $bucket/$name. Response: ${response.status} - ${response.statusText}; ${response.body}"))
-        }
-      } yield ()
     }
+
+    private def checkExists(implicit ec: ExecutionContext) = if (ignoreExists) {
+      Future.unit
+    } else {
+      exists.flatMap {
+        case false => Future.failed[Unit](ObjectNotFoundException(ref))
+        case true => Future.unit
+      }
+    }
+
+    def apply()(implicit ec: ExecutionContext): Future[Unit] = checkExists.flatMap(_ => delete)
 
     def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
   }
@@ -254,7 +255,8 @@ final class WSS3ObjectRef private[s3] (
             s"Completed the simple upload for $bucket/$name."))
 
           case response =>
-            Future.failed[Unit](new IllegalStateException(s"Could not update the contents of the object $bucket/$name. Response: ${response.status} - ${response.statusText}; ${response.body}"))
+            val handler = ErrorHandler.ofBucket(s"Could not update the contents of the object $name in $bucket", bucket)(_)
+            Future.failed[Unit](handler(response))
 
         }.flatMap(_ => f(z, single)))
     }
@@ -306,7 +308,8 @@ final class WSS3ObjectRef private[s3] (
         }
 
         case response =>
-          Future.failed[String](new IllegalStateException(s"Could not initiate the upload for [$bucket/$name]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
+          val handler = ErrorHandler.ofBucket(s"Could not initiate the upload for object $name in $bucket", bucket)(_)
+          Future.failed[String](handler(response))
       }
   }
 
@@ -344,7 +347,8 @@ final class WSS3ObjectRef private[s3] (
           Future.failed[String](new IllegalStateException(s"Response for the upload [$bucket/$name, $uploadId, part: $partNumber] did not include an ETag header: ${response.headers}."))
 
         case response =>
-          Future.failed[String](new IllegalStateException(s"Could not upload a part for [$bucket/$name, $uploadId, part: $partNumber]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
+          val handler = ErrorHandler.ofBucket(s"Could not upload a part for [$bucket/$name, $uploadId, part: $partNumber]", bucket)(_)
+          Future.failed[String](handler(response))
       }
   }
 
@@ -369,7 +373,9 @@ final class WSS3ObjectRef private[s3] (
           case Successful(_) => Future.successful(logger.debug(
             s"Completed the upload $uploadId for $bucket/$name."))
 
-          case response => Future.failed[Unit](new IllegalStateException(s"Could not complete the upload for [$bucket/$name, $uploadId]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
+          case response =>
+            val handler = ErrorHandler.ofBucket(s"Could not complete the upload for [$bucket/$name, $uploadId]", bucket)(_)
+            Future.failed[Unit](handler(response))
         }
   }
 
@@ -397,12 +403,13 @@ final class WSS3ObjectRef private[s3] (
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
       def next(nextToken: String): Source[VersionedObject, NotUsed] =
-        list(Some(nextToken))(next(_))
+        list(Some(nextToken))(next(_), None)
 
-      list(Option.empty[String])(next(_))
+      // if on first page request we get no result, it means the object does not exists
+      list(Option.empty[String])(next(_), Some(ObjectNotFoundException(ref)))
     }
 
-    def list(token: Option[String])(andThen: String => Source[VersionedObject, NotUsed])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+    def list(token: Option[String])(andThen: String => Source[VersionedObject, NotUsed], whenEmpty: Option[Throwable])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       val parse: Elem => Iterable[VersionedObject] = { xml =>
         {
           if (includeDeleteMarkers) {
@@ -417,7 +424,9 @@ final class WSS3ObjectRef private[s3] (
         buildQuery(versionParam, prefixParam(ref.name), maxParam(maybeMax), tokenParam(token))
       }
 
-      WSS3BucketRef.list[VersionedObject](ref.storage, ref.bucket, token)(query, parse, _.name, andThen)
+      val errorHandler = ErrorHandler.ofObject(s"Could not list versions of object $name in bucket $bucket", ref)(_)
+
+      WSS3BucketRef.list[VersionedObject](ref.storage, ref.bucket, token, errorHandler)(query, parse, _.name, andThen, whenEmpty)
     }
   }
 

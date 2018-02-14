@@ -20,9 +20,7 @@ import com.zengularity.benji.spi.{ Injector, StorageFactory }
  */
 @Singleton
 final class BenjiModule extends Module {
-  @SuppressWarnings(Array(
-    "org.wartremover.warts.Any",
-    "org.wartremover.warts.Nothing"))
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] =
     bind[Injector].toProvider[PlayInjectorProvider] +:
       bind[StandaloneAhcWSClient].toProvider[WSProvider] +:

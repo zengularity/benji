@@ -71,23 +71,20 @@ trait BucketRef {
   def exists(implicit ec: ExecutionContext): Future[Boolean]
 
   /**
-   * Creates the bucket.
+   * Creates the bucket, if the bucket already exists operation will succeed unless parameter failsIfExists is true.
    *
-   * @param checkBefore if true, checks if it already exists before
-   * @return true if a new bucket has been created, false if skipped
+   * @param failsIfExists if true, the future will be failed if the bucket already exists.
+   * @note On some module configuring failsIfExists to true may slow down this operation.
    *
    * {{{
    * def setupBucket(store: ObjectStorage, name: String)(implicit ec: ExecutionContext): Future[BucketRef] = {
    *   // Make sure a bucket is available (either a new or existing one)
    *   val bucket = store.bucket(name)
-   *   bucket.create().map {
-   *     case true => bucket // newly created bucket
-   *     case false => bucket // existing bucket
-   *   }
+   *   bucket.create(failsIfExists = false).map(_ => bucket)
    * }
    * }}}
    */
-  def create(checkBefore: Boolean = false)(implicit ec: ExecutionContext): Future[Boolean]
+  def create(failsIfExists: Boolean = false)(implicit ec: ExecutionContext): Future[Unit]
 
   trait DeleteRequest {
     /**
