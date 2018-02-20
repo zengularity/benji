@@ -63,6 +63,16 @@ trait VersionedObjectRef {
   def get: GetRequest
 
   /**
+   * Returns the headers of the referenced version.
+   */
+  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
+
+  /**
+   * Returns the metadata of the referenced version.
+   */
+  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
+
+  /**
    * Determines whether or not this version exists.
    * `false` might be returned also in cases where you don't have permission
    * to view a certain object.

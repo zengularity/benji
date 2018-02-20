@@ -342,6 +342,18 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       }
     }
 
+    "Retrieve headers and metadata" in {
+      val bucket = storage.bucket(bucketName)
+      val obj = bucket.obj("testfile.txt")
+      val expectedMap = Map("foo" -> Seq("bar"))
+
+      {
+        obj.metadata() must beTypedEqualTo(expectedMap).await(1, 10.seconds)
+      } and {
+        obj.headers().map(_.filterKeys(_.contains("foo")).values.toList) must beTypedEqualTo(expectedMap.values.toList).await(1, 10.seconds)
+      }
+    }
+
     "Not create objects if bucket doesn't exist" in {
       val bucket = storage.bucket("unknown_bucket")
       val newObj = bucket.obj("new_object.txt")
