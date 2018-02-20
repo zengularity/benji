@@ -118,6 +118,22 @@ final case class WSS3VersionedObjectRef(
 
   val get: GetRequest = RESTGetRequest
 
+  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = {
+    def req = storage.request(
+      Some(bucket), Some(name), query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout)
+
+    req.head().flatMap {
+      case response if response.status == 200 => Future(response.headers)
+      case response =>
+        val error = ErrorHandler.ofVersion(s"Could not get the head of version $versionId of the object $name in the bucket $bucket", ref)(response)
+        Future.failed[Map[String, Seq[String]]](error)
+    }
+  }
+
+  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = headers().map { headers =>
+    headers.collect { case (key, value) if key.startsWith("x-amz-meta-") => key.stripPrefix("x-amz-meta-") -> value }
+  }
+
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
    */

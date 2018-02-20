@@ -221,6 +221,22 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
           versionOfNonExistingBucket.delete() must throwA(VersionNotFoundException(versionOfNonExistingBucket)).await(1, 10.seconds)
         }
 
+        "Getting headers of a non-existing version" in assertAllStagesStopped {
+          nonExistingVersion.headers() must throwA(VersionNotFoundException(nonExistingVersion)).await(1, 10.seconds)
+        }
+
+        "Getting headers of a version within a non-existing object" in assertAllStagesStopped {
+          versionOfNonExistingObj.headers() must throwA(VersionNotFoundException(versionOfNonExistingObj)).await(1, 10.seconds)
+        }
+
+        "Getting metadata of a non-existing version" in assertAllStagesStopped {
+          nonExistingVersion.metadata() must throwA(VersionNotFoundException(nonExistingVersion)).await(1, 10.seconds)
+        }
+
+        "Getting metadata of a version within a non-existing object" in assertAllStagesStopped {
+          versionOfNonExistingObj.metadata() must throwA(VersionNotFoundException(versionOfNonExistingObj)).await(1, 10.seconds)
+        }
+
         "Getting content of a non-existing version" in assertAllStagesStopped {
           get(nonExistingVersion) must throwA(VersionNotFoundException(nonExistingVersion)).await(1, 10.seconds)
         }

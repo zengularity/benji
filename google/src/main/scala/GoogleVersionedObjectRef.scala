@@ -7,6 +7,8 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{ Source, StreamConverters }
 import akka.util.ByteString
 
+import play.api.libs.json.{ JsObject, JsString, Json }
+
 import com.zengularity.benji.{ ByteRange, VersionedObjectRef, Bytes }
 import com.zengularity.benji.exception.VersionNotFoundException
 
@@ -67,6 +69,30 @@ final case class GoogleVersionedObjectRef(storage: GoogleStorage, bucket: String
         StreamConverters.fromInputStream(() => in)
       }.recoverWith(ErrorHandler.ofVersionToFuture(s"Could not get the contents of the version $versionId in object $name in the bucket $bucket", ref)))
     }.mapMaterializedValue(_ => NotUsed)
+  }
+
+  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = Future {
+    val resp = gt.client.objects().get(bucket, name).setGeneration(generation).executeUnparsed()
+
+    resp.parseAsString
+  }.flatMap {
+    Json.parse(_) match {
+      case JsObject(fields) => Future(fields.toMap.flatMap {
+        case (key, JsString(value)) => Seq(key -> Seq(value))
+
+        case ("metadata", JsObject(metadata)) => metadata.collect {
+          case (key, JsString(value)) => s"metadata.$key" -> Seq(value)
+        }
+
+        case _ => Seq.empty[(String, Seq[String])] // unsupported
+      })
+
+      case js => Future.failed[Map[String, Seq[String]]](new IllegalStateException(s"Could not get the headers of version $versionId of the object $name in the bucket $bucket. JSON response: ${Json stringify js}"))
+    }
+  }.recoverWith(ErrorHandler.ofVersionToFuture(s"Could not get the headers of version $versionId of the object $name in the bucket $bucket", ref))
+
+  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = headers().map { headers =>
+    headers.collect { case (key, value) if key.startsWith("metadata") => key.stripPrefix("metadata.") -> value }
   }
 
   /**

@@ -68,10 +68,10 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
         }
       }
 
-      def createObject(bucket: BucketRef, name: String, content: String): Future[Boolean] = {
+      def createObject(bucket: BucketRef, name: String, content: String, metadata: Map[String, String] = Map.empty): Future[Boolean] = {
         val file = bucket.obj(name)
         val put = file.put[Array[Byte], Long]
-        val upload = put(0L) { (sz, chunk) =>
+        val upload = put(0L, metadata = metadata) { (sz, chunk) =>
           Future.successful(sz + chunk.size)
         }
         val body = content.getBytes
@@ -193,7 +193,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
         }
       }
 
-      "to get the content a specific version by reference" in {
+      "to get the content and metadata of a specific version by reference" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           {
             bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
@@ -202,7 +202,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               map(_ => true) must beTrue.await(1, 10.seconds)
 
           } and {
-            createObject(bucket, objectName, "hello") must beTrue.
+            createObject(bucket, objectName, "hello", Map("foov1" -> "barv1")) must beTrue.
               await(1, 10.seconds)
 
           } and {
@@ -222,18 +222,21 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
                 } and {
                   ver.versionId must not(beEmpty)
                 } and {
-                  createObject(bucket, objectName, "hello world") must beTrue.
+                  createObject(bucket, objectName, "hello world", Map("foov2" -> "barv2")) must beTrue.
                     await(1, 10.seconds)
 
                 } and {
                   bucket.obj(objectName).get().
                     runWith(consume) must beTypedEqualTo("hello world").
                     await(1, 10.seconds)
-
+                } and {
+                  bucket.obj(objectName).metadata() must beTypedEqualTo(Map("foov2" -> Seq("barv2"))).await(1, 10.seconds)
                 } and {
                   vbucket.obj(objectName, ver.versionId).
                     get().runWith(consume) must beTypedEqualTo("hello").
                     await(1, 10.seconds)
+                } and {
+                  vbucket.obj(objectName, ver.versionId).metadata() must beTypedEqualTo(Map("foov1" -> Seq("barv1"))).await(1, 10.seconds)
                 }
               }.await(1, 10.seconds)
           }
