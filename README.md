@@ -8,6 +8,8 @@ The project is using [SBT](http://www.scala-sbt.org/), so to build it from sourc
 
     sbt publishLocal
 
+[![CircleCI](https://circleci.com/gh/zengularity/benji.svg?style=svg)](https://circleci.com/gh/zengularity/benji)
+
 ## Setup
 
 According your Object Storage, the following modules are available.

@@ -4,7 +4,7 @@ import sbt.Keys._
 import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
 
 object Publish {
-  val siteUrl = "http://www.zengularity.com"
+  val siteUrl = "https://github.com/zengularity/benji"
 
   lazy val settings = Seq(
     licenses := Seq("Apache-2.0" ->
@@ -15,8 +15,8 @@ object Publish {
     homepage := Some(url(siteUrl)),
     scmInfo := Some(
       ScmInfo(
-        url("https://bitbucket.org/zengularity/zen-s3"),
-        "scm:git@bitbucket.org:zengularity/zen-s3.git")),
+        url("https://github.com/zengularity/benji"),
+        "git@github.com:zengularity/benji.git")),
     headerLicense := {
       val currentYear = java.time.Year.now(java.time.Clock.systemUTC).getValue
       Some(HeaderLicense.Custom(
