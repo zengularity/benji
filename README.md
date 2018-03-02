@@ -182,3 +182,10 @@ TODO
 
 - Metadata types: `Bucket`, `Object`
 - Working references: `BucketRef`, `ObjectRef`
+
+## FAQ
+
+**Bucket naming Restrictions:** In a multiple modules usages, it is recommended to follow DNS-compliant bucket naming, with the following additional restrictions:
+ - Names length must be between 3 and 64 characters.
+ - Names must contains only lower-cases characters, numbers, dots and hyphens.
+ - Names must start and end with lower-cases characters and numbers.

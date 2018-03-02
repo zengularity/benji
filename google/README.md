@@ -141,3 +141,7 @@ The optional parameters `requestTimeout` and `disableGZip` can also be specified
     Invalid JWT: Token must be a short-lived token and in a reasonable timeframe
 
 The date/time on the client side is [out of sync](http://stackoverflow.com/a/36201957/3347384).
+
+## FAQ
+
+**Naming Restrictions:** Google Cloud [bucket naming restriction](https://cloud.google.com/storage/docs/naming) applies (3-63 characters long, only lower cases, numbers, underscores, dots and dashes, etc.), it's recommended to use DNS-compliant bucket names.
