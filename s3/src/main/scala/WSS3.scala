@@ -93,6 +93,8 @@ object S3 {
   /**
    * Tries to create a S3 client from an URI using the following format:
    * s3:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]
+   * 
+   * The `accessKey` and `secretKey` must not be URI-encoded.
    *
    * {{{
    * S3("s3:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
@@ -106,13 +108,9 @@ object S3 {
    * @return Success if the WSS3 was properly created, otherwise Failure
    */
   def apply[T](config: T)(implicit ws: StandaloneAhcWSClient, provider: URIProvider[T]): Try[WSS3] = {
-    def fromUri(uri: URI): Try[WSS3] = {
-      val (accessKey, remaining) = uri.getUserInfo.span(_ != ':')
-      val secretKey = remaining.drop(1)
-
+    def fromUri(uri: URI, accessKey: String, secretKey: String): Try[WSS3] = {
       val host = uri.getHost
       val scheme = uri.getScheme
-
       val params = parseQuery(uri)
 
       def reqTimeout: Try[Option[Long]] = params.get("requestTimeout") match {
@@ -161,13 +159,13 @@ object S3 {
           "Expected URI with scheme containing \"s3:\""))
 
       } else {
-        val uri = new URI(builtUri.getSchemeSpecificPart)
+        builtUri.getSchemeSpecificPart match {
+          case HttpUrl(scheme, accessKey, secret, raw) =>
+            fromUri(new URI(s"$scheme://$raw"), accessKey, secret)
 
-        if (uri.getUserInfo == null) {
-          Failure[WSS3](new IllegalArgumentException(
-            "Expected URI containing accessKey and secretKey"))
-        } else {
-          fromUri(uri)
+          case uri =>
+            Failure[WSS3](new IllegalArgumentException(
+              s"Expected URI containing accessKey and secretKey: $uri"))
         }
       }
     }
@@ -201,4 +199,6 @@ object S3 {
 
   private def parseQuery(uri: URI): Map[String, Seq[String]] =
     new QueryStringDecoder(uri.toString).parameters.asScala.mapValues(_.asScala).toMap
+
+  private lazy val HttpUrl = "^(http[s]*)://([^:]+):([^@]+)@(.+)$".r
 }
