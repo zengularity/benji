@@ -355,7 +355,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Not create objects if bucket doesn't exist" in {
-      val bucket = storage.bucket("unknown_bucket")
+      val bucket = storage.bucket("unknownbucket")
       val newObj = bucket.obj("new_object.txt")
       val write = newObj.put[Array[Byte]]
       val body = List.fill(10)("qwerty").mkString(" ").getBytes
@@ -371,7 +371,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Return false when checking object existence of a non-existing bucket" in {
-      val bucket = storage.bucket("unknown_bucket")
+      val bucket = storage.bucket("unknownbucket")
       val newObj = bucket.obj("new_object.txt")
 
       {
