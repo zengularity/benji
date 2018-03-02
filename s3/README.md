@@ -161,7 +161,7 @@ The optional parameter `requestTimeout` can also be specified in the query strin
 
 ## FAQ
 
-When using with AWS, the style `virtualHost` is recommanded. Without (according your AWS settings), you can get the following error if using the `path` style.
+When using with AWS, the style `virtualHost` is recommended. Without (according your AWS settings), you can get the following error if using the `path` style.
 
     java.lang.NullPointerException: originalUrl
     at com.ning.http.client.uri.UriParser.parse(UriParser.java:X)
@@ -172,3 +172,5 @@ When using with AWS, the style `virtualHost` is recommanded. Without (according 
 
 **Versioning:** When using versioning with S3, you may obtain version id `"null"` (not `null`), this is the version assigned to objects on non-versioned buckets.
 See [Managing Objects in a Versioning-Enabled Bucket](https://docs.aws.amazon.com/AmazonS3/latest/dev/manage-objects-versioned-bucket.html) S3 documentation for more details.
+
+**Naming Restrictions:** S3 [bucket naming restriction](https://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html) applies (3-63 characters long, only lower cases, numbers and hyphens, etc.), it's recommended to use DNS-compliant bucket names.
