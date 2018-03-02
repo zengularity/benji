@@ -17,6 +17,8 @@ addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.2.1")
 
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.1.18")
 
+addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.0.0")
+
 addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.5")
 
 // For the the highlight extractor

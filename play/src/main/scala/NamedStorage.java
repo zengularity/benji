@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ */
+
 package play.modules.benji;
 
 import javax.inject.Qualifier;

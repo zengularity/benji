@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ */
+
 package com.zengularity.benji.vfs
 
 import org.apache.commons.vfs2.{ FileSelectInfo, FileType, FileTypeSelector }

@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ */
+
 package com.zengularity.benji.s3
 
 import java.net.URI
@@ -93,7 +97,7 @@ object S3 {
   /**
    * Tries to create a S3 client from an URI using the following format:
    * s3:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]
-   * 
+   *
    * The `accessKey` and `secretKey` must not be URI-encoded.
    *
    * {{{
