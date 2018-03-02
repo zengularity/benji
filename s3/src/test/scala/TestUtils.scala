@@ -50,7 +50,8 @@ object TestUtils {
   lazy val awsFromVirtualHostStyleURL = S3(virtualHostStyleUrl).get
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
-  lazy val awsFromPathStyleURL = S3(s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=path").get
+  lazy val awsFromPathStyleURL =
+    S3(s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=path").get
 
   lazy val ceph = S3(cephAccessKey, cephSecretKey, cephProtocol, cephHost)
 

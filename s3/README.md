@@ -151,6 +151,8 @@ The main settings are:
 - *hostAndPort*: The HTTP host and optional port (otherwise defaulted according the `httpProto`; e.g. `s3.amazonaws.com`).
 - *style*: It represents how request URLs are created, either `path` style and [`virtualHost`](https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html).
 
+> Even when provided in URI, the `accessKet` and `secretKey` must be provided as-is (not URI encoded).
+
 The format for the configuration URIs is the following:
 
     s3:${httpProto}://${accessKey}:${secretKey}@${hostAndPort}/?style=${style}
