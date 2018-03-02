@@ -75,7 +75,7 @@ lazy val play = project.in(file("play")).
 
 lazy val benji = (project in file(".")).
   enablePlugins(ScalaUnidocPlugin).
-    settings(
+    settings(Seq(
       libraryDependencies ++= wsStream ++ Seq(Dependencies.playAhcWS),
       pomPostProcess := Common.transformPomDependencies { depSpec =>
         // Filter in POM the dependencies only required to compile sample in doc
@@ -89,7 +89,8 @@ lazy val benji = (project in file(".")).
       excludeFilter in doc := "play",
       scalacOptions ++= Seq("-Ywarn-unused-import", "-unchecked"),
       scalacOptions in (Compile, doc) ++= List(
-        "-skip-packages", "highlightextractor")).
+        "-skip-packages", "highlightextractor")
+    ) ++ Publish.settings).
   dependsOn(s3, google, vfs, play).
   aggregate(core, s3, google, vfs, play)
 

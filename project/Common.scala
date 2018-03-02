@@ -53,7 +53,7 @@ object Common {
         "com.typesafe.akka" %% "akka-stream-contrib" % "0.8",
         "ch.qos.logback" % "logback-classic" % "1.1.7"
     ).map(_ % Test)
-  ) ++ Scalariform.settings ++ Wart.settings
+  ) ++ Scalariform.settings ++ Wart.settings ++ Publish.settings
 
   val wsStream = Seq(
     Dependencies.playWS % Provided,

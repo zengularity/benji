@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ */
+
 package com.zengularity.benji.vfs
 
 import java.io.{ BufferedInputStream, InputStream }
