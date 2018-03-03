@@ -1,0 +1,15 @@
+<configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%-4relative [%-5level] %logger{35} - %msg %n</pattern>
+    </encoder>
+  </appender>
+  
+  <logger name="ch.qos.logback" level="ERROR" />
+  <logger name="org.apache.commons.vfs2" level="ERROR" />
+  <logger name="com.zengularity" level="WARN" /><!-- DEBUG -->
+
+  <root level="TRACE">
+    <appender-ref ref="STDOUT" />
+  </root>
+</configuration>
