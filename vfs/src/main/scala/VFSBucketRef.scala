@@ -18,7 +18,7 @@ import com.zengularity.benji.{ BucketRef, BucketVersioning, Bytes, Object }
 import com.zengularity.benji.exception.{ BucketNotFoundException, BucketAlreadyExistsException, BucketNotEmptyException }
 
 final class VFSBucketRef private[vfs] (
-  val storage: VFSStorage,
+  storage: VFSStorage,
   val name: String) extends BucketRef { ref =>
 
   @inline private def logger = storage.logger
@@ -82,6 +82,28 @@ final class VFSBucketRef private[vfs] (
     Future { dir.deleteAll(); () }
   }
 
+  def delete: DeleteRequest = VFSDeleteRequest()
+
+  def obj(objectName: String): VFSObjectRef =
+    new VFSObjectRef(storage, name, objectName)
+
+  @inline private def dir = storage.transport.fsManager.resolveFile(name)
+
+  def versioning: Option[BucketVersioning] = None
+
+  override lazy val toString = s"VFSBucketRef($name)"
+
+  override def equals(that: Any): Boolean = that match {
+    case other: VFSBucketRef =>
+      other.name == this.name
+
+    case _ => false
+  }
+
+  override def hashCode: Int = name.hashCode
+
+  // ---
+
   private case class VFSDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
     private def delete()(implicit m: Materializer): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
@@ -110,15 +132,4 @@ final class VFSBucketRef private[vfs] (
 
     def recursive: DeleteRequest = this.copy(isRecursive = true)
   }
-
-  def delete: DeleteRequest = VFSDeleteRequest()
-
-  def obj(objectName: String): VFSObjectRef =
-    new VFSObjectRef(storage, name, objectName)
-
-  @inline private def dir = storage.transport.fsManager.resolveFile(name)
-
-  override lazy val toString = s"VFSBucketRef($name)"
-
-  def versioning: Option[BucketVersioning] = None
 }

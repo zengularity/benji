@@ -30,7 +30,7 @@ import com.zengularity.benji.{ Bucket, ObjectStorage, URIProvider }
  * @define contentTypeParam the MIME type of content
  */
 class WSS3(
-  val transport: StandaloneAhcWSClient,
+  private val transport: StandaloneAhcWSClient,
   requestBuilder: WSRequestBuilder,
   val requestTimeout: Option[Long] = None) extends ObjectStorage { self =>
 
@@ -68,7 +68,7 @@ class WSS3(
   def bucket(name: String): WSS3BucketRef = new WSS3BucketRef(this, name)
 }
 
-/** S3 companion */
+/** S3 utility */
 object S3 {
   import com.zengularity.benji.LongVal
 
@@ -80,6 +80,14 @@ object S3 {
    * @param scheme the scheme
    * @param host the host name (or IP address)
    * @return A WSS3 instance configured to work with the S3-compatible API of a the server
+   *
+   * {{{
+   * S3(
+   *   accessKeyId = "accessKey",
+   *   secretAccessKeyId = "secretAccessKey",
+   *   scheme = "https",
+   *   host = "s3.amazonaws.com")
+   * }}}
    */
   def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new PathStyleWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
 
@@ -91,12 +99,20 @@ object S3 {
    * @param scheme the scheme
    * @param host the host name (or IP address)
    * @return A WSS3 instance configured to work with the S3-compatible API of a the server
+   *
+   * {{{
+   * S3.virtualHost(
+   *   accessKeyId = "accessKey",
+   *   secretAccessKeyId = "secretAccessKey",
+   *   scheme = "https",
+   *   host = "s3.amazonaws.com")
+   * }}}
    */
   def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new VirtualHostWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
 
   /**
    * Tries to create a S3 client from an URI using the following format:
-   * s3:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]
+   * `s3:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]`
    *
    * The `accessKey` and `secretKey` must not be URI-encoded.
    *
@@ -175,12 +191,12 @@ object S3 {
     }
   }
 
-  def apply(requestBuilder: WSRequestBuilder)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, requestBuilder)
+  private[s3] def apply(requestBuilder: WSRequestBuilder)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, requestBuilder)
 
   // Utility functions
 
   /** Returns a WS client (take care to close it once used). */
-  def client(config: AhcWSClientConfig = AhcWSClientConfig())(implicit materializer: Materializer): StandaloneAhcWSClient = StandaloneAhcWSClient(config)
+  private[s3] def client(config: AhcWSClientConfig = AhcWSClientConfig())(implicit materializer: Materializer): StandaloneAhcWSClient = StandaloneAhcWSClient(config)
 
   private[s3] def getXml[T](req: => StandaloneWSRequest)(
     f: scala.xml.Elem => Source[T, NotUsed],
@@ -202,7 +218,8 @@ object S3 {
   }
 
   private def parseQuery(uri: URI): Map[String, Seq[String]] =
-    new QueryStringDecoder(uri.toString).parameters.asScala.mapValues(_.asScala).toMap
+    new QueryStringDecoder(uri.toString).parameters.
+      asScala.mapValues(_.asScala).toMap
 
   private lazy val HttpUrl = "^(http[s]*)://([^:]+):([^@]+)@(.+)$".r
 }

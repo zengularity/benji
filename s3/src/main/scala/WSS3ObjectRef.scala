@@ -36,13 +36,14 @@ import com.zengularity.benji.ws.{ ContentMD5, Successful }
 import com.zengularity.benji.exception.ObjectNotFoundException
 
 final class WSS3ObjectRef private[s3] (
-  val storage: WSS3,
+  private val storage: WSS3,
   val bucket: String,
   val name: String) extends ObjectRef with ObjectVersioning { ref =>
 
   /** The maximum number of part (10,000) for a multipart upload to S3/AWS. */
   val defaultMaxPart: Int = 10000
 
+  /** The default threshold for multi-part upload. */
   val defaultThreshold: Bytes = Bytes.megabytes(5)
 
   @inline private def logger = storage.logger
@@ -50,32 +51,11 @@ final class WSS3ObjectRef private[s3] (
   //@inline private implicit def ws = storage.transport
 
   /**
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
+   * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html RESTObjectHEAD]]
    */
   def exists(implicit ec: ExecutionContext): Future[Boolean] =
     storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).
       head().map(_.status == 200)
-
-  /**
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
-   */
-  final class RESTGetRequest(val target: ref.type) extends GetRequest {
-    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
-      implicit def ec: ExecutionContext = m.executionContext
-
-      def req = storage.request(
-        Some(bucket), Some(name), requestTimeout = requestTimeout)
-
-      Source.fromFutureSource[ByteString, NotUsed](range.fold(req)(r => req.addHttpHeaders(
-        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap {
-        case response if response.status == 200 || response.status == 206 =>
-          Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed))
-        case response =>
-          val err = ErrorHandler.ofObject(s"Could not get the contents of the object $name in the bucket $bucket", ref)(response)
-          Future.failed[Source[ByteString, NotUsed]](err)
-      }).mapMaterializedValue(_ => NotUsed)
-    }
-  }
 
   def get = new RESTGetRequest(this)
 
@@ -95,9 +75,97 @@ final class WSS3ObjectRef private[s3] (
     headers.collect { case (key, value) if key.startsWith("x-amz-meta-") => key.stripPrefix("x-amz-meta-") -> value }
   }
 
+  def put[E, A] = new RESTPutRequest[E, A](defaultMaxPart)
+
+  def delete: DeleteRequest = WSS3DeleteRequest()
+
+  /**
+   * @see #copyTo
+   * @see #delete
+   */
+  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
+    val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
+
+    for {
+      _ <- {
+        if (!preventOverwrite) Future.successful({})
+        else targetObj.exists.flatMap {
+          case true => Future.failed[Unit](new IllegalStateException(
+            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"))
+
+          case _ => Future.successful({})
+        }
+      }
+      _ <- copyTo(targetBucketName, targetObjectName).recoverWith {
+        case reason =>
+          targetObj.delete.ignoreIfNotExists().filter(_ => false).
+            recoverWith { case _ => Future.failed[Unit](reason) }
+      }
+      _ <- delete() /* the previous reference */
+    } yield ()
+  }
+
+  /**
+   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
+   */
+  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] =
+    storage.request(Some(targetBucketName), Some(targetObjectName),
+      requestTimeout = requestTimeout).
+      addHttpHeaders("x-amz-copy-source" -> s"/$bucket/$name").
+      put("").flatMap {
+        case Successful(_) => Future.successful(logger.info(s"Successfully copied the object [$bucket/$name] to [$targetBucketName/$targetObjectName]."))
+
+        case response => Future.failed[Unit](new IllegalStateException(s"Could not copy the object [$bucket/$name] to [$targetBucketName/$targetObjectName]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
+      }
+
+  def versioning: Option[ObjectVersioning] = Some(this)
+
+  def versions: VersionedListRequest = ObjectVersions(None)
+
+  def version(versionId: String): VersionedObjectRef =
+    new WSS3VersionedObjectRef(storage, bucket, name, versionId)
+
+  override lazy val toString = s"WSS3ObjectRef($bucket, $name)"
+
+  override def equals(that: Any): Boolean = that match {
+    case other: WSS3ObjectRef =>
+      other.tupled == this.tupled
+
+    case _ => false
+  }
+
+  override def hashCode: Int = tupled.hashCode
+
+  @inline private def tupled = bucket -> name
+
+  // Utility methods
+
+  /**
+   * A S3 GET request.
+   *
+   * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html RESTObjectGET]]
+   */
+  final class RESTGetRequest(val target: ref.type) extends GetRequest {
+    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
+      implicit def ec: ExecutionContext = m.executionContext
+
+      def req = storage.request(
+        Some(bucket), Some(name), requestTimeout = requestTimeout)
+
+      Source.fromFutureSource[ByteString, NotUsed](range.fold(req)(r => req.addHttpHeaders(
+        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap {
+        case response if response.status == 200 || response.status == 206 =>
+          Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed))
+        case response =>
+          val err = ErrorHandler.ofObject(s"Could not get the contents of the object $name in the bucket $bucket", ref)(response)
+          Future.failed[Source[ByteString, NotUsed]](err)
+      }).mapMaterializedValue(_ => NotUsed)
+    }
+  }
+
   /**
    * A S3 PUT request.
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html and http://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html
+   * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html RESTObjectPUT]] and [[http://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html Multipart Upload Overview]]
    *
    * @define maxPartParam the maximum number of part
    * @param maxPart $maxPartParam
@@ -152,13 +220,11 @@ final class WSS3ObjectRef private[s3] (
     }
   }
 
-  def put[E, A] = new RESTPutRequest[E, A](defaultMaxPart)
-
+  /**
+   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
+   */
   private case class WSS3DeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
 
-    /**
-     * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
-     */
     private def delete(implicit ec: ExecutionContext): Future[Unit] = {
       storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).delete().flatMap {
         case Successful(_) =>
@@ -185,49 +251,6 @@ final class WSS3ObjectRef private[s3] (
 
     def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
   }
-
-  def delete: DeleteRequest = WSS3DeleteRequest()
-
-  /**
-   * @see #copyTo
-   * @see #delete
-   */
-  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
-    val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
-
-    for {
-      _ <- {
-        if (!preventOverwrite) Future.successful({})
-        else targetObj.exists.flatMap {
-          case true => Future.failed[Unit](new IllegalStateException(
-            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"))
-
-          case _ => Future.successful({})
-        }
-      }
-      _ <- copyTo(targetBucketName, targetObjectName).recoverWith {
-        case reason =>
-          targetObj.delete.ignoreIfNotExists().filter(_ => false).
-            recoverWith { case _ => Future.failed[Unit](reason) }
-      }
-      _ <- delete() /* the previous reference */
-    } yield ()
-  }
-
-  /**
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
-   */
-  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] =
-    storage.request(Some(targetBucketName), Some(targetObjectName),
-      requestTimeout = requestTimeout).
-      addHttpHeaders("x-amz-copy-source" -> s"/$bucket/$name").
-      put("").flatMap {
-        case Successful(_) => Future.successful(logger.info(s"Successfully copied the object [$bucket/$name] to [$targetBucketName/$targetObjectName]."))
-
-        case response => Future.failed[Unit](new IllegalStateException(s"Could not copy the object [$bucket/$name] to [$targetBucketName/$targetObjectName]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
-      }
-
-  // Utility methods
 
   /**
    * Creates an Flow that will upload the bytes it consumes in one request,
@@ -390,19 +413,15 @@ final class WSS3ObjectRef private[s3] (
       response.header("ETag")
   }
 
-  override lazy val toString = s"WSS3ObjectRef($bucket, $name)"
-
-  def versioning: Option[ObjectVersioning] = Some(this)
-
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
-  private[s3] case class ObjectsVersions(
+  private[s3] case class ObjectVersions(
     maybeMax: Option[Long] = None, includeDeleteMarkers: Boolean = false) extends ref.VersionedListRequest {
 
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
-    def withDeleteMarkers: ObjectsVersions = this.copy(includeDeleteMarkers = true)
+    def withDeleteMarkers: ObjectVersions = this.copy(includeDeleteMarkers = true)
 
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
@@ -433,8 +452,4 @@ final class WSS3ObjectRef private[s3] (
       WSS3BucketRef.list[VersionedObject](ref.storage, ref.bucket, token, errorHandler)(query, parse, _.name, andThen, whenEmpty)
     }
   }
-
-  def versions: VersionedListRequest = ObjectsVersions(None)
-
-  def version(versionId: String): VersionedObjectRef = WSS3VersionedObjectRef(storage, bucket, name, versionId)
 }

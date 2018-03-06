@@ -14,17 +14,52 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
 
 /**
- * Represents a reference to an object that supports versioning.
+ * Operations that are supported by a versioned object.
+ *
+ * @see [[VersionedObjectRef]]
  */
 trait ObjectVersioning {
+  /**
+   * Prepares a request to list the bucket versioned objects.
+   *
+   * {{{
+   * versioning.versions() // versions.apply()
+   * versioning.versions.collect[Set]()
+   * }}}
+   */
+  def versions: VersionedListRequest
+
+  /**
+   * Gets a reference to a specific version of an object,
+   * allowing you to perform operations on an object version.
+   *
+   * {{{
+   * versioning.version("1.0").exists
+   * }}}
+   */
+  def version(versionId: String): VersionedObjectRef
+
+  // ---
+
+  /**
+   * Prepares a request to list the bucket objects.
+   */
   trait VersionedListRequest {
     /**
      * Lists of all versioned objects within the bucket.
+     *
+     * {{{
+     * versioning.versions()
+     * }}}
      */
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed]
 
     /**
      * Collects the bucket objects.
+     *
+     * {{{
+     * versioning.versions.collect[List]()
+     * }}}
      */
     final def collect[M[_]]()(implicit m: Materializer, builder: CanBuildFrom[M[_], VersionedObject, M[VersionedObject]]): Future[M[VersionedObject]] = {
       implicit def ec: ExecutionContext = m.executionContext
@@ -36,18 +71,8 @@ trait ObjectVersioning {
 
     /**
      * Define batch size for retrieving objects with multiple requests
-     * @param max the batch size, indicating the maximum number of objects fetch at once
+     * @param max the maximum number of objects fetch at once
      */
     def withBatchSize(max: Long): VersionedListRequest
   }
-
-  /**
-   * Prepares a request to list the bucket versioned objects.
-   */
-  def versions: VersionedListRequest
-
-  /**
-   * Gets a reference to a specific version of an object, allowing you to perform operations on an object version.
-   */
-  def version(versionId: String): VersionedObjectRef
 }

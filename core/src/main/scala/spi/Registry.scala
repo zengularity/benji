@@ -6,7 +6,12 @@ package com.zengularity.benji.spi
 
 import scala.collection.immutable.Set
 
+/**
+ * Register the known [[StorageFactory]]
+ * according their associated [[StorageScheme]].
+ */
 final class Registry private[spi] () {
+  /** The known factories per scheme */
   lazy val factories: Map[String, Class[_ <: StorageFactory]] = {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
     val services = loader.iterator
@@ -33,6 +38,8 @@ final class Registry private[spi] () {
   lazy val schemes: Set[String] = factories.keySet
 }
 
+/** Registry utility */
 object Registry {
+  /** Returns a new registry instance. */
   def getInstance: Registry = new Registry()
 }

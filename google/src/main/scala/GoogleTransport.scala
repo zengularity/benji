@@ -23,6 +23,9 @@ import com.google.api.services.storage.Storage
 import com.zengularity.benji.URIProvider
 
 /**
+ * Benji transport for Google Cloud Storage
+ * (also using Play WS for direct REST call).
+ *
  * @param credential the Google Cloud Storage credential
  * @param projectId the ID of the Google project authorized for Cloud Storage
  * @param builder the Google builder
@@ -105,6 +108,8 @@ final class GoogleTransport(
   }
 
   /**
+   * Returns a transport managing the specified timeout on the requests.
+   *
    * @param timeout the request timeout
    */
   def withRequestTimeout(requestTimeout: Long): GoogleTransport =
@@ -112,6 +117,8 @@ final class GoogleTransport(
       baseRestUrl, servicePath, Some(requestTimeout), disableGZip)
 
   /**
+   * Returns a transport managing the specified compression on the requests.
+   *
    * @param disableGZip disable or not the GZip compression
    */
   def withDisableGZip(disableGZip: Boolean): GoogleTransport =
@@ -130,6 +137,8 @@ object GoogleTransport {
     if (str endsWith "/") str.dropRight(1) else str
 
   /**
+   * Creates a transport instance.
+   *
    * @param credential the Google Cloud Storage credential
    * @param projectId the ID of the Google project authorized for Cloud Storage
    * @param application the name of the current application
@@ -162,7 +171,7 @@ object GoogleTransport {
 
   /**
    * Tries to create a GoogleTransport from an URI using the following format:
-   * google:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]
+   * `google:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]`
    *
    * {{{
    * GoogleTransport("google:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")

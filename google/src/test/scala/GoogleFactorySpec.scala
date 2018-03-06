@@ -10,6 +10,8 @@ import com.zengularity.benji.google.{
   GoogleStorage
 }
 
+import com.zengularity.benji.google.tests.TestUtils
+
 class GoogleFactorySpec extends org.specs2.mutable.Specification {
   "Google factory" title
 

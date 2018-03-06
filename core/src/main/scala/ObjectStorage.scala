@@ -14,13 +14,13 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
 
 /**
- * Common API for Object storage.
+ * Root of the DSL.
  *
  * @define bucketNameParam the name of the bucket
  */
 trait ObjectStorage { self =>
   /** Storage logger */
-  val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
+  private[benji] val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
 
   /**
    * Returns a storage instance with specified request timeout.

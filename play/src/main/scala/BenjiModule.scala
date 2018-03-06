@@ -157,6 +157,7 @@ private[benji] final class PlayInjectorProvider extends Provider[Injector] {
   lazy val get: Injector = new PlayInjector(injector)
 }
 
+/** Utility to bind Benji injector abstraction with Play implementation. */
 final class PlayInjector(
   underlying: play.api.inject.Injector) extends Injector {
   def instanceOf[T](cls: Class[T]): T = underlying.instanceOf[T](cls)

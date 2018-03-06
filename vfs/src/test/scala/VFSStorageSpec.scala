@@ -50,7 +50,7 @@ class VFSStorageSpec(implicit ee: ExecutionEnv) extends org.specs2.mutable.Speci
         VFSObjectRef.defaultThreshold.bytes.toInt - 3)(nextByte) ++ "XXX".getBytes("UTF-8")
 
       filetest.put[Array[Byte], Unit].
-        aka("request") must beLike[filetest.RESTPutRequest[Array[Byte], Unit]] {
+        aka("request") must beLike[filetest.PutRequest[Array[Byte], Unit]] {
           case req =>
             val upload = req({})((_, _) => Future.successful({}))
 

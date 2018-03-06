@@ -1,8 +1,6 @@
-package tests.benji.vfs
+package com.zengularity.benji.vfs
 
 import java.io.ByteArrayInputStream
-
-import com.zengularity.benji.vfs.LimitedInputStream
 
 class LimitedInputStreamSpec extends org.specs2.mutable.Specification {
   "LimitedInputStream" title
@@ -19,7 +17,7 @@ class LimitedInputStreamSpec extends org.specs2.mutable.Specification {
 
   // ---
 
-  def read(in: LimitedInputStream): String =
+  def read(in: java.io.InputStream): String =
     scala.io.Source.fromInputStream(in).mkString("")
 
   def stream1(limit: Int): LimitedInputStream = stream2(limit)(identity)

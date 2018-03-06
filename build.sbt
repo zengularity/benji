@@ -54,13 +54,6 @@ lazy val vfs = project.in(file("vfs")).
 
 lazy val play = project.in(file("play")).
   settings(Common.settings ++ Seq(
-    sources in (Compile, doc) := {
-      val compiled = (sources in Compile).value
-
-      if (scalaVersion.value startsWith "2.12") {
-        compiled.filter { _.getName endsWith "NamedDatabase.java" }
-      } else compiled
-    },
     name := "benji-play",
     libraryDependencies ++= Seq(
       Dependencies.playAhcWS,
@@ -89,7 +82,17 @@ lazy val benji = (project in file(".")).
       excludeFilter in doc := "play",
       scalacOptions ++= Seq("-Ywarn-unused-import", "-unchecked"),
       scalacOptions in (Compile, doc) ++= List(
-        "-skip-packages", "highlightextractor")
+        "-skip-packages", "highlightextractor"),
+      unidocAllSources in (ScalaUnidoc, unidoc) ~= {
+        _.map(_.filterNot { f =>
+          val name = f.getName
+
+          name.startsWith("NamedStorage") ||
+          name.indexOf("-md-") != -1 ||
+          (name.startsWith("package") &&
+            f.getPath.indexOf("src_managed") != -1)
+        })
+      }
     ) ++ Publish.settings).
   dependsOn(s3, google, vfs, play).
   aggregate(core, s3, google, vfs, play)
