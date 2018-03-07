@@ -28,6 +28,11 @@ libraryDependencies += "com.zengularity" %% "benji-s3" % "VERSION"
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-ahc-ws-standalone" % "1.1.3",
   "com.typesafe.play" %% "play-ws-standalone-xml" % "1.1.3")
+
+resolvers ++= Seq(
+  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
+  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
+)
 ```
 
 Then, the S3 client can be used as following in your code.

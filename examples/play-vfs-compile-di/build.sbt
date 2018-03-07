@@ -20,14 +20,14 @@ scalacOptions ++= Seq(
   "-opt:_"
 )
 
-resolvers ++= Seq( // TODO: Remove once published
-  "Tatami Releases" at "https://raw.github.com/cchantep/tatami/master/releases",
-  "Tatami Snapshots" at "https://raw.github.com/cchantep/tatami/master/snapshots"
+resolvers ++= Seq(
+  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
+  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
 )
 
 libraryDependencies ++= Seq(
-  "com.zengularity" %% "benji-vfs" % "1.4.0-SNAPSHOT",
-  "com.zengularity" %% "benji-play" % "1.4.0-SNAPSHOT",
+  "com.zengularity" %% "benji-vfs" % "2.0.0-SNAPSHOT",
+  "com.zengularity" %% "benji-play" % "2.0.0-SNAPSHOT",
 )
 
 lazy val playVfs = (project in file(".")).enablePlugins(PlayScala)

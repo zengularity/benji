@@ -29,6 +29,11 @@ libraryDependencies += "com.zengularity" %% "benji-google" % benjiVer
 
 // If Play WS is not yet provided:
 libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.4"
+
+resolvers ++= Seq(
+  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
+  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
+)
 ```
 
 Then the storage operations can be called according the DSL from your `ObjectStorage` instance.
@@ -45,3 +50,12 @@ Then the storage operations can be called according the DSL from your `ObjectSto
 To prepare a new release the following command must be used.
 
     sbt release
+
+## Publish
+
+To publish a snapshot or a release on [Zengularity Entrepot](https://github.com/zengularity/entrepot):
+
+- set the environment variable `REPO_PATH`; e.g. `export REPO_PATH=/path/to/entrepot/snapshots/`
+- run the command `sbt publish` .
+
+Then in Entrepot, the changes must be commited and pushed.

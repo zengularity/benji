@@ -22,7 +22,14 @@ In your `build.sbt` (or `project/Build.scala`):
 
 ```
 libraryDependencies += "com.zengularity" %% "benji-vfs" % "VERSION"
+
+resolvers ++= Seq(
+  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
+  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
+)
 ```
+
+Then it be used as bellow.
 
 ```scala
 import scala.concurrent.{ ExecutionContext, Future }

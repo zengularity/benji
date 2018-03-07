@@ -9,18 +9,27 @@ The latest version of this plugin is for Play 2.6+, and can be enabled by adding
 ```ocaml
 // only for Play 2.6.x
 libraryDependencies ++= Seq(
-  "com.zengularity.benji" %% "benji-play" % "1.4.0"
+  "com.zengularity.benji" %% "benji-play" % VERSION
 )
 ```
 
 Then it's also required to enable the wanted backend, e.g. for S3:
 
 ```ocaml
-val benjiVer = "1.4.0"
+val benjiVer = VERSION
 
 libraryDependencies ++= Seq("play", "s3").map { mod =>
   "com.zengularity.benji" %% s"benji-${mod}" % benjiVer,
 }
+```
+
+Note that the following resolvers are also required in the build.
+
+```ocaml
+resolvers ++= Seq(
+  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
+  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
+)
 ```
 
 ## Setup

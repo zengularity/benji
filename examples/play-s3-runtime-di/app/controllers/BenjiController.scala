@@ -14,6 +14,8 @@ import play.api.libs.ws.DefaultBodyWritables._
 import play.api.mvc.{BaseController, ControllerComponents}
 
 import com.zengularity.benji.ObjectStorage
+import com.zengularity.benji.exception.BucketAlreadyExistsException
+
 import com.zengularity.benji.demo.forms.BenjiForm
 
 class BenjiController @Inject()(
@@ -32,9 +34,11 @@ class BenjiController @Inject()(
   }
 
   def createBucket(bucketName: String) = Action.async(parse.form(BenjiForm.createBucketForm)) { request =>
-    benji.bucket(bucketName).create(request.body.checkBefore).map { created =>
-      if (created) Created(s"$bucketName created")
-      else Ok(s"$bucketName already exists")
+    benji.bucket(bucketName).create(failsIfExists = true).map { _ =>
+      Created(s"$bucketName created")
+    }.recover {
+      case BucketAlreadyExistsException(_) =>
+        Ok(s"$bucketName already exists")
     }
   }
 

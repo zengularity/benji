@@ -32,7 +32,18 @@ object BucketNotEmptyException {
     BucketNotEmptyException(bucket.name)
 }
 
-/** An error when an operation is refused for an already existing bucket. */
+/** 
+  * An error when an operation is refused for an already existing bucket. 
+  * 
+  * {{{
+  * storage.bucket(bucketName).create(failsIfExists = true).map { _ =>
+  *   println(s"$bucketName created")
+  * }.recover {
+  *   case BucketAlreadyExistsException(_) =>
+  *     println(s"$bucketName already exists")
+  * }
+  * }}}
+  */
 case class BucketAlreadyExistsException(
   bucketName: String) extends BenjiException {
   override def getMessage: String = s"Bucket '$bucketName' already exists."
