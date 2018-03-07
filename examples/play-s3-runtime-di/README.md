@@ -1,4 +1,4 @@
-## Benji play demo app
+# Benji S3 Play demo
 
 This is a sample application to show how to integrate the benji's library
 in a play application. This app uses Guice to handle runtime dependency injection.
@@ -10,7 +10,7 @@ This example uses the following:
 - Benji play plugin
 - Benji S3 plugin as the demo uses the S3 storage
 
-### Setup and run
+## Setup and run
 
 You have to configure a URI that indicates what kind of storage you are going to use. 
 For instance for s3, you have to specify an URI of the form 
@@ -33,7 +33,7 @@ the application, you can use Postman and
 import the [postman json file](benji_postman.json) 
 to discover all the features described below.
 
-### Features
+## Features
 
 This application covers the main features of the benji's library 
 and how to use its DSL. Basically, it 
