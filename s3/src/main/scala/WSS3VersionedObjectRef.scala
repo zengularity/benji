@@ -16,14 +16,58 @@ import com.zengularity.benji.exception.{ VersionNotFoundException, ObjectNotFoun
 
 import com.zengularity.benji.ws.Successful
 
-final case class WSS3VersionedObjectRef(
+final class WSS3VersionedObjectRef(
   storage: WSS3,
-  bucket: String,
-  name: String,
-  versionId: String) extends VersionedObjectRef { ref =>
+  val bucket: String,
+  val name: String,
+  val versionId: String) extends VersionedObjectRef { ref =>
 
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
+
+  def delete: DeleteRequest = WSS3DeleteRequest()
+
+  val get: GetRequest = RESTGetRequest
+
+  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = {
+    def req = storage.request(
+      Some(bucket), Some(name), query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout)
+
+    req.head().flatMap {
+      case response if response.status == 200 => Future(response.headers)
+      case response =>
+        val error = ErrorHandler.ofVersion(s"Could not get the head of version $versionId of the object $name in the bucket $bucket", ref)(response)
+        Future.failed[Map[String, Seq[String]]](error)
+    }
+  }
+
+  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = headers().map { headers =>
+    headers.collect { case (key, value) if key.startsWith("x-amz-meta-") => key.stripPrefix("x-amz-meta-") -> value }
+  }
+
+  /**
+   * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html RESTObjectHEAD]]
+   */
+  def exists(implicit ec: ExecutionContext): Future[Boolean] =
+    storage.request(Some(bucket), Some(name),
+      query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout).
+      head().map(_.status == 200)
+
+  override lazy val toString =
+    s"WSS3VersionedObjectRef($bucket, $name, $versionId)"
+
+  override def equals(that: Any): Boolean = that match {
+    case other: WSS3VersionedObjectRef =>
+      other.tupled == this.tupled
+
+    case _ => false
+  }
+
+  override def hashCode: Int = tupled.hashCode
+
+  @inline private def tupled = (bucket, name, versionId)
+
+  // ---
 
   private[s3] case class WSS3DeleteRequest(ignoreExists: Boolean = false, skipMarkers: Boolean = false) extends DeleteRequest {
 
@@ -33,11 +77,8 @@ final case class WSS3VersionedObjectRef(
     private def markersToDelete()(implicit m: Materializer): Future[Seq[VersionedObject]] = {
       implicit val ec: ExecutionContext = m.executionContext
 
-      new WSS3ObjectRef(storage, bucket, name)
-        .ObjectsVersions()
-        .withDeleteMarkers
-        .collect[List]()
-        .flatMap(versionsWithSelf => {
+      new WSS3ObjectRef(storage, bucket, name).ObjectVersions().
+        withDeleteMarkers.collect[List]().flatMap(versionsWithSelf => {
           if (!versionsWithSelf.exists(_.versionId == versionId)) {
             Future.failed[Seq[VersionedObject]](VersionNotFoundException(ref))
           } else {
@@ -97,8 +138,6 @@ final case class WSS3VersionedObjectRef(
     def skipMarkersCheck: WSS3DeleteRequest = copy(skipMarkers = true)
   }
 
-  def delete: DeleteRequest = WSS3DeleteRequest()
-
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
    */
@@ -119,30 +158,4 @@ final case class WSS3VersionedObjectRef(
       }).mapMaterializedValue(_ => NotUsed)
     }
   }
-
-  val get: GetRequest = RESTGetRequest
-
-  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = {
-    def req = storage.request(
-      Some(bucket), Some(name), query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout)
-
-    req.head().flatMap {
-      case response if response.status == 200 => Future(response.headers)
-      case response =>
-        val error = ErrorHandler.ofVersion(s"Could not get the head of version $versionId of the object $name in the bucket $bucket", ref)(response)
-        Future.failed[Map[String, Seq[String]]](error)
-    }
-  }
-
-  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = headers().map { headers =>
-    headers.collect { case (key, value) if key.startsWith("x-amz-meta-") => key.stripPrefix("x-amz-meta-") -> value }
-  }
-
-  /**
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
-   */
-  def exists(implicit ec: ExecutionContext): Future[Boolean] =
-    storage.request(Some(bucket), Some(name),
-      query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout).
-      head().map(_.status == 200)
 }

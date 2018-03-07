@@ -1,4 +1,4 @@
-package tests.benji.google
+package com.zengularity.benji.google.tests
 
 import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.Duration

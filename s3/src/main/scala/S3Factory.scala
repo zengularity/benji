@@ -26,6 +26,7 @@ class S3Factory extends StorageFactory {
   }
 }
 
+/** Storage scheme for S3 */
 final class S3Scheme extends StorageScheme {
   val scheme = "s3"
 

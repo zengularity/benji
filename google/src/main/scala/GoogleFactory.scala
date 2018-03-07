@@ -26,6 +26,7 @@ final class GoogleFactory extends StorageFactory {
   }
 }
 
+/** Storage scheme for Google Cloud Storage */
 final class GoogleScheme extends StorageScheme {
   val scheme = "google"
 

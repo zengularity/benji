@@ -16,6 +16,7 @@ final class VFSFactory extends StorageFactory {
     VFSStorage(VFSTransport[URI](uri).get)
 }
 
+/** Storage scheme for VFS */
 final class VFSScheme extends StorageScheme {
   val scheme = "vfs"
 

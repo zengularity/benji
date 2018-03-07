@@ -37,7 +37,8 @@ Then the storage operations can be called according the DSL from your `ObjectSto
 
 ## Usage
 
-*See [QuickStart](docs/quickstart.md)*
+- [QuickStart](docs/quickstart.md)
+- [API](https://zengularity.github.io/benji/)
 
 ## Release
 

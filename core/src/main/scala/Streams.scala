@@ -11,7 +11,7 @@ import akka.util.{ ByteString, ByteStringBuilder }
 import play.api.libs.ws.{ BodyWritable, EmptyBody, InMemoryBody, SourceBody }
 
 /** Stream management utility. */
-object Streams {
+private[benji] object Streams {
 
   /**
    * Returns an flow to consume chunks of at least at the specified size.

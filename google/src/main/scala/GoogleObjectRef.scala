@@ -38,7 +38,7 @@ import com.zengularity.benji.{
 import com.zengularity.benji.ws.{ ContentMD5, Ok, Successful }
 
 final class GoogleObjectRef private[google] (
-  val storage: GoogleStorage,
+  storage: GoogleStorage,
   val bucket: String,
   val name: String) extends ObjectRef with ObjectVersioning { ref =>
   import GoogleObjectRef.ResumeIncomplete
@@ -82,75 +82,7 @@ final class GoogleObjectRef private[google] (
 
   val get = new GoogleGetRequest()
 
-  final class GoogleGetRequest private[google] () extends GetRequest {
-    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
-      implicit def ec: ExecutionContext = m.executionContext
-
-      Source.fromFutureSource(Future {
-        val req = gt.client.objects().get(bucket, name)
-
-        req.setRequestHeaders {
-          val headers = new com.google.api.client.http.HttpHeaders()
-
-          range.foreach { r =>
-            headers.setRange(s"bytes=${r.start}-${r.end}")
-          }
-
-          headers
-        }
-
-        req.setDisableGZipContent(storage.disableGZip)
-
-        val in = req.executeMediaAsInputStream() // using alt=media
-        StreamConverters.fromInputStream(() => in)
-      }.recoverWith(ErrorHandler.ofObjectToFuture(s"Could not get the contents of the object $name in the bucket $bucket", ref)))
-    }.mapMaterializedValue(_ => NotUsed)
-  }
-
-  /**
-   * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload
-   */
-  final class RESTPutRequest[E, A] private[google] ()
-    extends ref.PutRequest[E, A] {
-
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
-      def flowChunks = Streams.chunker[E].via(Streams.consumeAtMost(threshold))
-
-      flowChunks.prefixAndTail(1).flatMapMerge[A, NotUsed](1, {
-        case (Nil, _) => Source.empty[A]
-
-        case (head, tail) => head.toList match {
-          case (last @ Chunk.Last(_)) :: _ => // if first is last, single chunk
-            Source.single(last).via(putSimple(Option(w.contentType), metadata, z, f))
-
-          case first :: _ => {
-            def source = tail.zip(initiateUpload(Option(w.contentType), metadata).
-              flatMapConcat(Source.repeat /* same ID for all */ ))
-
-            source.via(putMulti(first, Option(w.contentType), z, f))
-          }
-        }
-      }).toMat(Sink.head[A]) { (_, mat) => mat }
-    }
-  }
-
   def put[E, A] = new RESTPutRequest[E, A]()
-
-  private case class GoogleDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
-    def apply()(implicit ec: ExecutionContext): Future[Unit] = {
-      val futureResult = Future {
-        gt.client.objects().delete(bucket, name).execute(); ()
-      }.recoverWith(ErrorHandler.ofObjectToFuture(s"Could not delete object $name inside bucket $bucket", ref))
-
-      if (ignoreExists) {
-        futureResult.recover { case ObjectNotFoundException(_, _) => () }
-      } else {
-        futureResult
-      }
-    }
-
-    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
-  }
 
   def delete: DeleteRequest = GoogleDeleteRequest()
 
@@ -188,6 +120,79 @@ final class GoogleObjectRef private[google] (
     gt.client.objects().
       copy(bucket, name, targetBucketName, targetObjectName, null).execute()
   }.map(_ => {})
+
+  // ---
+
+  /** A GET request for Google Cloud Storage */
+  final class GoogleGetRequest private[google] () extends GetRequest {
+    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
+      implicit def ec: ExecutionContext = m.executionContext
+
+      Source.fromFutureSource(Future {
+        val req = gt.client.objects().get(bucket, name)
+
+        req.setRequestHeaders {
+          val headers = new com.google.api.client.http.HttpHeaders()
+
+          range.foreach { r =>
+            headers.setRange(s"bytes=${r.start}-${r.end}")
+          }
+
+          headers
+        }
+
+        req.setDisableGZipContent(storage.disableGZip)
+
+        val in = req.executeMediaAsInputStream() // using alt=media
+        StreamConverters.fromInputStream(() => in)
+      }.recoverWith(ErrorHandler.ofObjectToFuture(s"Could not get the contents of the object $name in the bucket $bucket", ref)))
+    }.mapMaterializedValue(_ => NotUsed)
+  }
+
+  /**
+   * A PUT request directly using REST API of Google Cloud Storage.
+   *
+   * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload
+   */
+  final class RESTPutRequest[E, A] private[google] ()
+    extends ref.PutRequest[E, A] {
+
+    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
+      def flowChunks = Streams.chunker[E].via(Streams.consumeAtMost(threshold))
+
+      flowChunks.prefixAndTail(1).flatMapMerge[A, NotUsed](1, {
+        case (Nil, _) => Source.empty[A]
+
+        case (head, tail) => head.toList match {
+          case (last @ Chunk.Last(_)) :: _ => // if first is last, single chunk
+            Source.single(last).via(putSimple(Option(w.contentType), metadata, z, f))
+
+          case first :: _ => {
+            def source = tail.zip(initiateUpload(Option(w.contentType), metadata).
+              flatMapConcat(Source.repeat /* same ID for all */ ))
+
+            source.via(putMulti(first, Option(w.contentType), z, f))
+          }
+        }
+      }).toMat(Sink.head[A]) { (_, mat) => mat }
+    }
+  }
+
+  private case class GoogleDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
+    def apply()(implicit ec: ExecutionContext): Future[Unit] = {
+      val futureResult = Future {
+        gt.client.objects().delete(bucket, name).execute(); ()
+      }.recoverWith(ErrorHandler.ofObjectToFuture(s"Could not delete object $name inside bucket $bucket", ref))
+
+      if (ignoreExists) {
+        futureResult.recover { case ObjectNotFoundException(_, _) => () }
+      } else {
+        futureResult
+      }
+    }
+
+    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
+  }
 
   // Utility methods
 
@@ -378,9 +383,22 @@ final class GoogleObjectRef private[google] (
     case _ => Future.failed[String](new scala.RuntimeException(s"missing upload range: ${response.status} - ${response.statusText}: ${response.headers}"))
   }
 
+  def versioning: Option[ObjectVersioning] = Some(this)
+
   override lazy val toString = s"GoogleObjectRef($bucket, $name)"
 
-  def versioning: Option[ObjectVersioning] = Some(this)
+  override def equals(that: Any): Boolean = that match {
+    case other: GoogleObjectRef =>
+      other.tupled == this.tupled
+
+    case _ => false
+  }
+
+  override def hashCode: Int = tupled.hashCode
+
+  @inline private def tupled = bucket -> name
+
+  // ---
 
   private case class ObjectsVersions(maybeMax: Option[Long]) extends ref.VersionedListRequest {
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
@@ -432,11 +450,14 @@ final class GoogleObjectRef private[google] (
 
   def versions: VersionedListRequest = ObjectsVersions(None)
 
-  def version(versionId: String): VersionedObjectRef = GoogleVersionedObjectRef(storage, bucket, name, versionId)
+  def version(versionId: String): VersionedObjectRef =
+    new GoogleVersionedObjectRef(storage, bucket, name, versionId)
 }
 
 object GoogleObjectRef {
   /**
+   * The default threshold for multi-part upload.
+   *
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#uploading_the_file_in_chunks
    */
   val defaultThreshold: Bytes = Bytes.kilobytes(256)

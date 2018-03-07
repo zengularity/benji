@@ -15,7 +15,8 @@ import akka.stream.scaladsl.Source
 import com.google.api.services.storage.model
 import com.google.api.services.storage.model.StorageObject
 
-import com.zengularity.benji.exception.{ BucketAlreadyExistsException, BucketNotFoundException }
+import play.api.libs.json.{ JsBoolean, JsDefined, JsUndefined, Json, JsObject }
+
 import com.zengularity.benji.{
   BucketRef,
   BucketVersioning,
@@ -25,10 +26,13 @@ import com.zengularity.benji.{
   VersionedObjectRef
 }
 
-import play.api.libs.json.{ JsBoolean, JsDefined, JsUndefined, Json, JsObject }
+import com.zengularity.benji.exception.{
+  BucketAlreadyExistsException,
+  BucketNotFoundException
+}
 
 final class GoogleBucketRef private[google] (
-  val storage: GoogleStorage,
+  storage: GoogleStorage,
   val name: String) extends BucketRef with BucketVersioning { ref =>
   import scala.collection.JavaConverters.collectionAsScalaIterable
 
@@ -95,7 +99,7 @@ final class GoogleBucketRef private[google] (
   private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
     implicit val ec: ExecutionContext = m.executionContext
 
-    Future(objectsVersions()).flatMap(_.runFoldAsync(())((_: Unit, e) => obj(e.name, e.versionId).delete.ignoreIfNotExists()))
+    Future(versionedObjects()).flatMap(_.runFoldAsync(())((_: Unit, e) => obj(e.name, e.versionId).delete.ignoreIfNotExists()))
   }
 
   private case class GoogleDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
@@ -124,15 +128,8 @@ final class GoogleBucketRef private[google] (
   def obj(objectName: String): GoogleObjectRef =
     new GoogleObjectRef(storage, name, objectName)
 
-  override lazy val toString = s"GoogleBucketRef($name)"
-
   def versioning: Option[BucketVersioning] = Some(this)
 
-  /**
-   * Checks whether the versioning is currently enabled or not on this bucket.
-   *
-   * @return A future with true if versioning is currently enabled, otherwise a future with false.
-   */
   def isVersioned(implicit ec: ExecutionContext): Future[Boolean] = {
     gt.withWSRequest1("", s"/b/$name?fields=versioning")(_.get).flatMap { response =>
       val json = Json.parse(response.body)
@@ -211,13 +208,19 @@ final class GoogleBucketRef private[google] (
     }.mapMaterializedValue(_ => NotUsed)
   }
 
-  /**
-   * Prepares a request to list the bucket versioned objects.
-   */
-  def objectsVersions: VersionedListRequest = ObjectsVersions(None)
+  def versionedObjects: VersionedListRequest = ObjectsVersions(None)
 
-  /**
-   * Gets a reference to a specific version of an object, allowing you to perform operations on an object version.
-   */
-  def obj(objectName: String, versionId: String): VersionedObjectRef = GoogleVersionedObjectRef(storage, name, objectName, versionId)
+  def obj(objectName: String, versionId: String): VersionedObjectRef =
+    new GoogleVersionedObjectRef(storage, name, objectName, versionId)
+
+  override lazy val toString = s"GoogleBucketRef($name)"
+
+  override def equals(that: Any): Boolean = that match {
+    case other: GoogleBucketRef =>
+      other.name == this.name
+
+    case _ => false
+  }
+
+  override def hashCode: Int = name.hashCode
 }

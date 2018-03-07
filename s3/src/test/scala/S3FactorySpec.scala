@@ -8,6 +8,8 @@ import com.zengularity.benji.spi.{ Registry, StorageScheme }
 
 import com.zengularity.benji.s3.{ S3Factory, S3Scheme, WSS3 }
 
+import com.zengularity.benji.s3.tests.TestUtils
+
 class S3FactorySpec extends org.specs2.mutable.Specification {
   "S3 factory" title
 

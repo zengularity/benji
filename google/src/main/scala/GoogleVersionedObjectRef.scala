@@ -13,12 +13,15 @@ import akka.util.ByteString
 
 import play.api.libs.json.{ JsObject, JsString, Json }
 
-import com.zengularity.benji.{ ByteRange, VersionedObjectRef, Bytes }
+import com.zengularity.benji.{ ByteRange, VersionedObjectRef }
 import com.zengularity.benji.exception.VersionNotFoundException
 
-final case class GoogleVersionedObjectRef(storage: GoogleStorage, bucket: String, name: String, versionId: String)
-  extends VersionedObjectRef { ref =>
-  @inline def defaultThreshold: Bytes = GoogleObjectRef.defaultThreshold
+/** A live reference to a versioned object on Google Cloud Storage. */
+final class GoogleVersionedObjectRef(
+  storage: GoogleStorage,
+  val bucket: String,
+  val name: String,
+  val versionId: String) extends VersionedObjectRef { ref =>
 
   @inline private def gt = storage.transport
 
@@ -40,40 +43,9 @@ final case class GoogleVersionedObjectRef(storage: GoogleStorage, bucket: String
     def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
   }
 
-  /**
-   * Prepares a request to delete the referenced object
-   */
   val delete: DeleteRequest = GoogleDeleteRequest()
 
-  /**
-   * Prepares the request to get the contents of this specific version.
-   */
   val get: GetRequest = new GoogleGetRequest()
-
-  final class GoogleGetRequest private[google] () extends GetRequest {
-    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
-      implicit def ec: ExecutionContext = m.executionContext
-
-      Source.fromFutureSource(Future {
-        val req = gt.client.objects().get(bucket, name).setGeneration(generation)
-
-        req.setRequestHeaders {
-          val headers = new com.google.api.client.http.HttpHeaders()
-
-          range.foreach { r =>
-            headers.setRange(s"bytes=${r.start}-${r.end}")
-          }
-
-          headers
-        }
-
-        req.setDisableGZipContent(storage.disableGZip)
-
-        val in = req.executeMediaAsInputStream() // using alt=media
-        StreamConverters.fromInputStream(() => in)
-      }.recoverWith(ErrorHandler.ofVersionToFuture(s"Could not get the contents of the version $versionId in object $name in the bucket $bucket", ref)))
-    }.mapMaterializedValue(_ => NotUsed)
-  }
 
   def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = Future {
     val resp = gt.client.objects().get(bucket, name).setGeneration(generation).executeUnparsed()
@@ -109,5 +81,46 @@ final case class GoogleVersionedObjectRef(storage: GoogleStorage, bucket: String
   }.map(_ => true).recoverWith {
     case HttpResponse(404, _) => Future.successful(false)
     case err => Future.failed[Boolean](err)
+  }
+
+  override lazy val toString =
+    s"GoogleVersionedObjectRef($bucket, $name, $versionId)"
+
+  override def equals(that: Any): Boolean = that match {
+    case other: GoogleVersionedObjectRef =>
+      other.tupled == this.tupled
+
+    case _ => false
+  }
+
+  override def hashCode: Int = tupled.hashCode
+
+  @inline private def tupled = (bucket, name, versionId)
+
+  // ---
+
+  private final class GoogleGetRequest private[google] () extends GetRequest {
+    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
+      implicit def ec: ExecutionContext = m.executionContext
+
+      Source.fromFutureSource(Future {
+        val req = gt.client.objects().get(bucket, name).setGeneration(generation)
+
+        req.setRequestHeaders {
+          val headers = new com.google.api.client.http.HttpHeaders()
+
+          range.foreach { r =>
+            headers.setRange(s"bytes=${r.start}-${r.end}")
+          }
+
+          headers
+        }
+
+        req.setDisableGZipContent(storage.disableGZip)
+
+        val in = req.executeMediaAsInputStream() // using alt=media
+        StreamConverters.fromInputStream(() => in)
+      }.recoverWith(ErrorHandler.ofVersionToFuture(s"Could not get the contents of the version $versionId in object $name in the bucket $bucket", ref)))
+    }.mapMaterializedValue(_ => NotUsed)
   }
 }

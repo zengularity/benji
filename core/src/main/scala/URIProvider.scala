@@ -15,6 +15,7 @@ sealed trait URIProvider[T] {
   def apply(config: T): Try[URI]
 }
 
+/** [[URIProvider]] factory */
 object URIProvider {
   /**
    * Creates a URIProvider from a function.
@@ -24,12 +25,13 @@ object URIProvider {
   }
 
   /**
-   * UriProvider to provide an URI directly
+   * Simple/direct provider
    */
   implicit val idInstance: URIProvider[URI] = URIProvider[URI](Success(_))
 
   /**
-   * UriProvider to provide an URI from a string
+   * Provides an URI from a string
    */
-  implicit val fromStringInstance: URIProvider[String] = URIProvider[String](s => Try { new URI(s) })
+  implicit val fromStringInstance: URIProvider[String] =
+    URIProvider[String](s => Try { new URI(s) })
 }

@@ -73,13 +73,15 @@ object GoogleStorage {
 }
 
 /**
+ * Response extractor
+ *
  * {{{
  * def check(err: Throwable) = err match {
  *   case HttpResponse(code, message) => ???
  * }
  * }}}
  */
-object HttpResponse {
+private[google] object HttpResponse {
   import com.google.api.client.googleapis.json.GoogleJsonResponseException
 
   def unapply(err: Throwable): Option[(Int, String)] = err match {

@@ -8,6 +8,7 @@ import org.specs2.mutable.Specification
 
 import com.zengularity.benji.URIProvider
 import com.zengularity.benji.s3.{ S3, WSS3 }
+import com.zengularity.benji.s3.tests.TestUtils
 
 class WSS3Spec extends Specification {
   "WSS3" title

@@ -15,6 +15,8 @@ import com.zengularity.benji.google.GoogleObjectRef
 
 import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
+import com.zengularity.benji.google.tests.TestUtils
+
 class GoogleStorageSpec(implicit ee: ExecutionEnv)
   extends org.specs2.mutable.Specification with StorageCommonSpec with VersioningCommonSpec {
 

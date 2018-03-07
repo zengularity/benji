@@ -64,6 +64,7 @@ object VFSStorage {
   /**
    * Returns a client for VFS Object Storage.
    *
+   * @param transport the VFS transport
    * @param requestTimeout the optional timeout for the prepared requests (none by default)
    */
   def apply(transport: VFSTransport, requestTimeout: Option[Long] = None): VFSStorage = new VFSStorage(transport, requestTimeout)

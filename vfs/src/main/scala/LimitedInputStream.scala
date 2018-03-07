@@ -9,7 +9,7 @@ import java.io.{ BufferedInputStream, InputStream }
 /**
  * @param limit the maximum number of bytes that can be read
  */
-class LimitedInputStream(
+private[vfs] class LimitedInputStream(
   underlying: InputStream,
   limit: Int,
   bufferSize: Int = 8192) extends BufferedInputStream(underlying, bufferSize) {

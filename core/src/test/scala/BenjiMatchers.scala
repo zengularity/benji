@@ -97,7 +97,7 @@ trait BenjiMatchers { self: Matchers =>
     val futureMatcher = matcher.await(1, 10.seconds)
     val matchFromVersion = futureMatcher ^^ { (version: VersionedObjectRef) => version.exists }
     val matchFromBucket = futureMatcher ^^ { (version: VersionedObjectRef) =>
-      vbucket.objectsVersions.collect[List]().map(_.exists(v => v.name == version.name && v.versionId == version.versionId))
+      vbucket.versionedObjects.collect[List]().map(_.exists(v => v.name == version.name && v.versionId == version.versionId))
     }
     matchFromVersion and matchFromBucket
   }

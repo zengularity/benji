@@ -6,6 +6,8 @@ import akka.stream.Materializer
 
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 
+import com.zengularity.benji.s3.tests.TestUtils
+
 trait S3Spec { _: org.specs2.mutable.Specification =>
   import TestUtils.withMatEx
 

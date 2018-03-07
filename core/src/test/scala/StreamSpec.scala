@@ -1,4 +1,4 @@
-package tests.benji
+package com.zengularity.benji
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -7,8 +7,6 @@ import akka.util.ByteString
 import akka.stream.scaladsl.{ Source, Sink }
 
 import akka.stream.contrib.TestKit.assertAllStagesStopped
-
-import com.zengularity.benji.{ Chunk, Bytes, Streams }
 
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.MatchResult

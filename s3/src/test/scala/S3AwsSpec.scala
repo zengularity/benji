@@ -9,6 +9,8 @@ import org.specs2.mutable.Specification
 
 import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
+import com.zengularity.benji.s3.tests.TestUtils
+
 final class S3AwsSpec extends Specification with AwsTests {
   "S3 Amazon" title
 

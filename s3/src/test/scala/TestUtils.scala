@@ -1,4 +1,4 @@
-package tests.benji.s3
+package com.zengularity.benji.s3.tests
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future }

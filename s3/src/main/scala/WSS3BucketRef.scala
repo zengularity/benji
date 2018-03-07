@@ -20,53 +20,23 @@ import com.zengularity.benji.s3.QueryParameters._
 import com.zengularity.benji.ws.Successful
 
 final class WSS3BucketRef private[s3] (
-  val storage: WSS3,
+  storage: WSS3,
   val name: String) extends BucketRef with BucketVersioning { ref =>
 
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
 
-  /**
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
-   */
-  private case class Objects(maybeMax: Option[Long]) extends ref.ListRequest {
-    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
-
-    def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
-      @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
-      def next(nextToken: String): Source[Object, NotUsed] =
-        list(Some(nextToken))(next(_))
-
-      list(Option.empty[String])(next(_))
-    }
-
-    def list(token: Option[String])(andThen: String => Source[Object, NotUsed])(implicit m: Materializer): Source[Object, NotUsed] = {
-      val parse: Elem => Iterable[Object] = { xml =>
-        (xml \ "Contents").map(Xml.objectFromXml)
-      }
-
-      val query: Option[String] => Option[String] = { token =>
-        buildQuery(maxParam(maybeMax), tokenParam(token))
-      }
-
-      val errorHandler = ErrorHandler.ofBucket(s"Could not list objects within the bucket $name", ref)(_)
-
-      WSS3BucketRef.list[Object](ref.storage, ref.name, token, errorHandler)(
-        query, parse, _.name, andThen)
-    }
-  }
-
   def objects: ListRequest = Objects(None)
 
   /**
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html
+   * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html RESTBucketHEAD]]
    */
   def exists(implicit ec: ExecutionContext): Future[Boolean] =
     storage.request(Some(name), requestTimeout = requestTimeout).
       head().map(_.status == 200)
 
   /**
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
+   * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html RESTBucketPUT]]
    */
   def create(failsIfExists: Boolean = false)(implicit ec: ExecutionContext): Future[Unit] = {
     val before = if (failsIfExists) {
@@ -97,51 +67,16 @@ final class WSS3BucketRef private[s3] (
 
   private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
     // We want to delete all versions including deleteMarkers for this bucket to be considered empty.
-    ObjectsVersions().withDeleteMarkers().runFoldAsync(())((_: Unit, e) => {
+    ObjectVersions().withDeleteMarkers().runFoldAsync(())((_: Unit, e) => {
       // As we will delete all deleteMarkers we disable the auto-delete of deleteMarkers using "skipMarkersCheck"
       obj(e.name, e.versionId).WSS3DeleteRequest().skipMarkersCheck.ignoreIfNotExists()
     })
-  }
-
-  private case class WSS3DeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
-    /**
-     * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
-     */
-    private def delete()(implicit m: Materializer): Future[Unit] = {
-      implicit val ec: ExecutionContext = m.executionContext
-
-      storage.request(Some(name), requestTimeout = requestTimeout).
-        delete().flatMap {
-          case Successful(_) =>
-            Future.successful(logger.info(
-              s"Successfully deleted the bucket $name."))
-
-          case response => ErrorHandler.ofBucket(s"Could not delete the bucket $name", ref)(response) match {
-            case BucketNotFoundException(_) if ignoreExists =>
-              Future.successful(logger.info(s"Bucket $name was not found when deleting. (Success)"))
-            case throwable => Future.failed[Unit](throwable)
-          }
-        }
-    }
-
-    def apply()(implicit m: Materializer): Future[Unit] = {
-      implicit val ec: ExecutionContext = m.executionContext
-
-      if (isRecursive) emptyBucket().flatMap(_ => delete())
-      else delete()
-    }
-
-    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
-
-    def recursive: DeleteRequest = this.copy(isRecursive = true)
   }
 
   def delete: DeleteRequest = WSS3DeleteRequest()
 
   def obj(objectName: String): WSS3ObjectRef =
     new WSS3ObjectRef(storage, name, objectName)
-
-  override val toString: String = s"WSS3BucketRef($name)"
 
   def versioning: Option[BucketVersioning] = Some(this)
 
@@ -184,10 +119,91 @@ final class WSS3BucketRef private[s3] (
     }
   }
 
+  def versionedObjects: VersionedListRequest = ObjectVersions()
+
+  def obj(objectName: String, versionId: String): WSS3VersionedObjectRef =
+    new WSS3VersionedObjectRef(storage, name, objectName, versionId)
+
+  override val toString: String = s"WSS3BucketRef($name)"
+
+  override def equals(that: Any): Boolean = that match {
+    case other: WSS3BucketRef =>
+      other.name == this.name
+
+    case _ => false
+  }
+
+  override def hashCode: Int = name.hashCode
+
+  // ---
+
+  /**
+   * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html RESTBucketGET]]
+   */
+  private case class Objects(maybeMax: Option[Long]) extends ref.ListRequest {
+    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
+
+    def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
+      @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
+      def next(nextToken: String): Source[Object, NotUsed] =
+        list(Some(nextToken))(next(_))
+
+      list(Option.empty[String])(next(_))
+    }
+
+    def list(token: Option[String])(andThen: String => Source[Object, NotUsed])(implicit m: Materializer): Source[Object, NotUsed] = {
+      val parse: Elem => Iterable[Object] = { xml =>
+        (xml \ "Contents").map(Xml.objectFromXml)
+      }
+
+      val query: Option[String] => Option[String] = { token =>
+        buildQuery(maxParam(maybeMax), tokenParam(token))
+      }
+
+      val errorHandler = ErrorHandler.ofBucket(s"Could not list objects within the bucket $name", ref)(_)
+
+      WSS3BucketRef.list[Object](ref.storage, ref.name, token, errorHandler)(
+        query, parse, _.name, andThen)
+    }
+  }
+
+  /**
+   * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
+   */
+  private case class WSS3DeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
+    private def delete()(implicit m: Materializer): Future[Unit] = {
+      implicit val ec: ExecutionContext = m.executionContext
+
+      storage.request(Some(name), requestTimeout = requestTimeout).
+        delete().flatMap {
+          case Successful(_) =>
+            Future.successful(logger.info(
+              s"Successfully deleted the bucket $name."))
+
+          case response => ErrorHandler.ofBucket(s"Could not delete the bucket $name", ref)(response) match {
+            case BucketNotFoundException(_) if ignoreExists =>
+              Future.successful(logger.info(s"Bucket $name was not found when deleting. (Success)"))
+            case throwable => Future.failed[Unit](throwable)
+          }
+        }
+    }
+
+    def apply()(implicit m: Materializer): Future[Unit] = {
+      implicit val ec: ExecutionContext = m.executionContext
+
+      if (isRecursive) emptyBucket().flatMap(_ => delete())
+      else delete()
+    }
+
+    def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
+
+    def recursive: DeleteRequest = this.copy(isRecursive = true)
+  }
+
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
-  private case class ObjectsVersions(maybeMax: Option[Long] = None, includeDeleteMarkers: Boolean = false) extends ref.VersionedListRequest {
+  private case class ObjectVersions(maybeMax: Option[Long] = None, includeDeleteMarkers: Boolean = false) extends ref.VersionedListRequest {
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
     def withDeleteMarkers = this.copy(includeDeleteMarkers = true)
@@ -219,18 +235,14 @@ final class WSS3BucketRef private[s3] (
     }
 
   }
-
-  def objectsVersions: VersionedListRequest = ObjectsVersions()
-
-  def obj(objectName: String, versionId: String): WSS3VersionedObjectRef = WSS3VersionedObjectRef(storage, name, objectName, versionId)
 }
 
-object WSS3BucketRef {
+private[s3] object WSS3BucketRef {
   /**
    * @param name the bucket name
    * @param token the continuation token
    */
-  private[s3] def list[T](storage: WSS3, name: String, token: Option[String], errorHandler: StandaloneWSResponse => Throwable)(
+  def list[T](storage: WSS3, name: String, token: Option[String], errorHandler: StandaloneWSResponse => Throwable)(
     query: Option[String] => Option[String],
     parse: Elem => Iterable[T],
     marker: T => String,

@@ -7,6 +7,8 @@ import org.specs2.mutable.Specification
 import com.zengularity.benji.google.GoogleTransport
 import com.zengularity.benji.URIProvider
 
+import com.zengularity.benji.google.tests.TestUtils
+
 import scala.util.Failure
 
 class GoogleTransportSpec extends Specification {

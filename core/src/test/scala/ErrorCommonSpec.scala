@@ -18,12 +18,12 @@ import com.zengularity.benji.{
   VersionedObjectRef
 }
 
-import com.zengularity.benji.exception.{
-  BucketNotFoundException,
-  ObjectNotFoundException,
-  VersionNotFoundException,
-  BucketAlreadyExistsException,
-  BucketNotEmptyException
+import com.zengularity.benji.tests.TestUtils.{
+  bucketNotEmpty,
+  bucketNotFound,
+  bucketAlreadyExists,
+  objectNotFound,
+  versionNotFound
 }
 
 trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specification =>
@@ -71,66 +71,68 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
 
       "BucketNotFoundException should be thrown when" >> {
         "Listing a non-existing bucket" in assertAllStagesStopped {
-          nonExistingBucket.objects.collect[List]() must throwA(BucketNotFoundException(nonExistingBucket)).await(1, 10.seconds)
+          nonExistingBucket.objects.collect[List]() must throwA(bucketNotFound(nonExistingBucket)).await(1, 10.seconds)
         }
 
         "Deleting a non-existing bucket" in assertAllStagesStopped {
-          nonExistingBucket.delete() must throwA(BucketNotFoundException(nonExistingBucket)).await(1, 10.seconds)
+          nonExistingBucket.delete() must throwA(bucketNotFound(nonExistingBucket)).await(1, 10.seconds)
         }
 
         "Uploading an object in a non-existing bucket" in assertAllStagesStopped {
-          put(objOfNonExistingBucket, "hello".getBytes) must throwA(BucketNotFoundException(nonExistingBucket)).await(1, 10.seconds)
+          put(objOfNonExistingBucket, "hello".getBytes) must throwA(bucketNotFound(nonExistingBucket)).await(1, 10.seconds)
         }
 
         "Uploading an object in a non-existing bucket in chunks" in assertAllStagesStopped {
           val threshold = objOfNonExistingBucket.defaultThreshold.bytes.toInt
-          put(objOfNonExistingBucket, Array.fill(threshold * 2)('a'), 2) must throwA(BucketNotFoundException(nonExistingBucket)).await(1, 10.seconds)
+          put(objOfNonExistingBucket, Array.fill(threshold * 2)('a'), 2) must throwA(bucketNotFound(nonExistingBucket)).await(1, 10.seconds)
         }
       }
 
       "ObjectNotFoundException should be thrown when" >> {
         "Deleting a non-existing object" in assertAllStagesStopped {
-          nonExistingObj.delete() must throwA(ObjectNotFoundException(nonExistingObj)).await(1, 10.seconds)
+          nonExistingObj.delete() must throwA(objectNotFound(nonExistingObj)).await(1, 10.seconds)
         }
 
         "Deleting an object of a non-existing bucket" in assertAllStagesStopped {
-          objOfNonExistingBucket.delete() must throwA(ObjectNotFoundException(objOfNonExistingBucket)).await(1, 10.seconds)
+          objOfNonExistingBucket.delete() must throwA(objectNotFound(objOfNonExistingBucket)).await(1, 10.seconds)
         }
 
         "Getting the headers of a non-existing object" in assertAllStagesStopped {
-          nonExistingObj.headers() must throwA(ObjectNotFoundException(nonExistingObj)).await(1, 10.seconds)
+          nonExistingObj.headers() must throwA(objectNotFound(nonExistingObj)).await(1, 10.seconds)
         }
 
         "Getting the headers of an object of a non-existing bucket" in assertAllStagesStopped {
-          objOfNonExistingBucket.headers() must throwA(ObjectNotFoundException(objOfNonExistingBucket)).await(1, 10.seconds)
+          objOfNonExistingBucket.headers() must throwA(objectNotFound(objOfNonExistingBucket)).await(1, 10.seconds)
         }
 
         "Getting the metadata of a non-existing object" in assertAllStagesStopped {
-          nonExistingObj.metadata() must throwA(ObjectNotFoundException(nonExistingObj)).await(1, 10.seconds)
+          nonExistingObj.metadata() must throwA(objectNotFound(nonExistingObj)).await(1, 10.seconds)
         }
 
         "Getting the metadata of an object of a non-existing bucket" in assertAllStagesStopped {
-          objOfNonExistingBucket.metadata() must throwA(ObjectNotFoundException(objOfNonExistingBucket)).await(1, 10.seconds)
+          objOfNonExistingBucket.metadata() must throwA(objectNotFound(objOfNonExistingBucket)).await(1, 10.seconds)
         }
 
         "Getting content of a non-existing object" in assertAllStagesStopped {
-          get(nonExistingObj) must throwA(ObjectNotFoundException(nonExistingObj)).await(1, 10.seconds)
+          get(nonExistingObj) must throwA(objectNotFound(nonExistingObj)).await(1, 10.seconds)
         }
 
         "Getting content of a object inside a non-existing bucket" in assertAllStagesStopped {
-          get(objOfNonExistingBucket) must throwA(ObjectNotFoundException(objOfNonExistingBucket)).await(1, 10.seconds)
+          get(objOfNonExistingBucket) must throwA(objectNotFound(objOfNonExistingBucket)).await(1, 10.seconds)
         }
       }
 
       "BucketNotEmptyException should be thrown when" >> {
         "Deleting a non-empty bucket" in assertAllStagesStopped {
-          existingBucket.delete() must throwA(BucketNotEmptyException(existingBucket)).await(1, 10.seconds)
+          existingBucket.delete() must throwA(bucketNotEmpty(existingBucket)).
+            await(1, 10.seconds)
         }
       }
 
       "BucketAlreadyExistsException should be thrown when" >> {
         "Creating an existing bucket" in assertAllStagesStopped {
-          existingBucket.create(failsIfExists = true) must throwA(BucketAlreadyExistsException(existingBucket)).await(1, 10.seconds)
+          existingBucket.create(failsIfExists = true) must throwA(
+            bucketAlreadyExists(existingBucket)).await(1, 10.seconds)
         }
       }
     }
@@ -186,67 +188,67 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
 
       "BucketNotFoundException should be thrown when" >> {
         "Versioning Listing a non-existing bucket" in assertAllStagesStopped {
-          vNonExistingBucket.objectsVersions.collect[List]() must throwA(BucketNotFoundException(nonExistingBucket)).await(1, 10.seconds)
+          vNonExistingBucket.versionedObjects.collect[List]() must throwA(bucketNotFound(nonExistingBucket)).await(1, 10.seconds)
         }
 
         "Setting versioning of a non-existing bucket" in assertAllStagesStopped {
-          vNonExistingBucket.setVersioning(enabled = true) must throwA(BucketNotFoundException(nonExistingBucket)).await(1, 10.seconds)
+          vNonExistingBucket.setVersioning(enabled = true) must throwA(bucketNotFound(nonExistingBucket)).await(1, 10.seconds)
         }
 
         "Checking versioning of a non-existing bucket" in assertAllStagesStopped {
-          vNonExistingBucket.isVersioned must throwA(BucketNotFoundException(nonExistingBucket)).await(1, 10.seconds)
+          vNonExistingBucket.isVersioned must throwA(bucketNotFound(nonExistingBucket)).await(1, 10.seconds)
         }
       }
 
       "ObjectNotFoundException should be thrown when" >> {
         "Listing versions of a non-existing object" in assertAllStagesStopped {
-          vNonExistingObj.versions.collect[List]() must throwA(ObjectNotFoundException(nonExistingObj)).await(1, 10.seconds)
+          vNonExistingObj.versions.collect[List]() must throwA(objectNotFound(nonExistingObj)).await(1, 10.seconds)
         }
 
         "Listing versions of an object of a non-existing bucket" in assertAllStagesStopped {
-          vObjOfNonExistingBucket.versions.collect[List]() must throwA(ObjectNotFoundException(objOfNonExistingBucket)).await(1, 10.seconds)
+          vObjOfNonExistingBucket.versions.collect[List]() must throwA(objectNotFound(objOfNonExistingBucket)).await(1, 10.seconds)
         }
       }
 
       "VersionNotFoundException should be thrown when" >> {
         "Deleting a non-existing version" in assertAllStagesStopped {
-          nonExistingVersion.delete() must throwA(VersionNotFoundException(nonExistingVersion)).await(1, 10.seconds)
+          nonExistingVersion.delete() must throwA(versionNotFound(nonExistingVersion)).await(1, 10.seconds)
         }
 
         "Deleting version of a non-existing object" in assertAllStagesStopped {
-          versionOfNonExistingObj.delete() must throwA(VersionNotFoundException(versionOfNonExistingObj)).await(1, 10.seconds)
+          versionOfNonExistingObj.delete() must throwA(versionNotFound(versionOfNonExistingObj)).await(1, 10.seconds)
         }
 
         "Deleting version of a non-existing bucket" in assertAllStagesStopped {
-          versionOfNonExistingBucket.delete() must throwA(VersionNotFoundException(versionOfNonExistingBucket)).await(1, 10.seconds)
+          versionOfNonExistingBucket.delete() must throwA(versionNotFound(versionOfNonExistingBucket)).await(1, 10.seconds)
         }
 
         "Getting headers of a non-existing version" in assertAllStagesStopped {
-          nonExistingVersion.headers() must throwA(VersionNotFoundException(nonExistingVersion)).await(1, 10.seconds)
+          nonExistingVersion.headers() must throwA(versionNotFound(nonExistingVersion)).await(1, 10.seconds)
         }
 
         "Getting headers of a version within a non-existing object" in assertAllStagesStopped {
-          versionOfNonExistingObj.headers() must throwA(VersionNotFoundException(versionOfNonExistingObj)).await(1, 10.seconds)
+          versionOfNonExistingObj.headers() must throwA(versionNotFound(versionOfNonExistingObj)).await(1, 10.seconds)
         }
 
         "Getting metadata of a non-existing version" in assertAllStagesStopped {
-          nonExistingVersion.metadata() must throwA(VersionNotFoundException(nonExistingVersion)).await(1, 10.seconds)
+          nonExistingVersion.metadata() must throwA(versionNotFound(nonExistingVersion)).await(1, 10.seconds)
         }
 
         "Getting metadata of a version within a non-existing object" in assertAllStagesStopped {
-          versionOfNonExistingObj.metadata() must throwA(VersionNotFoundException(versionOfNonExistingObj)).await(1, 10.seconds)
+          versionOfNonExistingObj.metadata() must throwA(versionNotFound(versionOfNonExistingObj)).await(1, 10.seconds)
         }
 
         "Getting content of a non-existing version" in assertAllStagesStopped {
-          get(nonExistingVersion) must throwA(VersionNotFoundException(nonExistingVersion)).await(1, 10.seconds)
+          get(nonExistingVersion) must throwA(versionNotFound(nonExistingVersion)).await(1, 10.seconds)
         }
 
         "Getting content of a version within a non-existing object" in assertAllStagesStopped {
-          get(versionOfNonExistingObj) must throwA(VersionNotFoundException(versionOfNonExistingObj)).await(1, 10.seconds)
+          get(versionOfNonExistingObj) must throwA(versionNotFound(versionOfNonExistingObj)).await(1, 10.seconds)
         }
 
         "Getting content of a version within non-existing bucket" in assertAllStagesStopped {
-          get(versionOfNonExistingBucket) must throwA(VersionNotFoundException(versionOfNonExistingBucket)).await(1, 10.seconds)
+          get(versionOfNonExistingBucket) must throwA(versionNotFound(versionOfNonExistingBucket)).await(1, 10.seconds)
         }
       }
     }

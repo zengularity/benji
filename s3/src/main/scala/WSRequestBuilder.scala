@@ -8,7 +8,7 @@ import java.net.URL
 
 import play.api.libs.ws.{ StandaloneWSClient, StandaloneWSRequest }
 
-sealed trait WSRequestBuilder extends ((StandaloneWSClient, Option[String], Option[String], Option[String]) => StandaloneWSRequest) {
+private[s3] sealed trait WSRequestBuilder extends ((StandaloneWSClient, Option[String], Option[String], Option[String]) => StandaloneWSRequest) {
 
   /**
    * @param ws the WS client used to prepared the request
@@ -19,7 +19,7 @@ sealed trait WSRequestBuilder extends ((StandaloneWSClient, Option[String], Opti
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest
 }
 
-object WSRequestBuilder {
+private[s3] object WSRequestBuilder {
   /**
    * @param ws the WS client used to prepared the request
    * @param calculator the calculator for the request signature
@@ -52,7 +52,7 @@ private[s3] object URLInformation {
  *
  * @param s3Url the server URL
  */
-final class PathStyleWSRequestBuilder private[s3] (
+private[s3] final class PathStyleWSRequestBuilder private[s3] (
   calculator: SignatureCalculator, s3Url: URL) extends WSRequestBuilder {
 
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {
@@ -87,7 +87,7 @@ final class PathStyleWSRequestBuilder private[s3] (
  * This is fine with Amazon S3 services, for others
  * the `PathStyleWSRequestBuilder` is available.
  */
-final class VirtualHostWSRequestBuilder private[s3] (
+private[s3] final class VirtualHostWSRequestBuilder private[s3] (
   calculator: SignatureCalculator, s3Url: URL) extends WSRequestBuilder {
 
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {

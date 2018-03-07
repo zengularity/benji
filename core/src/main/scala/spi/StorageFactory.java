@@ -8,6 +8,9 @@ import java.net.URI;
 
 import com.zengularity.benji.ObjectStorage;
 
+/**
+ * Functional interface as a factory to instantiate Object storage.
+ */
 public interface StorageFactory
     extends java.util.function.BiFunction<Injector, URI, ObjectStorage> {
 

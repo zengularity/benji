@@ -33,7 +33,7 @@ import com.zengularity.benji.{
 }
 
 final class VFSObjectRef private[vfs] (
-  val storage: VFSStorage,
+  storage: VFSStorage,
   val bucket: String,
   val name: String) extends ObjectRef { ref =>
 
@@ -74,9 +74,80 @@ final class VFSObjectRef private[vfs] (
 
   def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = headers()
 
-  val get = new VFSGetRequest()
+  val get: GetRequest = new VFSGetRequest()
 
-  final class VFSGetRequest private[vfs] () extends GetRequest {
+  def put[E, A]: PutRequest[E, A] = new RESTPutRequest[E, A]()
+
+  def delete: DeleteRequest = VFSDeleteRequest()
+
+  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
+    def target = transport.fsManager.resolveFile(
+      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
+
+    def targetMetadata = transport.fsManager.resolveFile(
+      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName.metadata")
+
+    lazy val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
+
+    for {
+      _ <- {
+        if (!preventOverwrite) Future.successful({})
+        else targetObj.exists.flatMap {
+          case true => Future.failed[Unit](new IllegalStateException(
+            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"))
+
+          case _ => Future.successful({})
+        }
+      }
+      _ <- Future {
+        file.moveTo(target)
+        if (targetMetadata.exists())
+          metadataFile.moveTo(targetMetadata)
+      }
+    } yield ()
+  }
+
+  private val copySelector = new FileTypeSelector(FileType.FILE)
+
+  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] = {
+    def target = transport.fsManager.resolveFile(
+      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
+
+    def targetMetadata = transport.fsManager.resolveFile(
+      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName.metadata")
+
+    Future {
+      target.copyFrom(file, copySelector)
+      if (targetMetadata.exists())
+        targetMetadata.copyFrom(metadataFile, copySelector)
+    }
+  }
+
+  // Utility methods
+  @inline private def file =
+    transport.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name")
+
+  @inline private def metadataFile =
+    transport.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name.metadata")
+
+  def versioning: Option[ObjectVersioning] = None
+
+  override lazy val toString = s"VFSObjectRef($bucket, $name)"
+
+  override def equals(that: Any): Boolean = that match {
+    case other: VFSObjectRef =>
+      other.tupled == this.tupled
+
+    case _ => false
+  }
+
+  override def hashCode: Int = tupled.hashCode
+
+  @inline private def tupled = bucket -> name
+
+  // ---
+
+  private final class VFSGetRequest private[vfs] () extends GetRequest {
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
@@ -108,7 +179,7 @@ final class VFSObjectRef private[vfs] (
     }
   }
 
-  final class RESTPutRequest[E, A] private[vfs] ()
+  private final class RESTPutRequest[E, A] private[vfs] ()
     extends ref.PutRequest[E, A] {
 
     def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
@@ -181,8 +252,6 @@ final class VFSObjectRef private[vfs] (
     }
   }
 
-  def put[E, A] = new RESTPutRequest[E, A]()
-
   private case class VFSDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
     def apply()(implicit ec: ExecutionContext): Future[Unit] = {
       Future {
@@ -199,64 +268,9 @@ final class VFSObjectRef private[vfs] (
 
     def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
   }
-
-  def delete: DeleteRequest = VFSDeleteRequest()
-
-  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
-    def target = transport.fsManager.resolveFile(
-      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
-
-    def targetMetadata = transport.fsManager.resolveFile(
-      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName.metadata")
-
-    lazy val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
-
-    for {
-      _ <- {
-        if (!preventOverwrite) Future.successful({})
-        else targetObj.exists.flatMap {
-          case true => Future.failed[Unit](new IllegalStateException(
-            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"))
-
-          case _ => Future.successful({})
-        }
-      }
-      _ <- Future {
-        file.moveTo(target)
-        if (targetMetadata.exists())
-          metadataFile.moveTo(targetMetadata)
-      }
-    } yield ()
-  }
-
-  private val copySelector = new FileTypeSelector(FileType.FILE)
-
-  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] = {
-    def target = transport.fsManager.resolveFile(
-      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
-
-    def targetMetadata = transport.fsManager.resolveFile(
-      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName.metadata")
-
-    Future {
-      target.copyFrom(file, copySelector)
-      if (targetMetadata.exists())
-        targetMetadata.copyFrom(metadataFile, copySelector)
-    }
-  }
-
-  // Utility methods
-  @inline private def file =
-    transport.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name")
-
-  @inline private def metadataFile =
-    transport.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name.metadata")
-
-  override lazy val toString = s"VFSObjectRef($bucket, $name)"
-
-  def versioning: Option[ObjectVersioning] = None
 }
 
 object VFSObjectRef {
+  /** The default threshold */
   def defaultThreshold: Bytes = Bytes(8192L)
 }
