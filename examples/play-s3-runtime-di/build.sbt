@@ -20,10 +20,15 @@ scalacOptions ++= Seq(
   "-opt:_"
 )
 
+resolvers ++= Seq( 
+  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
+  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
+)
+
 libraryDependencies ++= Seq(
   guice,
-  "com.zengularity" %% "benji-s3" % "1.4.0-SNAPSHOT",
-  "com.zengularity" %% "benji-play" % "1.4.0-SNAPSHOT",
+  "com.zengularity" %% "benji-s3" % "2.0.0-SNAPSHOT",
+  "com.zengularity" %% "benji-play" % "2.0.0-SNAPSHOT",
 )
 
 lazy val playS3 = (project in file(".")).enablePlugins(PlayScala)

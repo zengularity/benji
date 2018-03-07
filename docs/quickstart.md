@@ -2,6 +2,8 @@
 
 This guide is how to easily start using Benji in your project.
 
+*See also: [API](https://zengularity.github.io/benji/)*
+
 ## Bucket operations
 
 The operations to manage the buckets are available on the `ObjectStorage` instance, using `BucketRef` (bucket remote reference).
