@@ -1,4 +1,4 @@
-## Benji play demo app
+# Benji VFS Play demo
 
 This is a sample application to show how to integrate the benji's library
 in a play application. This app uses compile time dependency injection.
@@ -11,7 +11,7 @@ This example uses the following:
 - Benji VFS plugin as the demo uses the VFS storage
 
 
-### Setup and run
+## Setup and run
 
 To run the application:
 ```bash
@@ -24,7 +24,7 @@ the application, you can use Postman and
 import the [postman json file](benji_postman.json) 
 to discover all the features described below.
 
-### Features
+## Features
 
 This application covers the main features of the benji's library 
 and how to use its DSL. Basically, it 
