@@ -84,7 +84,10 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
 
         "Uploading an object in a non-existing bucket in chunks" in assertAllStagesStopped {
           val threshold = objOfNonExistingBucket.defaultThreshold.bytes.toInt
-          put(objOfNonExistingBucket, Array.fill(threshold * 2)('a'), 2) must throwA(bucketNotFound(nonExistingBucket)).await(1, 10.seconds)
+          def data = Array.fill(threshold * 2)('a'.toByte)
+
+          put(objOfNonExistingBucket, data, 2) must throwA(
+            bucketNotFound(nonExistingBucket)).await(1, 10.seconds)
         }
       }
 

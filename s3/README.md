@@ -132,17 +132,24 @@ import com.zengularity.benji.s3._
 def sample2(implicit m: Materializer): Unit = {
   implicit val ws: StandaloneAhcWSClient = StandaloneAhcWSClient()
 
-  // Creating a "path" style WSS3 :
+  // Creating a "path" style WSS3:
 
   S3("accessKey", "secretKey", "httpProto", "hostAndPort")
   // equivalent to
   S3("s3:httpProto://accessKey:secretKey@hostAndPort/?style=path")
 
-  // Creating a "virtualHost" style WSS3 :
+  // Creating a "virtualHost" style WSS3:
 
   S3.virtualHost("accessKey", "secretKey", "httpProto", "hostAndPort")
   // equivalent to
   S3("s3:httpProto://accessKey:secretKey@hostAndPort/?style=virtualHost")
+
+  // Creating a "virtualHost" style WSS3 for AWS/V4:
+
+  S3.virtualHostAwsV4(
+    "accessKey", "secretKey", "httpProto", "hostAndPort", "region")
+  // equivalent to
+  S3("s3:httpProto://accessKey:secretKey@hostAndPort/?style=virtualHost&awsRegion=region")
 
   ()
 }
@@ -155,6 +162,7 @@ The main settings are:
 - *httpProto*: The HTTP protocol to be used, either plain `http` or `https` .
 - *hostAndPort*: The HTTP host and optional port (otherwise defaulted according the `httpProto`; e.g. `s3.amazonaws.com`).
 - *style*: It represents how request URLs are created, either `path` style and [`virtualHost`](https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html).
+- *awsRegion*: Optional parameter to specify the [AWS/S3 region](https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region), that must be known for [AWS signature V4](https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html). If given, the `style` must be `virtualHost`.
 
 > Even when provided in URI, the `accessKet` and `secretKey` must be provided as-is (not URI encoded).
 

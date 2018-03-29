@@ -73,7 +73,7 @@ object S3 {
   import com.zengularity.benji.LongVal
 
   /**
-   * Returns the S3 client in the path style.
+   * Returns the S3 client in the path style (and signature V1/V2).
    *
    * @param accessKeyId the user access key
    * @param secretAccessKeyId the user secret key
@@ -89,10 +89,11 @@ object S3 {
    *   host = "s3.amazonaws.com")
    * }}}
    */
-  def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new PathStyleWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
+  def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new PathStyleWSRequestBuilder(new SignatureCalculatorV1(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
 
   /**
    * Returns the S3 client in the virtual host style.
+   * A S3 signature V1/V2 is used (see [[virtualHostAwsV4]]).
    *
    * @param accessKeyId the user access key
    * @param secretAccessKeyId the user secret key
@@ -107,8 +108,32 @@ object S3 {
    *   scheme = "https",
    *   host = "s3.amazonaws.com")
    * }}}
+   *
    */
-  def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new VirtualHostWSRequestBuilder(new SignatureCalculator(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
+  def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new VirtualHostWSRequestBuilder(new SignatureCalculatorV1(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
+
+  /**
+   * Returns the S3 client in the virtual host style.
+   * A AWS signature V4 is used (see [[virtualHostAwsV4]] and [[https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html Signature Version 4 Signing Process]].
+   *
+   * @param accessKeyId the user access key
+   * @param secretAccessKeyId the user secret key
+   * @param scheme the scheme
+   * @param host the host name (or IP address)
+   * @param region the AWS/S3 [[https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region region]]
+   * @return A WSS3 instance configured to work with the AWS V4
+   *
+   * {{{
+   * S3.virtualHostAwsV4(
+   *   accessKeyId = "accessKey",
+   *   secretAccessKeyId = "secretAccessKey",
+   *   scheme = "https",
+   *   host = "s3.amazonaws.com",
+   *   region = "us-east-1")
+   * }}}
+   *
+   */
+  def virtualHostAwsV4(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String, region: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new VirtualHostWSRequestBuilder(new SignatureCalculatorV4(accessKeyId, secretAccessKeyId, region), new java.net.URL(s"${scheme}://${host}")))
 
   /**
    * Tries to create a S3 client from an URI using the following format:
@@ -145,9 +170,22 @@ object S3 {
         case _ => Success(Option.empty[Long])
       }
 
+      def awsRegion = params.get("awsRegion").collect {
+        case Seq(region) => region
+      }
+
       def storage = params.get("style") match {
-        case Some(Seq("virtualHost")) =>
-          Success(virtualHost(accessKey, secretKey, scheme, host))
+        case Some(Seq("path")) if awsRegion.isDefined =>
+          Failure[WSS3](new IllegalArgumentException(
+            "Style 'virtualhost' must be specified when 'awsRegion' is defined"))
+
+        case Some(Seq("virtualHost")) => awsRegion match {
+          case Some(region) => Success(virtualHostAwsV4(
+            accessKey, secretKey, scheme, host, region))
+
+          case _ =>
+            Success(virtualHost(accessKey, secretKey, scheme, host))
+        }
 
         case Some(Seq("path")) =>
           Success(apply(accessKey, secretKey, scheme, host))
@@ -157,7 +195,6 @@ object S3 {
 
         case _ => Failure[WSS3](new IllegalArgumentException(
           "Expected style parameter in URI"))
-
       }
 
       for {

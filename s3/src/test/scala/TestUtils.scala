@@ -33,6 +33,8 @@ object TestUtils {
     config.getString("aws.s3.host"),
     config.getString("aws.s3.protocol"))
 
+  lazy val awsRegion = config.getString("aws.s3.region")
+
   lazy val (cephAccessKey, cephSecretKey, cephHost, cephProtocol) = (
     config.getString("ceph.s3.accessKey"),
     config.getString("ceph.s3.secretKey"),
@@ -41,13 +43,22 @@ object TestUtils {
 
   lazy val aws = S3(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
 
+  // TODO: Remove once V2 is no longer supported by AWS
   lazy val awsVirtualHost =
     S3.virtualHost(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
+
+  lazy val awsVirtualHostV4 = S3.virtualHostAwsV4(
+    awsAccessKey, awsSecretKey, awsProtocol, awsHost, awsRegion)
 
   val virtualHostStyleUrl = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost"
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   lazy val awsFromVirtualHostStyleURL = S3(virtualHostStyleUrl).get
+
+  val virtualHostStyleUrlV4 = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost&awsRegion=$awsRegion"
+
+  @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
+  lazy val awsFromVirtualHostStyleURLV4 = S3(virtualHostStyleUrlV4).get
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   lazy val awsFromPathStyleURL =

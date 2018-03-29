@@ -17,6 +17,7 @@ aws.s3.host=s3.amazonaws.com
 aws.s3.accessKey="$AWS_ACCESSKEY"
 aws.s3.secretKey="$AWS_SECRETKEY"
 aws.s3.protocol=https
+aws.s3.region=us-east-1
 EOF
 
 # Prepare Google settings

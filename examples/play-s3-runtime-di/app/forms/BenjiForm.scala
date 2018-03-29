@@ -6,26 +6,18 @@ import play.api.data._
 object BenjiForm {
 
   val createBucketForm = Form(
-    mapping("checkBefore" -> default(boolean, true))
-    (CreateBucketForm.apply)(CreateBucketForm.unapply)
-  )
+    mapping("checkBefore" -> default(boolean, true))(CreateBucketForm.apply)(CreateBucketForm.unapply))
 
   val deleteBucketForm = Form(
     mapping(
       "ignore" -> default(boolean, true),
-      "recursive" -> default(boolean, false)
-    )(DeleteBucketForm.apply)(DeleteBucketForm.unapply)
-  )
+      "recursive" -> default(boolean, false))(DeleteBucketForm.apply)(DeleteBucketForm.unapply))
 
   val listObjectForm = Form(
-    mapping("bacthSize" -> optional(longNumber))
-    (ListObjectForm.apply)(ListObjectForm.unapply)
-  )
+    mapping("bacthSize" -> optional(longNumber))(ListObjectForm.apply)(ListObjectForm.unapply))
 
   val deleteObjectForm = Form(
-    mapping("ignore" -> default(boolean, true))
-    (DeleteObjectForm.apply)(DeleteObjectForm.unapply)
-  )
+    mapping("ignore" -> default(boolean, true))(DeleteObjectForm.apply)(DeleteObjectForm.unapply))
 }
 
 case class CreateBucketForm(checkBefore: Boolean)

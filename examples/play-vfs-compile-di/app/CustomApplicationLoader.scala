@@ -2,7 +2,7 @@ package com.zengularity.benji.demo
 
 import play.api.ApplicationLoader.Context
 import play.api.routing.Router
-import play.api.{Application, ApplicationLoader, LoggerConfigurator}
+import play.api.{ Application, ApplicationLoader, LoggerConfigurator }
 import play.filters.HttpFiltersComponents
 
 import _root_.controllers.AssetsComponents
@@ -23,7 +23,7 @@ class CustomApplicationLoader extends ApplicationLoader {
 
 class CustomComponents(context: Context)
   extends BenjiFromContext(context)
-    with AssetsComponents with HttpFiltersComponents {
+  with AssetsComponents with HttpFiltersComponents {
 
   implicit val ec = actorSystem.dispatcher
 

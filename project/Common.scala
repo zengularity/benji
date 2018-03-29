@@ -28,8 +28,7 @@ object Common {
       "-Ywarn-inaccessible",
       "-Ywarn-nullary-override",
       "-Ywarn-nullary-unit",
-      "-g:vars"
-    ),
+      "-g:vars"),
     javacOptions in (Compile, compile) ++= Seq("-target", "1.8"),
     scalacOptions in (Compile, console) ~= {
       _.filterNot { opt => opt.startsWith("-X") || opt.startsWith("-Y") }
@@ -42,18 +41,15 @@ object Common {
     },
     scalacOptions in Test ++= Seq("-Yrangepos"),
     fork in Test := true,
-    mimaPreviousArtifacts := Set(
-      /* organization.value %% name.value % previousRelease */),
+    mimaPreviousArtifacts := Set( /* organization.value %% name.value % previousRelease */ ),
     autoAPIMappings := true,
     apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")("scala-library").value,
     libraryDependencies ++= wsStream ++ Seq(
       "specs2-core", "specs2-junit").map(
-      "org.specs2" %% _ % "4.0.1" % Test) ++ Seq(
-      "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer,
-        "com.typesafe.akka" %% "akka-stream-contrib" % "0.8",
-        "ch.qos.logback" % "logback-classic" % "1.1.7"
-    ).map(_ % Test)
-  ) ++ Scalariform.settings ++ Wart.settings ++ Publish.settings
+        "org.specs2" %% _ % "4.0.1" % Test) ++ Seq(
+          "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer,
+          "com.typesafe.akka" %% "akka-stream-contrib" % "0.8",
+          "ch.qos.logback" % "logback-classic" % "1.1.7").map(_ % Test)) ++ Wart.settings ++ Publish.settings
 
   val wsStream = Seq(
     Dependencies.playWS % Provided,

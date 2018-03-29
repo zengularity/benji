@@ -75,7 +75,7 @@ import play.modules.benji._
 
 class MyComponent1(
   context: ApplicationLoader.Context,
-  name: String, // Name of the storage config (see next section)
+  name: String // Name of the storage config (see next section)
 ) extends BenjiFromContext(context, name) {
   // can be a Controller, a Play custom Module, ApplicationLoader ...
 

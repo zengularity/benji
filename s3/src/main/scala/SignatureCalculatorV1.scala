@@ -21,20 +21,8 @@ import play.api.libs.ws.WSSignatureCalculator
 import play.shaded.ahc.io.netty.handler.codec.http.HttpHeaders
 import play.shaded.ahc.org.asynchttpclient.{ Request, RequestBuilderBase }
 
-/** S3 [[http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html request style]]. */
-private[s3] sealed trait RequestStyle
-private[s3] object PathRequest extends RequestStyle
-private[s3] object VirtualHostRequest extends RequestStyle
-
-private[s3] object RequestStyle {
-  def apply(raw: String): RequestStyle = raw match {
-    case "virtualhost" => VirtualHostRequest
-    case _ => PathRequest
-  }
-}
-
 /**
- * Computes the signature according access and secret keys,
+ * Computes the signature (V1/V2) according access and secret keys,
  * to be used along each S3 requests, in the 'Authorization' header.
  *
  * @param accessKey the S3 access key
@@ -42,7 +30,7 @@ private[s3] object RequestStyle {
  * @param serverHost the S3 server host (name or IP address)
  * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html and http://ceph.com/docs/master/radosgw/s3/authentication/
  */
-private[s3] class SignatureCalculator(
+private[s3] class SignatureCalculatorV1(
   accessKey: String,
   secretKey: String,
   serverHost: String) extends WSSignatureCalculator
@@ -71,7 +59,7 @@ private[s3] class SignatureCalculator(
       header("Content-MD5"), header("Content-Type"),
       date, request.getHeaders, serverHost, signatureUrl(request))
 
-    logger.trace(s"awsStringToSign {\n$str\n}")
+    logger.trace(s"s3V1StringToSign {\n$str\n}")
 
     computeSignature(str) match {
       case Success(signature) => {
