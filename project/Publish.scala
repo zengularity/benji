@@ -20,8 +20,6 @@ object Publish {
     headerLicense := {
       val currentYear = java.time.Year.now(java.time.Clock.systemUTC).getValue
       Some(HeaderLicense.Custom(
-        s"Copyright (C) 2018-$currentYear Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>"
-      ))
-    }
-  )
+        s"Copyright (C) 2018-$currentYear Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>"))
+    })
 }

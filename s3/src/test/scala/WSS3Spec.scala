@@ -33,6 +33,12 @@ class WSS3Spec extends Specification {
         S3(uri) must beSuccessfulTry
       }
 
+      "when given a proper uri with virtual domain style and region" in {
+        val uri = "s3:http://accessKey:secretKey@domain.host/?style=virtualHost&awsRegion=foo"
+
+        S3(uri) must beSuccessfulTry
+      }
+
       "with request timeout in URI" in {
         val uri = new URI(
           "s3:http://foo:bar@host/?style=path&requestTimeout=12")
@@ -66,6 +72,12 @@ class WSS3Spec extends Specification {
 
       "when given a uri with an incorrect style" in {
         val uri = "s3:http://accessKey:secretKey@domain.host/?style=foo"
+
+        S3(uri) must beFailedTry.withThrowable[IllegalArgumentException]
+      }
+
+      "when region is given without virtualhost style" in {
+        val uri = "s3:http://accessKey:secretKey@domain.host/?style=path&awsRegion=foo"
 
         S3(uri) must beFailedTry.withThrowable[IllegalArgumentException]
       }

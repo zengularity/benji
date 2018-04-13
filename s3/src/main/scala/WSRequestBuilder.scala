@@ -6,7 +6,11 @@ package com.zengularity.benji.s3
 
 import java.net.URL
 
-import play.api.libs.ws.{ StandaloneWSClient, StandaloneWSRequest }
+import play.api.libs.ws.{
+  StandaloneWSClient,
+  StandaloneWSRequest,
+  WSSignatureCalculator
+}
 
 private[s3] sealed trait WSRequestBuilder extends ((StandaloneWSClient, Option[String], Option[String], Option[String]) => StandaloneWSRequest) {
 
@@ -27,7 +31,7 @@ private[s3] object WSRequestBuilder {
    * @param hostHeader the hostname for the `Host` header of the request HTTP
    * @param style the request style (actually `"path"` or `"virtualhost"`)
    */
-  private[s3] def build(ws: StandaloneWSClient, calculator: SignatureCalculator, url: String, hostHeader: String, style: String): StandaloneWSRequest =
+  private[s3] def build(ws: StandaloneWSClient, calculator: WSSignatureCalculator, url: String, hostHeader: String, style: String): StandaloneWSRequest =
     ws.url(url).addHttpHeaders(
       "Host" -> hostHeader,
       "X-Request-Style" -> style).sign(calculator)
@@ -53,7 +57,7 @@ private[s3] object URLInformation {
  * @param s3Url the server URL
  */
 private[s3] final class PathStyleWSRequestBuilder private[s3] (
-  calculator: SignatureCalculator, s3Url: URL) extends WSRequestBuilder {
+  calculator: WSSignatureCalculator, s3Url: URL) extends WSRequestBuilder {
 
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {
     val url = new StringBuilder()
@@ -88,7 +92,7 @@ private[s3] final class PathStyleWSRequestBuilder private[s3] (
  * the `PathStyleWSRequestBuilder` is available.
  */
 private[s3] final class VirtualHostWSRequestBuilder private[s3] (
-  calculator: SignatureCalculator, s3Url: URL) extends WSRequestBuilder {
+  calculator: WSSignatureCalculator, s3Url: URL) extends WSRequestBuilder {
 
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {
     val url = new StringBuilder()

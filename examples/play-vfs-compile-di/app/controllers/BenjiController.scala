@@ -1,6 +1,6 @@
 package com.zengularity.benji.demo.controllers
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
 import akka.stream.Materializer
@@ -9,15 +9,14 @@ import akka.util.ByteString
 
 import play.api.libs.json.Json
 import play.api.libs.ws.DefaultBodyWritables._
-import play.api.mvc.{BaseController, ControllerComponents}
+import play.api.mvc.{ BaseController, ControllerComponents }
 
 import com.zengularity.benji.ObjectStorage
 import com.zengularity.benji.exception.BucketAlreadyExistsException
 
 class BenjiController(
   val controllerComponents: ControllerComponents,
-  benji: ObjectStorage
-)(implicit ec: ExecutionContext, mat: Materializer) extends BaseController {
+  benji: ObjectStorage)(implicit ec: ExecutionContext, mat: Materializer) extends BaseController {
 
   def index = Action {
     Ok(views.html.api.root()).as("text/html")

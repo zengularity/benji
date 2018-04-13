@@ -42,6 +42,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
         bucket.versioning must beSome[BucketVersioning]
       }
 
+      // to list versions of a specific object
       "so be togglable" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           {
@@ -63,7 +64,8 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               map(_ => true) must beTrue.await(1, 10.seconds)
 
           } and {
-            vbucket.isVersioned.aka("is versioned after versioning is disabled") must beFalse.await(1, 10.seconds)
+            vbucket.isVersioned.aka(
+              "is still versioned after versioning is disabled") must beFalse.await(1, 10.seconds)
           }
         }
       }
@@ -202,7 +204,8 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               map(_ => true) must beTrue.await(1, 10.seconds)
 
           } and {
-            createObject(bucket, objectName, "hello", Map("foov1" -> "barv1")) must beTrue.
+            createObject(
+              bucket, objectName, "hello", Map("foov1" -> "barv1")) must beTrue.
               await(1, 10.seconds)
 
           } and {

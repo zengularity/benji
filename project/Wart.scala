@@ -2,7 +2,10 @@ import sbt.Keys._
 import sbt._
 
 import wartremover.{
-  Warts, wartremoverClasspaths, wartremoverExcluded, wartremoverErrors
+  Warts,
+  wartremoverClasspaths,
+  wartremoverExcluded,
+  wartremoverErrors
 }
 
 object Wart {
@@ -39,7 +42,7 @@ object Wart {
 
       val filter: String => Boolean = { s =>
         anyFilter(s) || anyValFilter(s) || productFilter(s) ||
-        serializableFilter(s) || javaSerializableFilter(s)
+          serializableFilter(s) || javaSerializableFilter(s)
       }
 
       (_: Seq[String]).filterNot(filter)
@@ -52,6 +55,5 @@ object Wart {
     },
     scalacOptions in (Test, console) ~= {
       _.filterNot(_.contains("wartremover"))
-    }
-  )
+    })
 }

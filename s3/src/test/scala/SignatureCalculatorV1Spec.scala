@@ -4,8 +4,8 @@ import play.shaded.ahc.org.asynchttpclient.RequestBuilder
 import play.shaded.ahc.io.netty.handler.codec.http.DefaultHttpHeaders
 
 // Sanity tests related to calculating the signature for S3 requests.
-class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
-  "Signature calculator" title
+class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
+  "Signature calculator (V1/V2)" title
 
   // Examples taken from:
   // http://s3.amazonaws.com/doc/s3-developer-guide/RESTAuthentication.html
@@ -13,14 +13,14 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
   "Canolicalized signature url" should {
     "keep sub-resource parameter (e.g. ?acl)" in {
       @SuppressWarnings(Array("org.wartremover.warts.Null"))
-      val req = new RequestBuilder("http://localhost/").
+      val req = new RequestBuilder("http").
         addQueryParam("acl", null).build()
 
       calculator.signatureUrl(req) must_== "http://localhost?acl"
     }
 
     "filter query parameters (e.g. ?max-keys)" in {
-      val req = new RequestBuilder("http://localhost/").
+      val req = new RequestBuilder("http").
         addQueryParam("max-keys", "50").build()
 
       calculator.signatureUrl(req) must_== "http://localhost"
@@ -302,7 +302,7 @@ class SignatureCalculatorSpec extends org.specs2.mutable.Specification {
       case (hs, (n, v)) => hs.add(n, v); hs
     }
 
-  lazy val calculator = new SignatureCalculator(
+  lazy val calculator = new SignatureCalculatorV1(
     accessKey = "44CF9590006BF252F707",
     secretKey = "OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV",
     "s3.amazonaws.com")

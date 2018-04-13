@@ -24,6 +24,10 @@ final class S3AwsSpec extends Specification with AwsTests {
     "in virtual host style",
     TestUtils.awsVirtualHost)(TestUtils.materializer)
 
+  awsSuite(
+    "in virtual host style",
+    TestUtils.awsVirtualHostV4)(TestUtils.materializer)
+
   awsMinimalSuite(
     "in path style with URI",
     TestUtils.awsFromPathStyleURL)(TestUtils.materializer)
@@ -31,6 +35,10 @@ final class S3AwsSpec extends Specification with AwsTests {
   awsMinimalSuite(
     "in virtual host with URI",
     TestUtils.awsFromVirtualHostStyleURL)(TestUtils.materializer)
+
+  awsSuite(
+    "in virtual host style with URI V4",
+    TestUtils.awsFromVirtualHostStyleURLV4)(TestUtils.materializer)
 }
 
 sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S3Spec { specs: Specification =>
