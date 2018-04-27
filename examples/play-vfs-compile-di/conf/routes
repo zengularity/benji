@@ -13,6 +13,7 @@ DELETE        /api/buckets/:bucketName                            com.zengularit
 
 GET           /api/buckets/:bucketName/objects                    com.zengularity.benji.demo.controllers.BenjiController.listObjects(bucketName: String)
 GET           /api/buckets/:bucketName/objects/:objectName        com.zengularity.benji.demo.controllers.BenjiController.getObject(bucketName: String, objectName: String)
+HEAD /api/buckets/:bucketName/objects/:objectName                 com.zengularity.benji.demo.controllers.BenjiController.objectMetadata(bucketName: String, objectName: String)
 + nocsrf
 POST          /api/buckets/:bucketName/objects                    com.zengularity.benji.demo.controllers.BenjiController.createObject(bucketName: String)
 + nocsrf

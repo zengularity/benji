@@ -37,5 +37,6 @@ performs CRUD operations on buckets and objects :
 - Object:
     - List objects
     - Create objects
+    - Get object metadata
     - Get a raw object
     - Delete objects
