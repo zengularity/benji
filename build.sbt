@@ -4,8 +4,6 @@ organization in ThisBuild := "com.zengularity"
 
 scalaVersion in ThisBuild := "2.12.4"
 
-crossScalaVersions in ThisBuild := Seq("2.11.11", scalaVersion.value)
-
 lazy val core = project.in(file("core")).
   settings(Common.settings: _*).settings(
     name := "benji-core",

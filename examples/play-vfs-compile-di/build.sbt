@@ -26,8 +26,8 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.zengularity" %% "benji-vfs" % "2.0.0-SNAPSHOT",
-  "com.zengularity" %% "benji-play" % "2.0.0-SNAPSHOT",
+  "com.zengularity" %% "benji-vfs" % "2.0.0",
+  "com.zengularity" %% "benji-play" % "2.0.0"
 )
 
 lazy val playVfs = (project in file(".")).enablePlugins(PlayScala)

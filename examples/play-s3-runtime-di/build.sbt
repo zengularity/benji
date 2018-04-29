@@ -27,8 +27,8 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   guice,
-  "com.zengularity" %% "benji-s3" % "2.0.0-SNAPSHOT",
-  "com.zengularity" %% "benji-play" % "2.0.0-SNAPSHOT",
+  "com.zengularity" %% "benji-s3" % "2.0.0",
+  "com.zengularity" %% "benji-play" % "2.0.0",
 )
 
 lazy val playS3 = (project in file(".")).enablePlugins(PlayScala)

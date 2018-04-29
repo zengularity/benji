@@ -1,6 +1,6 @@
 # Changelog
 
-## Release 2.0.0 (pending)
+## Release 2.0.0
 
 - Rename the project to Benji, with module specifications as `"com.zengularity.benji" %% "benji-x" % version`.
 - Upgrade to Scala 2.12, Akka Stream 2.5.4 and Play WS (standalone) 1.1.3.
