@@ -8,7 +8,8 @@ The project is using [SBT](http://www.scala-sbt.org/), so to build it from sourc
 
     sbt publishLocal
 
-[![CircleCI](https://circleci.com/gh/zengularity/benji.svg?style=svg)](https://circleci.com/gh/zengularity/benji)
+[![CircleCI](https://circleci.com/gh/zengularity/benji.svg?style=svg)](https://circleci.com/gh/zengularity/benji) 
+[![Zen Entrepot](http://zen-entrepot.nestincloud.io/entrepot/shields/releases/com/zengularity/benji-core_2.12.svg)](https://zen-entrepot.nestincloud.io/entrepot/pom/releases/com/zengularity/benji-core_2.12)
 
 ## Setup
 
