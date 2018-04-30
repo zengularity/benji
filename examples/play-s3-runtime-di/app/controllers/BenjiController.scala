@@ -14,7 +14,10 @@ import play.api.libs.ws.DefaultBodyWritables._
 import play.api.mvc.{ BaseController, ControllerComponents }
 
 import com.zengularity.benji.ObjectStorage
-import com.zengularity.benji.exception.BucketAlreadyExistsException
+import com.zengularity.benji.exception.{
+  BucketAlreadyExistsException,
+  ObjectNotFoundException
+}
 
 import com.zengularity.benji.demo.forms.BenjiForm
 
@@ -62,6 +65,18 @@ class BenjiController @Inject() (
   def getObject(bucketName: String, objectName: String) = Action {
     val data = benji.bucket(bucketName).obj(objectName).get()
     Ok.chunked(data)
+  }
+
+  def objectMetadata(bucketName: String, objectName: String) = Action.async {
+    val objectRef = benji.bucket(bucketName).obj(objectName)
+
+    objectRef.metadata.map { meta =>
+      NoContent.withHeaders(meta.toSeq.flatMap {
+        case (name, values) => values.map(name -> _)
+      }: _*)
+    }.recover {
+      case _: ObjectNotFoundException => NotFound
+    }
   }
 
   def createObject(bucketName: String) = Action.async(parse.multipartFormData) { request =>

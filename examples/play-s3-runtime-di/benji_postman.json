@@ -76,7 +76,18 @@
             "src": ""
           }
         },
-        "description": "Downlaod an object. The bucket name and the object name are specified in the uri. The response is chunked, so you may use direclty in a browser."
+        "description": "Downlaod an object. The bucket name and the object name are specified in the uri. The response is chunked, so you may use directly in a browser."
+      },
+      "response": []
+    },
+    {
+      "name": "Get metadata about an object",
+      "request": {
+        "url": "localhost:9000/api/buckets/$bucketName/objects/$objectName",
+        "method": "HEAD",
+        "header": [],
+        "body": {},
+        "description": "Get the metadata for the specified object."
       },
       "response": []
     },
