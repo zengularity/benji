@@ -1,5 +1,9 @@
 # Changelog
 
+## Release 2.0.1
+
+- Support AWS signature V4
+
 ## Release 2.0.0 (pending)
 
 - Rename the project to Benji, with module specifications as `"com.zengularity.benji" %% "benji-x" % version`.
