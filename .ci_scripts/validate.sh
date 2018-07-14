@@ -34,4 +34,5 @@ JVM_OPTS="-Xms$JVM_MAX_MEM -Xmx$JVM_MAX_MEM -XX:+CMSClassUnloadingEnabled -XX:Re
 
 SBT_OPTS="-Dsbt.scala.version=2.12.4"
 
+sbt "$SBT_OPTS" ";error ;mimaReportBinaryIssues"
 sbt "$SBT_OPTS" testQuick

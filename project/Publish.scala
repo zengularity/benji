@@ -3,10 +3,15 @@ import sbt.Keys._
 
 import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
 
+import com.typesafe.tools.mima.plugin.MimaKeys.mimaPreviousArtifacts
+
 object Publish {
   val siteUrl = "https://github.com/zengularity/benji"
 
   lazy val settings = Seq(
+    resolvers += "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
+    mimaPreviousArtifacts := Set(
+      organization.value %% moduleName.value % "2.0.0"),
     licenses := Seq("Apache-2.0" ->
       url("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     pomIncludeRepository := { _ => false },
