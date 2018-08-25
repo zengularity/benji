@@ -2,7 +2,7 @@ import Common._
 
 organization in ThisBuild := "com.zengularity"
 
-scalaVersion in ThisBuild := "2.12.4"
+scalaVersion in ThisBuild := "2.12.6"
 
 crossScalaVersions in ThisBuild := Seq(scalaVersion.value)
 
@@ -30,7 +30,18 @@ lazy val s3 = project.in(file("s3")).
     libraryDependencies ++= Seq(
       Dependencies.playWSXml,
       Dependencies.playAhcWS,
-      "org.scala-lang.modules" %% "scala-xml" % scalaXmlVer.value % Provided)
+      "org.scala-lang.modules" %% "scala-xml" % scalaXmlVer.value % Provided),
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
+
+      val wasPrivate = Seq(
+        x[MissingClassProblem]("com.zengularity.benji.s3.SignatureCalculator"),
+        x[IncompatibleMethTypeProblem]("com.zengularity.benji.s3.VirtualHostWSRequestBuilder.this"),
+        x[IncompatibleMethTypeProblem]("com.zengularity.benji.s3.PathStyleWSRequestBuilder.this"),
+        x[IncompatibleMethTypeProblem]("com.zengularity.benji.s3.WSRequestBuilder.build"))
+
+      wasPrivate
+    }
   ).dependsOn(core % "test->test;compile->compile")
 
 lazy val google = project.in(file("google")).
