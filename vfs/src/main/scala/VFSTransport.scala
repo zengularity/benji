@@ -97,7 +97,7 @@ object VFSTransport {
 
         mngr.setBaseFile(mngr.resolveFile(uri))
 
-        Try(VFSTransport(mngr))
+        Try(new VFSTransport(mngr, () => mngr.close()))
       }
     }
 
