@@ -1,6 +1,6 @@
 name := "benji-vfs-play-demo"
 
-scalaVersion := "2.12.4"
+scalaVersion := "2.12.6"
 
 scalacOptions ++= Seq(
   "-encoding", "UTF-8",
@@ -26,8 +26,8 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.zengularity" %% "benji-vfs" % "2.0.1-SNAPSHOT",
-  "com.zengularity" %% "benji-play" % "2.0.1-SNAPSHOT",
+  "com.zengularity" %% "benji-vfs" % "2.0.2",
+  "com.zengularity" %% "benji-play" % "2.0.2",
 )
 
 lazy val playVfs = (project in file(".")).enablePlugins(PlayScala)

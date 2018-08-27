@@ -1,6 +1,6 @@
 name := "benji-s3-play-demo"
 
-scalaVersion := "2.12.4"
+scalaVersion := "2.12.6"
 
 scalacOptions ++= Seq(
   "-encoding", "UTF-8",
@@ -27,8 +27,8 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   guice,
-  "com.zengularity" %% "benji-s3" % "2.0.1-SNAPSHOT",
-  "com.zengularity" %% "benji-play" % "2.0.1-SNAPSHOT",
+  "com.zengularity" %% "benji-s3" % "2.0.2",
+  "com.zengularity" %% "benji-play" % "2.0.2",
 )
 
 lazy val playS3 = (project in file(".")).enablePlugins(PlayScala)
