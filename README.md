@@ -1,4 +1,4 @@
-# Object Storage framework
+# Benji
 
 This library is a Scala framework for Object Storage (e.g. S3/Amazon, S3/CEPH, Google Cloud Storage).
 
@@ -13,39 +13,15 @@ The project is using [SBT](http://www.scala-sbt.org/), so to build it from sourc
 
 ## Setup
 
-According your Object Storage, the following modules are available.
+The operations to manage the buckets are available on the `ObjectStorage` instance, using `BucketRef` (bucket remote reference).
 
-- [S3](./s3/README.md) for Amazon (or compliant Object Storage, like CEPH).
-- [Google Cloud Storage](./google/README.md).
-- [Apache VFS](./vfs/README.md)
-
-These modules can be configured as dependencies in your `build.sbt` (or `project/Build.scala`):
-
-```
-val benjiVer = "VERSION"
-
-libraryDependencies += "com.zengularity" %% "benji-s3" % benjiVer
-
-libraryDependencies += "com.zengularity" %% "benji-google" % benjiVer
-
-// If Play WS is not yet provided:
-libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.4"
-
-resolvers ++= Seq(
-  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
-  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
-)
-```
-
-Then the storage operations can be called according the DSL from your `ObjectStorage` instance.
-
-> Generally, these operations must be applied in a scope providing an `Materializer` and a transport instance (whose type is according the `ObjectStorage` instance; e.g. `play.api.libs.ws.WSClient` for S3).
+*See also: [Setup](docs/index.md#setup)*
 
 ## Usage
 
-- [QuickStart](./docs/quickstart.md)
+- [QuickStart](https://zengularity.github.io/benji/)
 - [Examples](./examples)
-- [API](https://zengularity.github.io/benji/)
+- [API](https://zengularity.github.io/benji/api/)
 
 ## Release
 

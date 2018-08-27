@@ -1,14 +1,44 @@
+---
+layout: default
+---
+
 # QuickStart
 
 This guide is how to easily start using Benji in your project.
 
-*See also: [API](https://zengularity.github.io/benji/)*
+*See also: [API](https://zengularity.github.io/benji/api/)*
 
 ## Bucket operations
 
-The operations to manage the buckets are available on the `ObjectStorage` instance, using `BucketRef` (bucket remote reference).
+According your Object Storage, the following modules are available.
 
-*See also: [Setup](../README.md#setup)*
+- [S3](./s3/usage.md) for Amazon S3 (or compliant Object Storage, like CEPH).
+- [Google Cloud Storage](./google/usage.md).
+- [Apache VFS](./vfs/usage.md)
+
+These modules can be configured as dependencies in your `build.sbt`.
+
+```ocaml
+val benjiVer = "{{site.latest_release}}"
+
+libraryDependencies += "com.zengularity" %% "benji-s3" % benjiVer
+
+libraryDependencies += "com.zengularity" %% "benji-google" % benjiVer
+
+// If Play WS is not yet provided:
+libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.4"
+
+resolvers ++= Seq(
+  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
+  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
+)
+```
+
+Then the storage operations can be called according the DSL from your `ObjectStorage` instance.
+
+> Generally, these operations must be applied in a scope providing an `Materializer` and a transport instance (whose type is according the `ObjectStorage` instance; e.g. `play.api.libs.ws.WSClient` for S3).
+
+The Benji modules can also be easily integration with [Play Framework](https://www.playframework.com/); *See document about the [Play integration](play/integration.md)*.
 
 ### Listing the storage buckets
 
