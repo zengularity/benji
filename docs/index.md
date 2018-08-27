@@ -182,3 +182,7 @@ def putToS3[A : BodyWritable](storage: WSS3, bucketName: String, objName: String
   } yield ()
 }
 ```
+
+## See also
+
+- [Changelog](changelog.md)
