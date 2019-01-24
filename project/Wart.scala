@@ -30,7 +30,14 @@ object Wart {
       ImplicitParameter,
       NonUnitStatements),
     scalacOptions ~= {
-      _.filterNot(wartFilter("Nothing"))
+      val nothingFilter = wartFilter("Nothing")
+      val javaConvFilter = wartFilter("JavaConversions") // 2.11 compat
+
+      val filter: String => Boolean = { s =>
+        nothingFilter(s) || javaConvFilter(s)
+      }
+
+      (_: Seq[String]).filterNot(filter)
     },
     scalacOptions in Test ~= {
       // Wart doesn't properly handle specs2 variance

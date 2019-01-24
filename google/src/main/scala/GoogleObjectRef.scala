@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji.google
@@ -8,7 +8,6 @@ import java.time.{ Instant, LocalDateTime, ZoneOffset }
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.{ Success, Failure }
 
 import akka.NotUsed
 import akka.stream.Materializer
@@ -36,13 +35,13 @@ import com.zengularity.benji.{
   VersionedObject
 }
 import com.zengularity.benji.ws.{ ContentMD5, Ok, Successful }
+import scala.collection.JavaConverters._
 
 final class GoogleObjectRef private[google] (
   storage: GoogleStorage,
   val bucket: String,
   val name: String) extends ObjectRef with ObjectVersioning { ref =>
   import GoogleObjectRef.ResumeIncomplete
-  import scala.collection.JavaConverters.collectionAsScalaIterable
 
   @inline def defaultThreshold = GoogleObjectRef.defaultThreshold
 
@@ -235,9 +234,9 @@ final class GoogleObjectRef private[google] (
         req.setDisableGZipContent(storage.disableGZip)
 
         req.execute()
-      }.transformWith {
-        case Success(_) => f(z, single)
-        case Failure(t) => ErrorHandler.ofBucketToFuture(s"Could not upload $name in $bucket", bucket)(t)
+      }.flatMap { _ => f(z, single) }.recoverWith {
+        case t => ErrorHandler.ofBucketToFuture(
+          s"Could not upload $name in $bucket", bucket)(t)
       })
     }
   }
@@ -416,7 +415,7 @@ final class GoogleObjectRef private[google] (
 
         val (currentPage, empty) = Option(request.getItems) match {
           case Some(items) =>
-            val collection = collectionAsScalaIterable(items).filter(_.getName == name)
+            val collection = items.asScala.filter(_.getName == name)
             val source = Source.fromIterator[VersionedObject] { () =>
               collection.iterator.map { obj: StorageObject =>
                 VersionedObject(

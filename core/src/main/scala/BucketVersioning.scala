@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji
@@ -63,7 +63,7 @@ trait BucketVersioning {
    */
   trait VersionedListRequest {
     /**
-     * Lists of all versioned objects within the bucket.
+     * Lists of the matching versioned objects within the bucket.
      *
      * {{{
      * versioning.versionedObjects()
@@ -72,7 +72,7 @@ trait BucketVersioning {
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed]
 
     /**
-     * Collects the bucket objects.
+     * Collects the matching objects.
      *
      * {{{
      * versioning.versionedObjects.collect[List]()
@@ -101,7 +101,7 @@ trait BucketVersioning {
      * Defines the prefix the listed objects must match.
      *
      * {{{
-     * versioning.versionedObjects.withPrefix("/foo").collect[Set]()
+     * versioning.versionedObjects.withPrefix("foo").collect[Set]()
      * }}}
      */
     def withPrefix(prefix: String): VersionedListRequest

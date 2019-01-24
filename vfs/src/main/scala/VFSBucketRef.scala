@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji.vfs
@@ -122,12 +122,17 @@ final class VFSBucketRef private[vfs] (
 
       Future { dir.delete() }.flatMap { successful =>
         if (successful) {
-          Future.unit
+          Future.successful({}) // Future.unit > 2.12
         } else {
           Future { dir.exists() }.flatMap {
-            case true => Future.failed[Unit](BucketNotEmptyException(ref))
-            case false if ignoreExists => Future.unit
-            case false => Future.failed[Unit](BucketNotFoundException(ref))
+            case true =>
+              Future.failed[Unit](BucketNotEmptyException(ref))
+
+            case false if ignoreExists =>
+              Future.successful({}) // Future.unit > 2.12
+
+            case false =>
+              Future.failed[Unit](BucketNotFoundException(ref))
           }
         }
       }

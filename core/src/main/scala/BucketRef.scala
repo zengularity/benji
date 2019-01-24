@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji
@@ -108,11 +108,19 @@ trait BucketRef {
   trait ListRequest {
     /**
      * Lists of the matching objects within the bucket.
+     *
+     * {{{
+     * bucketRef.objects()
+     * }}}
      */
     def apply()(implicit m: Materializer): Source[Object, NotUsed]
 
     /**
-     * Collects the bucket objects.
+     * Collects the matching objects.
+     *
+     * {{{
+     * bucketRef.objects.collect[List]()
+     * }}}
      */
     final def collect[M[_]]()(implicit m: Materializer, builder: CanBuildFrom[M[_], Object, M[Object]]): Future[M[Object]] = {
       implicit def ec: ExecutionContext = m.executionContext
@@ -124,12 +132,21 @@ trait BucketRef {
 
     /**
      * Defines batch size for retrieving objects with multiple requests.
-     * @param max the batch size, indicating the maximum number of objects fetch at once
+     *
+     * @param max the maximum number of objects fetch at once
+     *
+     * {{{
+     * bucketRef.objects.withBatchSize(10L).collect[Set]()
+     * }}}
      */
     def withBatchSize(max: Long): ListRequest
 
     /**
      * Defines the prefix the listed objects must match.
+     *
+     * {{{
+     * bucketRef.objects.withPrefix("foo").collect[Set]()
+     * }}}
      */
     def withPrefix(prefix: String): ListRequest
   }

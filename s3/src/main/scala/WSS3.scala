@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji.s3
@@ -174,7 +174,7 @@ object S3 {
         case Seq(region) => region
       }
 
-      def storage = params.get("style") match {
+      def storage: Try[WSS3] = params.get("style") match {
         case Some(Seq("path")) if awsRegion.isDefined =>
           Failure[WSS3](new IllegalArgumentException(
             "Style 'virtualhost' must be specified when 'awsRegion' is defined"))

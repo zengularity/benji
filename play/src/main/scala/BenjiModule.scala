@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package play.modules.benji
@@ -89,20 +89,26 @@ private[benji] object BenjiModule {
       val parsed = Set.newBuilder[(String, URI)]
 
       subConf.entrySet.iterator.foreach[Unit] {
-        case ("uri", ValidUri(uri)) =>
+        case ("uri", ValidUri(uri)) => {
           parsed += "default" -> uri
+          ()
+        }
 
         case ("uri", invalid) =>
           logger.warn(s"Invalid setting for 'benji.uri': $invalid")
 
-        case ("default.uri", ValidUri(uri)) =>
+        case ("default.uri", ValidUri(uri)) => {
           parsed += "default" -> uri
+          ()
+        }
 
         case ("default.uri", invalid) =>
           logger.warn(s"Invalid setting for 'benji.default.uri': $invalid")
 
-        case (key, ValidUri(uri)) if key.endsWith(".uri") =>
+        case (key, ValidUri(uri)) if key.endsWith(".uri") => {
           parsed += key.dropRight(4) -> uri
+          ()
+        }
 
         case (key, invalid) =>
           logger.warn(s"Invalid setting for '$key': $invalid")
