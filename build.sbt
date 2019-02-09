@@ -2,7 +2,7 @@ import Common._
 
 organization in ThisBuild := "com.zengularity"
 
-scalaVersion in ThisBuild := "2.12.6"
+scalaVersion in ThisBuild := "2.12.8"
 
 crossScalaVersions in ThisBuild := Seq(scalaVersion.value)
 
@@ -27,7 +27,7 @@ val scalaXmlVer = Def.setting[String] {
   else "1.0.6"
 }
 
-val playVer = "2.6.1"
+val playVer = "2.6.7"
 
 lazy val playTest = "com.typesafe.play" %% "play-test" % playVer % Test
 
@@ -104,7 +104,7 @@ lazy val vfs = project.in(file("vfs")).
     },
     libraryDependencies ++= Seq(
       "org.apache.commons" % "commons-vfs2" % "2.3",
-      "com.typesafe.play" %% "play-json" % "2.6.7",
+      "com.typesafe.play" %% "play-json" % playVer,
       Dependencies.slf4jApi,
       "commons-io" % "commons-io" % "2.4" % Test)
   ).dependsOn(core % "test->test;compile->compile")

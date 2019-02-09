@@ -173,7 +173,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Write and copy file" in assertAllStagesStopped {
-      val file1 = storage.bucket(bucketName).obj("testfile1.txt")
+      val file1 = storage.bucket(bucketName).obj("Capture d’écran 2018-11-14 à 09.35.49.png")
       val file2 = storage.bucket(bucketName).obj("testfile2.txt")
 
       file1.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
