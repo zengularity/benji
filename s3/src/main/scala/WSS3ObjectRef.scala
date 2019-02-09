@@ -111,7 +111,7 @@ final class WSS3ObjectRef private[s3] (
   def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] =
     storage.request(Some(targetBucketName), Some(targetObjectName),
       requestTimeout = requestTimeout).
-      addHttpHeaders("x-amz-copy-source" -> s"/$bucket/$name").
+      addHttpHeaders("x-amz-copy-source" -> java.net.URLEncoder.encode(s"/$bucket/$name", "UTF-8")).
       put("").flatMap {
         case Successful(_) => Future.successful(logger.info(s"Successfully copied the object [$bucket/$name] to [$targetBucketName/$targetObjectName]."))
 
