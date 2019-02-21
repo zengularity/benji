@@ -26,7 +26,7 @@ final class WSS3BucketRef private[s3] (
   @inline private def logger = storage.logger
   @inline private def requestTimeout = storage.requestTimeout
 
-  def objects: ListRequest = Objects(None)
+  def objects: ListRequest = Objects(None, None)
 
   /**
    * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html RESTBucketHEAD]]
@@ -140,9 +140,9 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html RESTBucketGET]]
    */
-  private case class Objects(maybeMax: Option[Long]) extends ref.ListRequest {
-    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
-
+  private case class Objects(
+    maybePrefix: Option[String],
+    maybeMax: Option[Long]) extends ref.ListRequest {
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
       @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
       def next(nextToken: String): Source[Object, NotUsed] =
@@ -157,14 +157,22 @@ final class WSS3BucketRef private[s3] (
       }
 
       val query: Option[String] => Option[String] = { token =>
-        buildQuery(maxParam(maybeMax), tokenParam(token))
+        buildQuery(
+          prefixParam(maybePrefix),
+          maxParam(maybeMax),
+          tokenParam(token))
       }
 
-      val errorHandler = ErrorHandler.ofBucket(s"Could not list objects within the bucket $name", ref)(_)
+      val errorHandler = ErrorHandler.ofBucket(
+        s"Could not list objects within the bucket $name", ref)(_)
 
       WSS3BucketRef.list[Object](ref.storage, ref.name, token, errorHandler)(
         query, parse, _.name, andThen)
     }
+
+    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
+
+    def withPrefix(prefix: String) = this.copy(maybePrefix = Some(prefix))
   }
 
   /**
@@ -203,7 +211,13 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
-  private case class ObjectVersions(maybeMax: Option[Long] = None, includeDeleteMarkers: Boolean = false) extends ref.VersionedListRequest {
+  private case class ObjectVersions(
+    maybePrefix: Option[String] = None,
+    maybeMax: Option[Long] = None,
+    includeDeleteMarkers: Boolean = false) extends ref.VersionedListRequest {
+
+    def withPrefix(prefix: String) = this.copy(maybePrefix = Some(prefix))
+
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
     def withDeleteMarkers = this.copy(includeDeleteMarkers = true)
@@ -226,7 +240,11 @@ final class WSS3BucketRef private[s3] (
       }
 
       val query: Option[String] => Option[String] = { token =>
-        buildQuery(versionParam, maxParam(maybeMax), tokenParam(token))
+        buildQuery(
+          prefixParam(maybePrefix),
+          versionParam,
+          maxParam(maybeMax),
+          tokenParam(token))
       }
 
       val errorHandler = ErrorHandler.ofBucket(s"Could not list versions within the bucket $name", ref)(_)

@@ -107,7 +107,7 @@ trait BucketRef {
    */
   trait ListRequest {
     /**
-     * Lists of all objects within the bucket.
+     * Lists of the matching objects within the bucket.
      */
     def apply()(implicit m: Materializer): Source[Object, NotUsed]
 
@@ -123,10 +123,15 @@ trait BucketRef {
     }
 
     /**
-     * Define batch size for retrieving objects with multiple requests
+     * Defines batch size for retrieving objects with multiple requests.
      * @param max the batch size, indicating the maximum number of objects fetch at once
      */
     def withBatchSize(max: Long): ListRequest
+
+    /**
+     * Defines the prefix the listed objects must match.
+     */
+    def withPrefix(prefix: String): ListRequest
   }
 
   /**

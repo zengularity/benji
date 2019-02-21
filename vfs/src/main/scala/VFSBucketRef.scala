@@ -23,9 +23,15 @@ final class VFSBucketRef private[vfs] (
 
   @inline private def logger = storage.logger
 
-  object objects extends ref.ListRequest {
+  def objects: ref.ListRequest = new VFSListRequest(None)
+
+  private final class VFSListRequest(
+    prefix: Option[String]) extends ref.ListRequest {
+
     private val rootPath = s"${storage.transport.fsManager.getBaseFile.getName.getPath}${FileName.SEPARATOR}$name${FileName.SEPARATOR}"
-    private val selector = new BenjiFileSelector(FileType.FILE)
+
+    private val selector =
+      new BenjiFileSelector(dir.getName, FileType.FILE, prefix)
 
     @SuppressWarnings(Array("org.wartremover.warts.Throw"))
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
@@ -58,6 +64,8 @@ final class VFSBucketRef private[vfs] (
       logger.warn("For VFS storage there is no need for batch size")
       this
     }
+
+    def withPrefix(prefix: String) = new VFSListRequest(Some(prefix))
   }
 
   def exists(implicit ec: ExecutionContext): Future[Boolean] =

@@ -323,9 +323,11 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
         repeat(10)(body) runWith upload
       }
 
+      val prefix = "max-test-file"
+
       "after creating more objects" in {
         (1 to 16).foldLeft(ok) { (res, i) =>
-          val filename = s"max-test-file-$i"
+          val filename = s"$prefix-$i"
 
           res and {
             createFile(filename) must beTypedEqualTo(1590L).await(1, 5.seconds)
@@ -336,9 +338,18 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       }
 
       "using batch size 6" in {
-        bucket.objects.collect[List]().map(_.size) must beTypedEqualTo(17).await(1, 5.seconds) and (
+        bucket.objects.collect[List]().map(_.size) must beTypedEqualTo(17).await(1, 5.seconds) and {
           bucket.objects.withBatchSize(6).collect[List]().
-          map(_.size) must beTypedEqualTo(17).await(1, 5.seconds))
+            map(_.size) must beTypedEqualTo(17).await(1, 5.seconds)
+        }
+      }
+
+      s"using prefix '$prefix'" in {
+        bucket.objects.withPrefix(prefix).collect[Set]().
+          map(_.size) must beTypedEqualTo(16).await(1, 5.seconds) and {
+            bucket.objects.withPrefix("foo").collect[Seq]().
+              map(_.size) must beTypedEqualTo(0).await(1, 5.seconds)
+          }
       }
     }
 

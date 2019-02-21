@@ -12,8 +12,7 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.google.api.services.storage.model
-import com.google.api.services.storage.model.StorageObject
+import com.google.api.services.storage.model, model.StorageObject
 
 import play.api.libs.json.{ JsBoolean, JsDefined, JsUndefined, Json, JsObject }
 
@@ -38,9 +37,9 @@ final class GoogleBucketRef private[google] (
 
   @inline private def gt = storage.transport
 
-  private case class Objects(maybeMax: Option[Long]) extends ref.ListRequest {
-    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
-
+  private case class Objects(
+    maybePrefix: Option[String],
+    maybeMax: Option[Long]) extends ref.ListRequest {
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = list(None)
 
     @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
@@ -49,10 +48,12 @@ final class GoogleBucketRef private[google] (
 
       Source.fromFutureSource(Future {
         val prepared = gt.client.objects().list(name)
-        val maxed = maybeMax.fold(prepared) { prepared.setMaxResults(_) }
+        val maxed = maybeMax.fold(prepared)(prepared.setMaxResults(_))
+        val prefixed = maybePrefix.fold(maxed)(maxed.setPrefix(_))
 
-        val request =
-          nextToken.fold(maxed.execute()) { maxed.setPageToken(_).execute() }
+        val request = nextToken.fold(prefixed.execute()) {
+          prefixed.setPageToken(_).execute()
+        }
 
         val currentPage = Option(request.getItems) match {
           case Some(items) => Source.fromIterator[Object] { () =>
@@ -73,9 +74,13 @@ final class GoogleBucketRef private[google] (
         }
       }.recoverWith(ErrorHandler.ofBucketToFuture(s"Could not list objects in bucket $name", ref)))
     }.mapMaterializedValue(_ => NotUsed)
+
+    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
+
+    def withPrefix(prefix: String) = this.copy(maybePrefix = Some(prefix))
   }
 
-  def objects: ListRequest = Objects(None)
+  def objects: ListRequest = Objects(None, None)
 
   def exists(implicit ec: ExecutionContext): Future[Boolean] = Future {
     gt.client.buckets().get(name).executeUsingHead()
@@ -99,7 +104,9 @@ final class GoogleBucketRef private[google] (
   private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
     implicit val ec: ExecutionContext = m.executionContext
 
-    Future(versionedObjects()).flatMap(_.runFoldAsync(())((_: Unit, e) => obj(e.name, e.versionId).delete.ignoreIfNotExists()))
+    Future(versionedObjects()).flatMap(_.runFoldAsync(()) { (_: Unit, e) =>
+      obj(e.name, e.versionId).delete.ignoreIfNotExists()
+    })
   }
 
   private case class GoogleDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
@@ -161,8 +168,9 @@ final class GoogleBucketRef private[google] (
       ()
     }.recoverWith(ErrorHandler.ofBucketToFuture(s"Could not change versioning state of bucket $name", ref))
 
-  private case class ObjectsVersions(maybeMax: Option[Long]) extends ref.VersionedListRequest {
-    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
+  private case class ObjectsVersions(
+    maybePrefix: Option[String],
+    maybeMax: Option[Long]) extends ref.VersionedListRequest {
 
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = list(None)
 
@@ -172,14 +180,12 @@ final class GoogleBucketRef private[google] (
 
       Source.fromFutureSource(Future {
         val prepared = gt.client.objects().list(name).setVersions(true)
-        val maxed = maybeMax.fold(prepared) {
-          prepared.setMaxResults(_)
-        }
+        val maxed = maybeMax.fold(prepared)(prepared.setMaxResults(_))
+        val prefixed = maybePrefix.fold(maxed)(maxed.setPrefix(_))
 
-        val request =
-          nextToken.fold(maxed.execute()) {
-            maxed.setPageToken(_).execute()
-          }
+        val request = nextToken.fold(prefixed.execute()) {
+          prefixed.setPageToken(_).execute()
+        }
 
         val currentPage = Option(request.getItems) match {
           case Some(items) =>
@@ -206,9 +212,13 @@ final class GoogleBucketRef private[google] (
         }
       }.recoverWith(ErrorHandler.ofBucketToFuture(s"Could not list versions in bucket $name", ref)))
     }.mapMaterializedValue(_ => NotUsed)
+
+    def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
+
+    def withPrefix(prefix: String) = this.copy(maybePrefix = Some(prefix))
   }
 
-  def versionedObjects: VersionedListRequest = ObjectsVersions(None)
+  def versionedObjects: VersionedListRequest = ObjectsVersions(None, None)
 
   def obj(objectName: String, versionId: String): VersionedObjectRef =
     new GoogleVersionedObjectRef(storage, name, objectName, versionId)
