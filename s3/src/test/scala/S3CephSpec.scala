@@ -28,7 +28,7 @@ class S3CephSpec extends org.specs2.mutable.Specification with StorageCommonSpec
     val objName = "testfile.txt"
 
     withMatEx { implicit ee: EE =>
-      commonTests(ceph, bucketName)
+      commonTests("ceph", ceph, bucketName)
       commonVersioningTests(ceph, sampleVersionId = "t1Uelqn.uwzanWblaNOrIWpgWapViNXY")
     }
 

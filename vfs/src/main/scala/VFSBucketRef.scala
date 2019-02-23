@@ -65,6 +65,10 @@ final class VFSBucketRef private[vfs] (
       this
     }
 
+    /**
+     * @inheritdoc
+     * @param prefix the lookup prefix, without leading `/`
+     */
     def withPrefix(prefix: String) = new VFSListRequest(Some(prefix))
   }
 
