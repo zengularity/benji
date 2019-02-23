@@ -29,9 +29,20 @@ val scalaXmlVer = Def.setting[String] {
   else "1.0.6"
 }
 
-val playVer = "2.6.7"
+val playVer: Def.Initialize[String] = {
+  val playLower = "2.6.7"
+  //val playUpper = "2.7.0"
 
-lazy val playTest = "com.typesafe.play" %% "play-test" % playVer % Test
+  Def.setting[String] {
+    sys.env.get("PLAY_VERSION").getOrElse {
+      playLower
+    }
+  }
+}
+
+lazy val playTest = Def.setting {
+  "com.typesafe.play" %% "play-test" % playVer.value % Test
+}
 
 lazy val s3 = project.in(file("s3")).
   settings(Common.settings: _*).settings(
@@ -106,7 +117,7 @@ lazy val vfs = project.in(file("vfs")).
     },
     libraryDependencies ++= Seq(
       "org.apache.commons" % "commons-vfs2" % "2.3",
-      "com.typesafe.play" %% "play-json" % playVer,
+      "com.typesafe.play" %% "play-json" % playVer.value,
       Dependencies.slf4jApi,
       "commons-io" % "commons-io" % "2.4" % Test)
   ).dependsOn(core % "test->test;compile->compile")
@@ -114,10 +125,25 @@ lazy val vfs = project.in(file("vfs")).
 lazy val play = project.in(file("play")).
   settings(Common.settings ++ Seq(
     name := "benji-play",
+    version := {
+      val ver = (version in ThisBuild).value
+      val playMajor = playVer.value.split("\\.").take(2).mkString
+
+      if (ver endsWith "-SNAPSHOT") {
+        s"${ver.dropRight(9)}-play${playMajor}-SNAPSHOT"
+      } else {
+        s"${ver}-play${playMajor}"
+      }
+    },
     libraryDependencies ++= Seq(
       Dependencies.playAhcWS,
-      "com.typesafe.play" %% "play" % playVer % Provided,
-      playTest),
+      "com.typesafe.play" %% "play" % playVer.value % Provided,
+      playTest.value),
+    unmanagedSourceDirectories in Test += {
+      val v = playVer.value.split("\\.").take(2).mkString(".")
+
+      baseDirectory.value / "src" / "test" / s"play-$v"
+    },
     sources in (Compile, doc) := {
       val compiled = (sources in Compile).value
 

@@ -20,6 +20,8 @@ aws.s3.protocol=https
 aws.s3.region=us-east-1
 EOF
 
+grep 'aws.s3' s3/src/test/resources/local.conf
+
 # Prepare Google settings
 cat > google/src/test/resources/local.conf << EOF
 google.storage.projectId=$GOOGLE_PROJECTID

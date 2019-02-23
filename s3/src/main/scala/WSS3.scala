@@ -177,7 +177,7 @@ object S3 {
       def storage: Try[WSS3] = params.get("style") match {
         case Some(Seq("path")) if awsRegion.isDefined =>
           Failure[WSS3](new IllegalArgumentException(
-            "Style 'virtualhost' must be specified when 'awsRegion' is defined"))
+            "Style 'virtualHost' must be specified when 'awsRegion' is defined"))
 
         case Some(Seq("virtualHost")) => awsRegion match {
           case Some(region) => Success(virtualHostAwsV4(

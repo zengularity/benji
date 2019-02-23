@@ -1,6 +1,9 @@
 name := "benji-s3-play-demo"
 
-scalaVersion := "2.12.6"
+scalaVersion := "2.12.8"
+
+crossScalaVersions in ThisBuild := Seq(
+  "2.11.12", scalaVersion.value)
 
 scalacOptions ++= Seq(
   "-encoding", "UTF-8",
@@ -20,15 +23,25 @@ scalacOptions ++= Seq(
   "-opt:_"
 )
 
+version := "2.0.3"
+
+val playVer = Def.setting[String] {
+  if (version.value endsWith "-SNAPSHOT") {
+    s"${version.value.dropRight(9)}-play27-SNAPSHOT"
+  } else {
+    s"${version.value}-play27"
+  }
+}
+
 resolvers ++= Seq( 
-  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
-  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
+  "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases",
+  "Entrepot Snapshots" at "https://raw.githubusercontent.com/zengularity/entrepot/master/snapshots"
 )
 
 libraryDependencies ++= Seq(
   guice,
-  "com.zengularity" %% "benji-s3" % "2.0.2",
-  "com.zengularity" %% "benji-play" % "2.0.2",
+  "com.zengularity" %% "benji-s3" % version.value,
+  "com.zengularity" %% "benji-play" % playVer.value,
 )
 
 lazy val playS3 = (project in file(".")).enablePlugins(PlayScala)

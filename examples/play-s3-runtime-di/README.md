@@ -6,7 +6,7 @@ in a play application. This app uses Guice to handle runtime dependency injectio
 This example uses the following:
 
 - Benji: an object storage library
-- Play! Framework v2.6.11 as a web framework
+- Play! Framework v2.7.0 as a web framework
 - Benji play plugin
 - Benji S3 plugin as the demo uses the S3 storage
 

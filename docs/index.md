@@ -26,11 +26,11 @@ libraryDependencies += "com.zengularity" %% "benji-s3" % benjiVer
 libraryDependencies += "com.zengularity" %% "benji-google" % benjiVer
 
 // If Play WS is not yet provided:
-libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.4"
+libraryDependencies += "com.typesafe.play" %% "play-ws-standalone" % "1.1.3"
 
 resolvers ++= Seq(
-  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
-  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
+  "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases",
+  "Entrepot Snapshots" at "https://raw.githubusercontent.com/zengularity/entrepot/master/snapshots"
 )
 ```
 
