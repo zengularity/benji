@@ -11,6 +11,8 @@ The project is using [SBT](http://www.scala-sbt.org/), so to build it from sourc
 [![CircleCI](https://circleci.com/gh/zengularity/benji.svg?style=svg)](https://circleci.com/gh/zengularity/benji) 
 [![Zen Entrepot](http://zen-entrepot.nestincloud.io/entrepot/shields/releases/com/zengularity/benji-core_2.12.svg)](https://zen-entrepot.nestincloud.io/entrepot/pom/releases/com/zengularity/benji-core_2.12)
 
+> The environment variable `PLAY_VERSION` can be set to build the `play` module appropriately.
+
 ## Setup
 
 The operations to manage the buckets are available on the `ObjectStorage` instance, using `BucketRef` (bucket remote reference).

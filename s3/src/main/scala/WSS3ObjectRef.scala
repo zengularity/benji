@@ -107,6 +107,7 @@ final class WSS3ObjectRef private[s3] (
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
+   * !! There are known issue with CEPH
    */
   def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] =
     storage.request(Some(targetBucketName), Some(targetObjectName),

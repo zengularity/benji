@@ -13,8 +13,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-ws-standalone-xml" % "1.1.3")
 
 resolvers ++= Seq(
-  "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
-  "Entrepot Snapshots" at "https://raw.github.com/zengularity/entrepot/master/snapshots"
+  "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases",
+  "Entrepot Snapshots" at "https://raw.githubusercontent.com/zengularity/entrepot/master/snapshots"
 )
 ```
 
