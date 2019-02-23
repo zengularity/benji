@@ -31,7 +31,7 @@ class VFSStorageSpec(implicit ee: ExecutionEnv) extends org.specs2.mutable.Speci
   "VFS client" should {
     val bucketName = s"benji-test-${System identityHashCode this}"
 
-    commonTests(vfs, bucketName)
+    commonTests("vfs", vfs, bucketName)
 
     val fileStart = "hello world !!!"
 

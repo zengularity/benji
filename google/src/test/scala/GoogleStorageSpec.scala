@@ -33,7 +33,7 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
     val bucketName = s"benji-test-${System identityHashCode this}"
     val objName = "testfile.txt"
 
-    commonTests(google, bucketName)
+    commonTests("google", google, bucketName)
     commonVersioningTests(google, sampleVersionId = "7")
 
     val fileStart = "hello world !!!"

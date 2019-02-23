@@ -58,7 +58,7 @@ sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S
     val bucketName = s"benji-test-${System identityHashCode s3f}"
 
     withMatEx { implicit ee: EE =>
-      commonTests(s3f, bucketName)
+      commonTests("aws", s3f, bucketName)
       commonVersioningTests(s3f, sampleVersionId = "t1Uelqn.uwzanWblaNOrIWpgWapViNXY")
     }
 

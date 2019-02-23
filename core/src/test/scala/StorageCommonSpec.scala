@@ -74,13 +74,16 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
   }
 
-  def commonTests(storage: ObjectStorage, defaultBucketName: String)(
+  def commonTests(
+    storageKind: String,
+    storage: ObjectStorage,
+    defaultBucketName: String)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv,
     writer: BodyWritable[Array[Byte]]) = {
 
-    val bucketName = defaultBucketName
+    lazy val defaultBucketRef = storage.bucket(defaultBucketName)
 
     sequential
 
@@ -147,13 +150,13 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Get partial content of a file" in assertAllStagesStopped {
-      (storage.bucket(bucketName).obj("testfile.txt").
+      (defaultBucketRef.obj("testfile.txt").
         get(range = Some(ByteRange(4, 9))) runWith consume).
         aka("partial content") must beTypedEqualTo("o worl").await(1, 10.seconds)
     }
 
     "Write and delete file" in assertAllStagesStopped {
-      val file = storage.bucket(bucketName).obj("removable.txt")
+      val file = defaultBucketRef.obj("removable.txt")
       val put = file.put[Array[Byte]]
       val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
@@ -173,8 +176,15 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Write and copy file" in assertAllStagesStopped {
-      val file1 = storage.bucket(bucketName).obj("testfile1.txt")
-      val file2 = storage.bucket(bucketName).obj("testfile2.txt")
+      // TODO: Remove once NIC storage store URL-encoded x-amz-copy-source
+      // See https://github.com/zengularity/benji/pull/23
+      val sourceName = {
+        if (storageKind == "ceph") "ceph.txt"
+        else "Capture d’écran 2018-11-14 à 09.35.49.png"
+      }
+
+      val file1 = defaultBucketRef.obj(sourceName)
+      val file2 = defaultBucketRef.obj("testfile2.txt")
 
       file1.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
         val put = file1.put[Array[Byte]]
@@ -197,7 +207,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
     "Write and move file" >> {
       def moveSpec[R](target: => Future[ObjectRef], preventOverwrite: Boolean = true)(onMove: (ObjectRef, ObjectRef, Future[Unit]) => MatchResult[Future[R]]) = {
-        val file3 = storage.bucket(bucketName).obj("testfile3.txt")
+        val file3 = defaultBucketRef.obj("testfile3.txt")
 
         file3.exists.aka("exists #3") must beFalse.await(1, 5.seconds) and (
           target must beLike[ObjectRef] {
@@ -236,7 +246,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       }
 
       @inline def existingTarget: Future[ObjectRef] = {
-        val target = storage.bucket(bucketName).obj("testfile4.txt")
+        val target = defaultBucketRef.obj("testfile4.txt")
         val write = target.put[Array[Byte]]
         val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
@@ -245,7 +255,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
       "if prevent overwrite when target doesn't exist" in assertAllStagesStopped {
         moveSpec[(Boolean, Boolean)](Future.successful(
-          storage.bucket(bucketName).obj("testfile4.txt")))(successful)
+          defaultBucketRef.obj("testfile4.txt")))(successful)
       }
 
       "if prevent overwrite when target exists" in assertAllStagesStopped {
@@ -280,7 +290,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Delete on objects successfully ignore when not existing" in {
-      val bucket = storage.bucket(bucketName)
+      val bucket = defaultBucketRef
       val obj = bucket.obj("testignoreobj")
       val write = obj.put[Array[Byte]]
       val body = List.fill(10)("qwerty").mkString(" ").getBytes
@@ -306,7 +316,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Get objects with maximum elements" >> {
-      lazy val bucket = storage.bucket(bucketName)
+      lazy val bucket = defaultBucketRef
 
       "after preparing bucket" in {
         bucket.objects.collect[List]().
@@ -354,7 +364,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Retrieve headers and metadata" in {
-      val bucket = storage.bucket(bucketName)
+      val bucket = defaultBucketRef
       val obj = bucket.obj("testfile.txt")
       val expectedMap = Map("foo" -> Seq("bar"))
 
@@ -393,7 +403,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Versioning feature should be consistant between buckets and objects" in {
-      val bucket = storage.bucket(bucketName)
+      val bucket = defaultBucketRef
       val obj = bucket.obj("benji-test-versioning-obj")
 
       bucket.versioning.isDefined must_=== obj.versioning.isDefined
