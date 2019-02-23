@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji.vfs
@@ -259,7 +259,7 @@ final class VFSObjectRef private[vfs] (
         file.delete()
       }.flatMap { successful =>
         if (ignoreExists || successful) {
-          Future.unit
+          Future.successful({}) // unit > 2.12
         } else {
           Future.failed[Unit](ObjectNotFoundException(ref))
         }

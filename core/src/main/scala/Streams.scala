@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji
@@ -70,7 +70,7 @@ private[benji] object Streams {
         private var outbuf = Option.empty[ByteString]
         private var downstreamWaiting = false
 
-        override def preStart() {
+        override def preStart(): Unit = {
           pull(in)
           super.preStart()
         }
@@ -142,7 +142,7 @@ private[benji] object Streams {
         private var outbuf = Option.empty[ByteString]
         private var downstreamWaiting = false
 
-        override def preStart() {
+        override def preStart(): Unit = {
           pull(in)
           super.preStart()
         }

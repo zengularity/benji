@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji.s3
@@ -229,21 +229,24 @@ final class WSS3ObjectRef private[s3] (
       storage.request(Some(bucket), Some(name), requestTimeout = requestTimeout).delete().flatMap {
         case Successful(_) =>
           logger.info(s"Successfully deleted the object $bucket/$name.")
-          Future.unit
+          Future.successful({}) // .unit > 2.12
 
         case response => ErrorHandler.ofObject(s"Could not delete object $name inside $bucket", ref)(response) match {
-          case ObjectNotFoundException(_, _) if ignoreExists => Future.unit
-          case throwable => Future.failed[Unit](throwable)
+          case ObjectNotFoundException(_, _) if ignoreExists =>
+            Future.successful({}) // .unit > 2.12
+
+          case throwable =>
+            Future.failed[Unit](throwable)
         }
       }
     }
 
     private def checkExists(implicit ec: ExecutionContext) = if (ignoreExists) {
-      Future.unit
+      Future.successful({}) // .unit > 2.12
     } else {
       exists.flatMap {
         case false => Future.failed[Unit](ObjectNotFoundException(ref))
-        case true => Future.unit
+        case true => Future.successful({}) // .unit > 2.12
       }
     }
 

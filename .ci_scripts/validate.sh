@@ -20,8 +20,6 @@ aws.s3.protocol=https
 aws.s3.region=us-east-1
 EOF
 
-grep 'ceph.s3' s3/src/test/resources/local.conf
-
 # Prepare Google settings
 cat > google/src/test/resources/local.conf << EOF
 google.storage.projectId=$GOOGLE_PROJECTID
@@ -34,7 +32,22 @@ echo "$GOOGLE_CREDENTIALS" | base64 -d | gzip -dc > \
 JVM_MAX_MEM="2048M"
 JVM_OPTS="-Xms$JVM_MAX_MEM -Xmx$JVM_MAX_MEM -XX:+CMSClassUnloadingEnabled -XX:ReservedCodeCacheSize=192m -XX:MetaspaceSize=512M -XX:MaxMetaspaceSize=512M"
 
-SBT_OPTS="-Dsbt.scala.version=2.12.4"
+SBT_OPTS="-Dsbt.scala.version=2.12.8"
 
+# Scalariform check
+echo "[INFO] Check the source format and backward compatibility"
+
+sbt ++$SCALA_VERSION scalariformFormat test:scalariformFormat > /dev/null
+git diff --exit-code || (cat >> /dev/stdout <<EOF
+[ERROR] Scalariform check failed, see differences above.
+To fix, format your sources using sbt scalariformFormat test:scalariformFormat before submitting a pull request.
+Additionally, please squash your commits (eg, use git commit --amend) if you're going to update this pull request.
+EOF
+  false
+)
+
+# MiMa
 sbt "$SBT_OPTS" ";error ;mimaReportBinaryIssues"
+
+# Tests
 sbt "$SBT_OPTS" testQuick

@@ -4,7 +4,8 @@ organization in ThisBuild := "com.zengularity"
 
 scalaVersion in ThisBuild := "2.12.8"
 
-crossScalaVersions in ThisBuild := Seq(scalaVersion.value)
+crossScalaVersions in ThisBuild := Seq(
+  "2.11.12", scalaVersion.value)
 
 lazy val core = project.in(file("core")).
   settings(Common.settings: _*).settings(
@@ -17,6 +18,7 @@ lazy val core = project.in(file("core")).
         x[ReversedMissingMethodProblem]("com.zengularity.benji.BucketVersioning#VersionedListRequest.withPrefix"))
     },
     libraryDependencies ++= Seq(
+      "org.scala-lang.modules" %% "scala-collection-compat" % "0.3.0",
       "commons-codec" % "commons-codec" % "1.10",
       Dependencies.slf4jApi % Provided
     )

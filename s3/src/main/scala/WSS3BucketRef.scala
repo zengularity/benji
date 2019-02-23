@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji.s3
@@ -112,7 +112,7 @@ final class WSS3BucketRef private[s3] (
     val req = storage.request(Some(name), requestTimeout = storage.requestTimeout, query = Some("versioning"))
 
     req.put(body.toString()).flatMap {
-      case Successful(_) => Future.unit
+      case Successful(_) => Future.successful({}) // unit > 2.12
       case response =>
         val error = ErrorHandler.ofBucket(s"Could not change versionning of the bucket $name", ref)(response)
         Future.failed[Unit](error)

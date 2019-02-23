@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji.google
@@ -29,11 +29,11 @@ import com.zengularity.benji.exception.{
   BucketAlreadyExistsException,
   BucketNotFoundException
 }
+import scala.collection.JavaConverters._
 
 final class GoogleBucketRef private[google] (
   storage: GoogleStorage,
   val name: String) extends BucketRef with BucketVersioning { ref =>
-  import scala.collection.JavaConverters.collectionAsScalaIterable
 
   @inline private def gt = storage.transport
 
@@ -222,6 +222,8 @@ final class GoogleBucketRef private[google] (
 
   def obj(objectName: String, versionId: String): VersionedObjectRef =
     new GoogleVersionedObjectRef(storage, name, objectName, versionId)
+
+  @inline private def collectionAsScalaIterable[A](i: java.util.Collection[A]): Iterable[A] = i.asScala
 
   override lazy val toString = s"GoogleBucketRef($name)"
 

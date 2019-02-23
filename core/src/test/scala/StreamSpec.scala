@@ -19,8 +19,11 @@ class StreamSpec(implicit ee: ExecutionEnv)
 
   val timeout = FiniteDuration(5L, java.util.concurrent.TimeUnit.SECONDS)
 
-  implicit lazy val system = akka.actor.ActorSystem("benji-core-tests")
-  implicit def materializer = akka.stream.ActorMaterializer.create(system)
+  private implicit lazy val system =
+    akka.actor.ActorSystem("benji-core-tests")
+
+  private implicit def materializer =
+    akka.stream.ActorMaterializer.create(system)
 
   "Consumer" should {
     "try to take at least up to 5 bytes" >> {

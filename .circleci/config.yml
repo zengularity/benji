@@ -31,7 +31,11 @@ jobs:
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
 
-      - run: ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
+      - run:
+          name: Run Validations and Tests
+          command: ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
+          environment:
+            SCALA_VERSION: 2.12.8
 
       - save_cache:
           paths:

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2018 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
+ * Copyright (C) 2018-2019 Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>
  */
 
 package com.zengularity.benji.vfs
@@ -24,7 +24,7 @@ import com.zengularity.benji.URIProvider
  * @param fsManager the VFS manager
  */
 final class VFSTransport(val fsManager: FileSystemManager, _close: () => Unit = () => ()) extends java.io.Closeable {
-  def close() {
+  def close(): Unit = {
     _close()
   }
 }

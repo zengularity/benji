@@ -3,68 +3,71 @@ package com.zengularity.benji.s3.tests
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future }
 
+import com.typesafe.config.{ Config, ConfigFactory }
+
+import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.stream.contrib.TestKit
 
-import com.zengularity.benji.s3.S3
+import com.zengularity.benji.s3.{ S3, WSS3 }
 
 object TestUtils {
-  import com.typesafe.config.ConfigFactory
-
   val logger = org.slf4j.LoggerFactory.getLogger("tests")
 
   @SuppressWarnings(Array("org.wartremover.warts.Var"))
   @volatile private var inited = false
 
-  lazy val config = {
+  lazy val config: Config = {
     inited = true
     ConfigFactory.load("tests.conf")
   }
 
-  lazy val system = akka.actor.ActorSystem("benji-s3-tests")
-  lazy val materializer = akka.stream.ActorMaterializer.create(system)
+  lazy val system: ActorSystem = ActorSystem("benji-s3-tests")
+
+  lazy val materializer: Materializer =
+    akka.stream.ActorMaterializer.create(system)
 
   implicit lazy val WS: play.api.libs.ws.ahc.StandaloneAhcWSClient =
     S3.client()(materializer)
 
-  lazy val (awsAccessKey, awsSecretKey, awsHost, awsProtocol) = (
+  private lazy val (awsAccessKey, awsSecretKey, awsHost, awsProtocol) = (
     config.getString("aws.s3.accessKey"),
     config.getString("aws.s3.secretKey"),
     config.getString("aws.s3.host"),
     config.getString("aws.s3.protocol"))
 
-  lazy val awsRegion = config.getString("aws.s3.region")
+  lazy val awsRegion: String = config.getString("aws.s3.region")
 
-  lazy val (cephAccessKey, cephSecretKey, cephHost, cephProtocol) = (
+  private lazy val (cephAccessKey, cephSecretKey, cephHost, cephProtocol) = (
     config.getString("ceph.s3.accessKey"),
     config.getString("ceph.s3.secretKey"),
     config.getString("ceph.s3.host"),
     config.getString("ceph.s3.protocol"))
 
-  lazy val aws = S3(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
+  lazy val aws: WSS3 = S3(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
 
   // TODO: Remove once V2 is no longer supported by AWS
-  lazy val awsVirtualHost =
+  lazy val awsVirtualHost: WSS3 =
     S3.virtualHost(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
 
-  lazy val awsVirtualHostV4 = S3.virtualHostAwsV4(
+  lazy val awsVirtualHostV4: WSS3 = S3.virtualHostAwsV4(
     awsAccessKey, awsSecretKey, awsProtocol, awsHost, awsRegion)
 
-  val virtualHostStyleUrl = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost"
+  val virtualHostStyleUrl: String = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost"
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
-  lazy val awsFromVirtualHostStyleURL = S3(virtualHostStyleUrl).get
+  lazy val awsFromVirtualHostStyleURL: WSS3 = S3(virtualHostStyleUrl).get
 
-  val virtualHostStyleUrlV4 = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost&awsRegion=$awsRegion"
-
-  @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
-  lazy val awsFromVirtualHostStyleURLV4 = S3(virtualHostStyleUrlV4).get
+  val virtualHostStyleUrlV4: String = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost&awsRegion=$awsRegion"
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
-  lazy val awsFromPathStyleURL =
+  lazy val awsFromVirtualHostStyleURLV4: WSS3 = S3(virtualHostStyleUrlV4).get
+
+  @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
+  lazy val awsFromPathStyleURL: WSS3 =
     S3(s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=path").get
 
-  lazy val ceph = S3(cephAccessKey, cephSecretKey, cephProtocol, cephHost)
+  lazy val ceph: WSS3 = S3(cephAccessKey, cephSecretKey, cephProtocol, cephHost)
 
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T =
     TestKit.assertAllStagesStopped(f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext)))

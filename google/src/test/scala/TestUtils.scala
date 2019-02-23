@@ -3,25 +3,28 @@ package com.zengularity.benji.google.tests
 import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
 
+import akka.actor.ActorSystem
 import akka.stream.Materializer
+
+import com.typesafe.config.{ Config, ConfigFactory }
 
 import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport, WS }
 
 object TestUtils {
-  import com.typesafe.config.ConfigFactory
-
   val logger = org.slf4j.LoggerFactory.getLogger("tests")
 
   @SuppressWarnings(Array("org.wartremover.warts.Var"))
   @volatile private var inited = false
 
-  lazy val config = {
+  lazy val config: Config = {
     inited = true
     ConfigFactory.load("tests.conf")
   }
 
-  lazy val system = akka.actor.ActorSystem("benji-google-tests")
-  lazy val materializer = akka.stream.ActorMaterializer.create(system)
+  lazy val system: ActorSystem = ActorSystem("benji-google-tests")
+
+  lazy val materializer: Materializer =
+    akka.stream.ActorMaterializer.create(system)
 
   implicit lazy val ws: play.api.libs.ws.ahc.StandaloneAhcWSClient =
     WS.client()(materializer)
@@ -38,7 +41,7 @@ object TestUtils {
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   lazy val googleTransport: GoogleTransport = GoogleTransport(configUri).get
 
-  lazy val google = GoogleStorage(googleTransport)
+  lazy val google: GoogleStorage = GoogleStorage(googleTransport)
 
   // ---
 

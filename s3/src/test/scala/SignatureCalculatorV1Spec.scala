@@ -302,7 +302,7 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
       case (hs, (n, v)) => hs.add(n, v); hs
     }
 
-  lazy val calculator = new SignatureCalculatorV1(
+  private lazy val calculator = new SignatureCalculatorV1(
     accessKey = "44CF9590006BF252F707",
     secretKey = "OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV",
     "s3.amazonaws.com")
