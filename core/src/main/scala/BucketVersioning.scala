@@ -87,7 +87,7 @@ trait BucketVersioning {
     }
 
     /**
-     * Define batch size for retrieving objects with multiple requests.
+     * Defines batch size for retrieving objects with multiple requests.
      *
      * @param max the maximum number of objects fetch at once
      *
@@ -96,5 +96,14 @@ trait BucketVersioning {
      * }}}
      */
     def withBatchSize(max: Long): VersionedListRequest
+
+    /**
+     * Defines the prefix the listed objects must match.
+     *
+     * {{{
+     * versioning.versionedObjects.withPrefix("/foo").collect[Set]()
+     * }}}
+     */
+    def withPrefix(prefix: String): VersionedListRequest
   }
 }

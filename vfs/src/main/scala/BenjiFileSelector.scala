@@ -4,10 +4,25 @@
 
 package com.zengularity.benji.vfs
 
-import org.apache.commons.vfs2.{ FileSelectInfo, FileType, FileTypeSelector }
+import org.apache.commons.vfs2.{
+  FileName,
+  FileSelectInfo,
+  FileType,
+  FileTypeSelector
+}
 
-private[vfs] class BenjiFileSelector(fileType: FileType) extends FileTypeSelector(fileType) {
-  override def includeFile(fileInfo: FileSelectInfo): Boolean = {
-    super.includeFile(fileInfo) && fileInfo.getFile.getName.getExtension != "metadata"
-  }
+private[vfs] class BenjiFileSelector(
+  parent: FileName,
+  fileType: FileType,
+  prefix: Option[String]) extends FileTypeSelector(fileType) {
+
+  private lazy val parentNameSz = parent.getPath.size + 1
+
+  override def includeFile(fileInfo: FileSelectInfo): Boolean =
+    super.includeFile(fileInfo) && {
+      val fname = fileInfo.getFile.getName
+      def relativeName = fname.getPath.drop(parentNameSz)
+
+      prefix.forall(relativeName.startsWith) && fname.getExtension != "metadata"
+    }
 }
