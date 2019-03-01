@@ -2,7 +2,7 @@
 
 ## Release 2.0.3
 
-- Support Play 2.7 (#26)
+- Support Play 2.7 (#26): Version for Benji Play module is now suffixes with Play major (e.g. `2.0.3-play26`)
 - Backward compatibility for Scala 2.11 (+ various dependency & build updates) (#25)
 - Fix S3 copy encoding (#23)
 - Support prefix filter when listing objects of a bucket (#24)
