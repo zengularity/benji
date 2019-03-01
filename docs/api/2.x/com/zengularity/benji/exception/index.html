@@ -345,7 +345,7 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="An unknown error" href="BenjiUnknownError.html"><span class="name">BenjiUnknownError</span></a><span class="params">(<span name="message">message: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="throwable">throwable: <a href="http://www.scala-lang.org/api/2.12.4/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="scala.Throwable">Throwable</span>] = <span class="symbol">None</span></span>)</span><span class="result"> extends <a href="BenjiException.html" class="extype" name="com.zengularity.benji.exception.BenjiException">BenjiException</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="An unknown error" href="BenjiUnknownError.html"><span class="name">BenjiUnknownError</span></a><span class="params">(<span name="message">message: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="throwable">throwable: <a href="http://www.scala-lang.org/api/2.12.8/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="scala.Throwable">Throwable</span>] = <span class="symbol">None</span></span>)</span><span class="result"> extends <a href="BenjiException.html" class="extype" name="com.zengularity.benji.exception.BenjiException">BenjiException</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       <p class="shortcomment cmt">An unknown error</p>
@@ -361,7 +361,7 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="An error when an operation is refused for an already existing bucket." href="BucketAlreadyExistsException.html"><span class="name">BucketAlreadyExistsException</span></a><span class="params">(<span name="bucketName">bucketName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="BenjiException.html" class="extype" name="com.zengularity.benji.exception.BenjiException">BenjiException</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="An error when an operation is refused for an already existing bucket." href="BucketAlreadyExistsException.html"><span class="name">BucketAlreadyExistsException</span></a><span class="params">(<span name="bucketName">bucketName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="BenjiException.html" class="extype" name="com.zengularity.benji.exception.BenjiException">BenjiException</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       <p class="shortcomment cmt">An error when an operation is refused for an already existing bucket.</p><div class="fullcomment"><div class="comment cmt"><p>An error when an operation is refused for an already existing bucket.</p><pre>storage.bucket(bucketName).create(failsIfExists = <span class="kw">true</span>).map { _ <span class="kw">=&gt;</span>
@@ -382,7 +382,7 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="An error when an operation cannot be applied on a not empty bucket (e.g." href="BucketNotEmptyException.html"><span class="name">BucketNotEmptyException</span></a><span class="params">(<span name="bucketName">bucketName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="BenjiException.html" class="extype" name="com.zengularity.benji.exception.BenjiException">BenjiException</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="An error when an operation cannot be applied on a not empty bucket (e.g." href="BucketNotEmptyException.html"><span class="name">BucketNotEmptyException</span></a><span class="params">(<span name="bucketName">bucketName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="BenjiException.html" class="extype" name="com.zengularity.benji.exception.BenjiException">BenjiException</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       <p class="shortcomment cmt">An error when an operation cannot be applied on a not empty bucket
@@ -401,7 +401,7 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="An error when a bucket is not found." href="BucketNotFoundException.html"><span class="name">BucketNotFoundException</span></a><span class="params">(<span name="bucketName">bucketName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="EntityNotFoundException.html" class="extype" name="com.zengularity.benji.exception.EntityNotFoundException">EntityNotFoundException</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="An error when a bucket is not found." href="BucketNotFoundException.html"><span class="name">BucketNotFoundException</span></a><span class="params">(<span name="bucketName">bucketName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="EntityNotFoundException.html" class="extype" name="com.zengularity.benji.exception.EntityNotFoundException">EntityNotFoundException</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       <p class="shortcomment cmt">An error when a bucket is not found.</p>
@@ -433,7 +433,7 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="An error when an object is not found." href="ObjectNotFoundException.html"><span class="name">ObjectNotFoundException</span></a><span class="params">(<span name="bucketName">bucketName: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="objectName">objectName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="EntityNotFoundException.html" class="extype" name="com.zengularity.benji.exception.EntityNotFoundException">EntityNotFoundException</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="An error when an object is not found." href="ObjectNotFoundException.html"><span class="name">ObjectNotFoundException</span></a><span class="params">(<span name="bucketName">bucketName: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="objectName">objectName: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="EntityNotFoundException.html" class="extype" name="com.zengularity.benji.exception.EntityNotFoundException">EntityNotFoundException</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       <p class="shortcomment cmt">An error when an object is not found.</p>
@@ -449,7 +449,7 @@
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="An error when an object version is not found." href="VersionNotFoundException.html"><span class="name">VersionNotFoundException</span></a><span class="params">(<span name="bucketName">bucketName: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="objectName">objectName: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="versionId">versionId: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="EntityNotFoundException.html" class="extype" name="com.zengularity.benji.exception.EntityNotFoundException">EntityNotFoundException</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="An error when an object version is not found." href="VersionNotFoundException.html"><span class="name">VersionNotFoundException</span></a><span class="params">(<span name="bucketName">bucketName: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="objectName">objectName: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="versionId">versionId: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="EntityNotFoundException.html" class="extype" name="com.zengularity.benji.exception.EntityNotFoundException">EntityNotFoundException</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       <p class="shortcomment cmt">An error when an object version is not found.</p>
@@ -473,7 +473,7 @@
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <a title="" href="BucketAlreadyExistsException$.html"><span class="name">BucketAlreadyExistsException</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="" href="BucketAlreadyExistsException$.html"><span class="name">BucketAlreadyExistsException</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       
@@ -489,7 +489,7 @@
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <a title="" href="BucketNotEmptyException$.html"><span class="name">BucketNotEmptyException</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="" href="BucketNotEmptyException$.html"><span class="name">BucketNotEmptyException</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       
@@ -505,7 +505,7 @@
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <a title="" href="BucketNotFoundException$.html"><span class="name">BucketNotFoundException</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="" href="BucketNotFoundException$.html"><span class="name">BucketNotFoundException</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       
@@ -521,7 +521,7 @@
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <a title="" href="ObjectNotFoundException$.html"><span class="name">ObjectNotFoundException</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="" href="ObjectNotFoundException$.html"><span class="name">ObjectNotFoundException</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       
@@ -537,7 +537,7 @@
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <a title="" href="VersionNotFoundException$.html"><span class="name">VersionNotFoundException</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.12.4/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <a title="" href="VersionNotFoundException$.html"><span class="name">VersionNotFoundException</span></a><span class="result"> extends <a href="http://www.scala-lang.org/api/2.12.8/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       

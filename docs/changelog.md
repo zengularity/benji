@@ -2,7 +2,10 @@
 
 ## Release 2.0.3
 
-... Coming
+- Support Play 2.7 (#26)
+- Backward compatibility for Scala 2.11 (+ various dependency & build updates) (#25)
+- Fix S3 copy encoding (#23)
+- Support prefix filter when listing objects of a bucket (#24)
 
 ## Release 2.0.2
 
