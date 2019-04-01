@@ -100,7 +100,8 @@ object Common {
 
 object Dependencies {
   object Version {
-    val playWS = "1.1.3"
+    // upper 2.0.2
+    val playWS = sys.env.getOrElse("WS_VERSION", "1.1.3")
   }
 
   val playWS = "com.typesafe.play" %% "play-ws-standalone" % Version.playWS

@@ -57,13 +57,13 @@ class SignatureCalculatorV4Spec extends org.specs2.mutable.Specification {
         val req = new RequestBuilder().
           setUrl("http://my-bucket.s3.amazonaws.com").
           addHeader("Host", "my-bucket.s3.amazonaws.com").
-          addHeader("Content-Type", "text/plain").
+          addHeader("Content-Type", "text/plain; charset=UTF-8").
           addHeader("X-Request-Style", "virtualhost").
           addHeader("x-amz-date", "20180329T203920Z").
           build()
 
         calculator.canonicalHeaders(req, "20180329T203920Z") must_=== (
-          """content-type:text/plain
+          """content-type:text/plain; charset=UTF-8
 host:my-bucket.s3.amazonaws.com
 x-amz-date:20180329T203920Z
 x-request-style:virtualhost
