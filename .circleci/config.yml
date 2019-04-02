@@ -32,7 +32,7 @@ jobs:
           - v1-dependencies-
 
       - run:
-          name: Run Validations and Tests (Play 2.6, WS 1.0)
+          name: Run Validations and Tests (Play 2.6, WS 1.1)
           command: ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
           environment:
             SCALA_VERSION: 2.11.12

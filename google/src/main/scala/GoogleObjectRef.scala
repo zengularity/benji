@@ -23,7 +23,11 @@ import play.api.libs.ws.JsonBodyWritables._
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.services.storage.model.StorageObject
 
-import com.zengularity.benji.exception.ObjectNotFoundException
+import com.zengularity.benji.exception.{
+  BenjiUnknownError,
+  ObjectNotFoundException
+}
+
 import com.zengularity.benji.{
   ByteRange,
   Bytes,
@@ -300,26 +304,31 @@ final class GoogleObjectRef private[google] (
     Source.fromFuture(gt
       .withWSRequest1(
         "/upload", s"/b/${UriUtils.encodePathSegment(bucket, "UTF-8")}/o") { req =>
-          contentType.fold(req) { typ =>
+
+          val init = contentType.fold(req) { typ =>
             req.addHttpHeaders(
               "Content-Type" -> "application/json",
               "X-Upload-Content-Type" -> typ)
           }.withQueryStringParameters("uploadType" -> "resumable", "name" -> name).
-            post(Json.obj(
+            withMethod("POST").withBody(Json.obj(
               "name" -> name,
               "contentType" -> contentType,
-              "metadata" -> metadata)).flatMap {
-              case Successful(response) => response.header("Location") match {
-                case Some(url) => Future.successful {
-                  logger.debug(s"Initiated a resumable upload for $bucket/$name: $url")
-                  url
-                }
-                case _ =>
-                  Future.failed[String](new scala.RuntimeException(s"missing upload URL: ${response.status} - ${response.statusText}: ${response.headers}"))
+              "metadata" -> metadata))
+
+          // TODO: cURL Debug?
+
+          init.execute().flatMap {
+            case Successful(response) => response.header("Location") match {
+              case Some(url) => Future.successful {
+                logger.debug(s"Initiated a resumable upload for $bucket/$name: $url")
+                url
               }
-              case response =>
-                ErrorHandler.ofBucketFromResponse(s"Could not initiate upload for $name in bucket $bucket", bucket)(response)
+              case _ =>
+                Future.failed[String](new BenjiUnknownError(s"missing upload URL: ${response.status} - ${response.statusText}: ${response.headers}"))
             }
+            case response =>
+              ErrorHandler.ofBucketFromResponse(s"Could not initiate upload for $name in bucket $bucket", bucket)(response)
+          }
         })
   }
 
@@ -342,15 +351,18 @@ final class GoogleObjectRef private[google] (
       val reqRange =
         s"bytes $offset-${offset + bytes.size - 1}/${limit}"
 
-      val uploadReq = req.addHttpHeaders(
+      val baseReq = req.addHttpHeaders(
         "Content-Length" -> bytes.size.toString,
         "Content-Range" -> reqRange)
 
       logger.debug(s"Prepare upload part: $reqRange; size = ${bytes.size}")
 
-      contentType.fold(uploadReq) { typ =>
-        uploadReq.addHttpHeaders("Content-Type" -> typ)
-      }.addHttpHeaders("Content-MD5" -> ContentMD5(bytes)).put(bytes).flatMap {
+      val uploadReq = contentType.fold(baseReq) { typ =>
+        baseReq.addHttpHeaders("Content-Type" -> typ)
+      }.addHttpHeaders("Content-MD5" -> ContentMD5(bytes)).
+        withMethod("PUT").withBody(bytes)
+
+      uploadReq.execute().flatMap {
         case Ok(_) =>
           Future.successful(reqRange)
 
@@ -379,7 +391,7 @@ final class GoogleObjectRef private[google] (
       range
     }
 
-    case _ => Future.failed[String](new scala.RuntimeException(s"missing upload range: ${response.status} - ${response.statusText}: ${response.headers}"))
+    case _ => Future.failed[String](BenjiUnknownError(s"missing upload range: ${response.status} - ${response.statusText}: ${response.headers}"))
   }
 
   def versioning: Option[ObjectVersioning] = Some(this)

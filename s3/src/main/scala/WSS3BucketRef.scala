@@ -88,17 +88,18 @@ final class WSS3BucketRef private[s3] (
 
     request.flatMap({
       case Successful(response) =>
-        val xml = scala.xml.XML.loadString(response.body)
-        xml \ "Status" match {
+        scala.xml.XML.loadString(response.body) \ "Status" match {
           case Seq(n) if n.text == "Enabled" => Future.successful(true)
           case Seq(n) if n.text == "Suspended" => Future.successful(false)
           case Seq() => Future.successful(false)
+
           case s =>
             Future.failed[Boolean](new IllegalStateException(s"Unexpected multiple VersioningConfiguration.Status children from S3: $s"))
         }
+
       case response =>
-        val error = ErrorHandler.ofBucket(s"Could not check versioning of bucket $name", ref)(response)
-        Future.failed[Boolean](error)
+        Future.failed[Boolean](ErrorHandler.ofBucket(
+          s"Could not check versioning of bucket $name", ref)(response))
     })
   }
 
@@ -109,10 +110,16 @@ final class WSS3BucketRef private[s3] (
       <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
         <Status>{ if (enabled) "Enabled" else "Suspended" }</Status>
       </VersioningConfiguration>
-    val req = storage.request(Some(name), requestTimeout = storage.requestTimeout, query = Some("versioning"))
+
+    val req = storage.request(
+      Some(name),
+      requestTimeout = storage.requestTimeout,
+      query = Some("versioning"))
 
     req.put(body.toString()).flatMap {
-      case Successful(_) => Future.successful({}) // unit > 2.12
+      case Successful(_) =>
+        Future.successful({}) // unit > 2.12
+
       case response =>
         val error = ErrorHandler.ofBucket(s"Could not change versionning of the bucket $name", ref)(response)
         Future.failed[Unit](error)

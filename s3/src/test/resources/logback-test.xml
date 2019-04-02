@@ -7,8 +7,9 @@
     </encoder>
   </appender>
 
-
+  <logger name="play.api.libs.ws" level="ERROR" />
   <logger name="play" level="WARN" />
+
   <logger name="io.netty" level="WARN" /><!-- TRACE for wire -->
   <logger name="org.asynchttpclient" level="WARN" /><!-- TRACE for wire -->
   <logger name="ch.qos.logback" level="ERROR" />
