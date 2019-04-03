@@ -25,19 +25,21 @@ import scala.concurrent.Future
 trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: org.specs2.mutable.Specification =>
   import tests.benji.StreamUtils._
 
+  protected def random: scala.util.Random
+
   def commonVersioningTests(storage: ObjectStorage, sampleVersionId: String)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv,
     writer: BodyWritable[Array[Byte]]) = {
 
-    val bucketName = s"benji-test-versioning-${System identityHashCode storage}"
+    val bucketName = s"benji-test-versioning-${random.nextInt()}"
     val objectName = "test-obj"
     val bucket = storage.bucket(bucketName)
 
     sequential
 
-    "support versioning for bucket" >> {
+    s"support versioning for $bucketName bucket" >> {
       "so be defined" in {
         bucket.versioning must beSome[BucketVersioning]
       }
@@ -46,26 +48,35 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
       "so be togglable" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           {
-            bucket must notExistsIn(storage)
+            bucket must notExistsIn(storage, 1, 10.seconds)
           } and {
-            bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
+            bucket.create(failsIfExists = true) must beTypedEqualTo({}).
+              setMessage("created").await(1, 5.seconds)
           } and {
-            bucket must existsIn(storage)
+            bucket must existsIn(storage, 1, 10.seconds)
           } and {
-            vbucket.isVersioned.aka("is versioned when created") must beFalse.await(1, 10.seconds)
+            vbucket.isVersioned must beFalse.
+              setMessage("versioned before").await(2, 7.seconds)
+
           } and {
             vbucket.setVersioning(enabled = true).
-              map(_ => true) must beTrue.await(1, 10.seconds)
+              map(_ => true) must beTrue.
+              setMessage("versioning enabled").await(1, 10.seconds)
 
           } and {
-            vbucket.isVersioned must beTrue.await(1, 10.seconds)
+            vbucket.isVersioned must beTrue.
+              setMessage("!versioned after").
+              await(1, 5.seconds).eventually(2, 7.seconds)
+
           } and {
             vbucket.setVersioning(enabled = false).
-              map(_ => true) must beTrue.await(1, 10.seconds)
+              map(_ => true) must beTrue.
+              setMessage("versioning disabled").await(1, 10.seconds)
 
           } and {
-            vbucket.isVersioned.aka(
-              "is still versioned after versioning is disabled") must beFalse.await(1, 10.seconds)
+            vbucket.isVersioned must beFalse.setMessage("!versioned after").
+              await(1, 5.seconds).eventually(2, 7.seconds)
+
           }
         }
       }
@@ -165,7 +176,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
           } and {
             vbucket.setVersioning(enabled = false).map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
           } and {
-            vbucket.versionedObjects.collect[Set]() must beTypedEqualTo(allVersions).await(1, 10.seconds)
+            vbucket.versionedObjects.collect[Set]() must beTypedEqualTo(allVersions).setMessage(s"!= $allVersions").await(1, 10.seconds)
           }
         }
       }
@@ -173,24 +184,35 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
       "to delete recursively non-empty versioned bucket" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           {
-            bucket must existsIn(storage)
+            bucket must existsIn(storage, 1, 10.seconds)
           } and {
-            vbucket.setVersioning(enabled = true).map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
+            vbucket.setVersioning(enabled = true).map(_ => {}) must beTypedEqualTo({}).setMessage("versioning disabled before").await(1, 10.seconds)
           } and {
-            bucket.delete.recursive() must beTypedEqualTo({}).await(1, 10.seconds)
+            bucket.delete.recursive() must beTypedEqualTo({}).
+              setMessage("deleted #1").await(1, 5.seconds)
+
           } and {
-            bucket must notExistsIn(storage)
+            bucket must notExistsIn(storage, 2, 7.seconds).
+              setMessage("!exists #1")
+
           } and {
             // checking that after delete there's no content left when recreating
-            bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
+            bucket.create(failsIfExists = true) must beTypedEqualTo({}).
+              setMessage("created").await(1, 5.seconds)
+
           } and {
-            vbucket.isVersioned must beFalse.await(1, 10.seconds)
+            vbucket.isVersioned must beFalse.setMessage("versioned").
+              await(2, 7.seconds)
+
           } and {
-            vbucket.versionedObjects.collect[List]() must beEmpty[List[VersionedObject]].await(1, 10.seconds)
+            vbucket.versionedObjects.collect[List]() must beEmpty[List[VersionedObject]].setMessage("!contain object").await(1, 10.seconds)
           } and {
-            bucket.delete.recursive() must beTypedEqualTo({}).await(1, 10.seconds)
+            bucket.delete.recursive() must beTypedEqualTo({}).
+              setMessage("deleted #2").await(1, 10.seconds)
+
           } and {
-            bucket must notExistsIn(storage)
+            bucket must notExistsIn(storage, 1, 5.seconds).
+              eventually(2, 5.seconds).setMessage("!exists #2")
           }
         }
       }
@@ -214,7 +236,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
                 case ver :: Nil => {
                   ver.name must_=== objectName
                 } and {
-                  ver.size.bytes must_=== "hello".length.toLong
+                  ver.size.bytes must_=== 5L //"hello".length.toLong
                 } and {
                   val before = Instant.now.minusSeconds(300).getEpochSecond
                   val after = Instant.now.plusSeconds(300).getEpochSecond
@@ -268,11 +290,11 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
                   } and {
                     v1.delete() must beTypedEqualTo({}).await(1, 10.seconds)
                   } and {
-                    v1 must notExistsIn(vbucket)
+                    v1 must notExistsIn(vbucket, 1, 10.seconds)
                   } and {
-                    v2 must existsIn(vbucket)
+                    v2 must existsIn(vbucket, 1, 10.seconds)
                   } and {
-                    obj must existsIn(bucket)
+                    obj must existsIn(bucket, 1, 10.seconds)
                   }
             }
           }.await(1, 10.seconds)
@@ -384,7 +406,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               }
             }.await(1, 10.seconds)
           } and {
-            obj must existsIn(bucket)
+            obj must existsIn(bucket, 1, 10.seconds)
           } and {
             obj.delete().map(_ => true).aka("delete") must beTypedEqualTo(true).await(1, 10.seconds)
           } and {
@@ -398,7 +420,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               }
             }.await(1, 10.seconds)
           } and {
-            obj must notExistsIn(bucket)
+            obj must notExistsIn(bucket, 1, 10.seconds)
           }
         }
       }

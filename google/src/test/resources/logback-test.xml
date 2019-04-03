@@ -6,7 +6,7 @@
       <pattern>%-4relative [%-5level] %logger{35} - %msg %n</pattern>
     </encoder>
   </appender>
-  
+
   <logger name="play" level="WARN" />
   <logger name="io.netty" level="ERROR" />
   <logger name="org.asynchttpclient" level="ERROR" />

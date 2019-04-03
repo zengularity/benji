@@ -25,7 +25,7 @@ final class S3AwsSpec extends Specification with AwsTests {
     TestUtils.awsVirtualHost)(TestUtils.materializer)
 
   awsSuite(
-    "in virtual host style",
+    "in virtual host style V4",
     TestUtils.awsVirtualHostV4)(TestUtils.materializer)
 
   awsMinimalSuite(
@@ -47,7 +47,7 @@ sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S
   def awsMinimalSuite(
     label: String,
     s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer) = s"S3 client $label" should {
-    val bucketName = s"benji-test-${System identityHashCode s3f}"
+    val bucketName = s"benji-test-${random.nextInt()}"
 
     withMatEx { implicit ee: EE => minimalCommonTests(s3f, bucketName) }
   }
@@ -55,7 +55,7 @@ sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S
   def awsSuite(
     label: String,
     s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer) = s"S3 client $label" should {
-    val bucketName = s"benji-test-${System identityHashCode s3f}"
+    val bucketName = s"benji-test-${random.nextInt()}"
 
     withMatEx { implicit ee: EE =>
       commonTests("aws", s3f, bucketName)

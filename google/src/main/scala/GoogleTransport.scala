@@ -99,7 +99,8 @@ final class GoogleTransport(
     accessToken.flatMap { token =>
       logger.trace(s"Prepare WS request: $url")
 
-      def req = ws.url(url).addHttpHeaders("Authorization" -> s"Bearer $token")
+      def req = ws.url(url).addHttpHeaders("Authorization" -> s"Bearer $token").
+        withFollowRedirects(false) // https://github.com/AsyncHttpClient/async-http-client/issues/1628
 
       f(requestTimeout.fold(req) { t =>
         req.withRequestTimeout(t.milliseconds)

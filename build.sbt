@@ -34,9 +34,7 @@ val playVer: Def.Initialize[String] = {
   //val playUpper = "2.7.0"
 
   Def.setting[String] {
-    sys.env.get("PLAY_VERSION").getOrElse {
-      playLower
-    }
+    sys.env.getOrElse("PLAY_VERSION", playLower)
   }
 }
 

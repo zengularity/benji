@@ -4,7 +4,7 @@ import sbt._
 import com.typesafe.tools.mima.plugin.MimaKeys._
 
 object Common {
-  val akkaVer = "2.5.4"
+  import Dependencies.Version.{ akka => akkaVer }
 
   val previousRelease = "1.3.3"
 
@@ -100,7 +100,9 @@ object Common {
 
 object Dependencies {
   object Version {
-    val playWS = "1.1.3"
+    val akka = "2.5.4" // upper 2.5.19 !! breaking akka-stream-contrib
+
+    val playWS = sys.env.getOrElse("WS_VERSION", "1.1.3") // upper 2.0.2
   }
 
   val playWS = "com.typesafe.play" %% "play-ws-standalone" % Version.playWS

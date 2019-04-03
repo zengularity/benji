@@ -55,17 +55,17 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
 
       "Setup" in assertAllStagesStopped {
         {
-          nonExistingBucket must notExistsIn(storage)
+          nonExistingBucket must notExistsIn(storage, 1, 10.seconds)
         } and {
           existingBucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
         } and {
-          existingBucket must existsIn(storage)
+          existingBucket must existsIn(storage, 1, 10.seconds)
         } and {
           put(existingObj, "hello".getBytes) must beTypedEqualTo({}).await(1, 10.seconds)
         } and {
-          existingObj must existsIn(existingBucket)
+          existingObj must existsIn(existingBucket, 1, 10.seconds)
         } and {
-          nonExistingObj must notExistsIn(existingBucket)
+          nonExistingObj must notExistsIn(existingBucket, 1, 10.seconds)
         }
       }
 
@@ -173,19 +173,19 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
 
       "Setup" in assertAllStagesStopped {
         {
-          nonExistingBucket must notExistsIn(storage)
+          nonExistingBucket must notExistsIn(storage, 1, 10.seconds)
         } and {
-          existingBucket must existsIn(storage)
+          existingBucket must existsIn(storage, 1, 10.seconds)
         } and {
-          existingObj must existsIn(existingBucket)
+          existingObj must existsIn(existingBucket, 1, 10.seconds)
         } and {
-          nonExistingObj must notExistsIn(existingBucket)
+          nonExistingObj must notExistsIn(existingBucket, 1, 10.seconds)
         } and {
           existingBucket.versioning must beSome[BucketVersioning]
         } and {
           existingObj.versioning must beSome[ObjectVersioning]
         } and {
-          nonExistingVersion must notExistsIn(vExistingBucket)
+          nonExistingVersion must notExistsIn(vExistingBucket, 1, 10.seconds)
         }
       }
 
