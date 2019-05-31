@@ -120,6 +120,19 @@ lazy val vfs = project.in(file("vfs")).
       "commons-io" % "commons-io" % "2.4" % Test)
   ).dependsOn(core % "test->test;compile->compile")
 
+lazy val gridfs = project.in(file("gridfs")).
+  settings(Common.settings: _*).settings(
+    name := "benji-gridfs",
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
+    },
+    libraryDependencies ++= Seq(
+      "org.reactivemongo" %% "reactivemongo" % "0.1x",
+      "com.typesafe.play" %% "play-json" % playVer.value,
+      Dependencies.slf4jApi,
+      "commons-io" % "commons-io" % "2.4" % Test)
+  ).dependsOn(core % "test->test;compile->compile")
+
 lazy val play = project.in(file("play")).
   settings(Common.settings ++ Seq(
     name := "benji-play",
