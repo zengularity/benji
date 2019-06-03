@@ -124,7 +124,7 @@ lazy val gridfs = project.in(file("gridfs")).
   settings(Common.settings: _*).settings(
     name := "benji-gridfs",
     libraryDependencies ++= Seq(
-      "org.reactivemongo" %% "reactivemongo" % "0.17"
+      "org.reactivemongo" %% "reactivemongo" % "0.17.0"
     )
   ).dependsOn(core % "test->test;compile->compile")
 
