@@ -22,7 +22,7 @@ final class GridFSFactory extends StorageFactory {
     @inline implicit def ws: StandaloneAhcWSClient =
       injector.instanceOf(classOf[StandaloneAhcWSClient])
 
-      GridFS[URI](uri).get
+    GridFS[URI](uri).get
   }
 }
 
