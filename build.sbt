@@ -124,6 +124,7 @@ lazy val gridfs = project.in(file("gridfs")).
   settings(Common.settings: _*).settings(
     name := "benji-gridfs",
     libraryDependencies ++= Seq(
+      Dependencies.slf4jApi,
       "org.reactivemongo" %% "reactivemongo" % "0.17.0"
     )
   ).dependsOn(core % "test->test;compile->compile")
@@ -186,7 +187,7 @@ lazy val benji = (project in file(".")).
       }
     ) ++ Publish.settings).
   dependsOn(s3, google, vfs, play).
-  aggregate(core, s3, google, vfs, play)
+  aggregate(core, s3, google, vfs, play, gridfs)
 
 publishTo in ThisBuild := Some {
   import Resolver.mavenStylePatterns
