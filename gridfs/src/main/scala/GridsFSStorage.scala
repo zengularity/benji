@@ -5,6 +5,7 @@
 package com.zengularity.benji.gridfs
 
 import com.zengularity.benji.{ Bucket, ObjectStorage }
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class GridFSStorage(val transport: GridFSTransport, val requestTimeout: Option[Long]) extends ObjectStorage { self =>
 
@@ -16,7 +17,7 @@ class GridFSStorage(val transport: GridFSTransport, val requestTimeout: Option[L
   object buckets extends self.BucketsRequest {
     def apply()(implicit m: Materializer): Source[Bucket, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
-
+      
     }
   }
 }
