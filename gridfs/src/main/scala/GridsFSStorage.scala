@@ -17,7 +17,7 @@ class GridFSStorage(val transport: GridFSTransport, val requestTimeout: Option[L
   object buckets extends self.BucketsRequest {
     def apply()(implicit m: Materializer): Source[Bucket, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
-      
+      val gridfs = transport.gridfsdb
     }
   }
 }
