@@ -7,7 +7,7 @@ import reactivemongo.api.MongoConnection
 
 import reactivemongo.api.gridfs.GridFS
 import reactivemongo.api.BSONSerializationPack
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent._
 import scala.concurrent.{ Future }
 
 final class GridFSTransport(driver: reactivemongo.api.MongoDriver, val gridfsdb: Future[GridFS[BSONSerializationPack.type]]) {
@@ -17,15 +17,18 @@ final class GridFSTransport(driver: reactivemongo.api.MongoDriver, val gridfsdb:
 }
 
 object GridFSTransport {
-  def apply(uri: String, prefix: String): GridFSTransport = {
+  def apply(uri: String, prefix: String)(implicit ec: ExecutionContext): GridFSTransport = {
     val driver = new reactivemongo.api.MongoDriver
 
     val gridfsdb = for {
       mongoUri <- Future.fromTry(MongoConnection.parseURI(uri))
       con = driver.connection(mongoUri)
-      dn <- Future(mongoUri.db.get)
-      gridfs <- con.database(dn).map(db =>
-        GridFS[BSONSerializationPack.type](db, prefix))
+      gridfs <- mongoUri.db match {
+        case Some(name) =>
+          con.database(name).map(db =>
+            GridFS[BSONSerializationPack.type](db, prefix))
+        case None => Future.failed(new RuntimeException(s"Couldn't get the db from $mongoUri"))
+      }
     } yield gridfs
 
     new GridFSTransport(driver, gridfsdb)
