@@ -9,6 +9,8 @@ import reactivemongo.api.gridfs.GridFS
 import reactivemongo.api.BSONSerializationPack
 import scala.concurrent.{ ExecutionContext, Future }
 
+import com.zengularity.benji.exception.BenjiUnknownError
+
 final class GridFSTransport(driver: reactivemongo.api.MongoDriver, val gridfsdb: Future[GridFS[BSONSerializationPack.type]]) {
   def close(): Unit = {
     driver.close()
@@ -26,7 +28,7 @@ object GridFSTransport {
         case Some(name) =>
           con.database(name).map(db =>
             GridFS[BSONSerializationPack.type](db, prefix))
-        case None => Future.failed(new RuntimeException(s"Couldn't get the db from $mongoUri"))
+        case None => Future.failed(new BenjiUnknownError(s"Couldn't get the db from $mongoUri"))
       }
     } yield gridfs
 
