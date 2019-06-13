@@ -7,8 +7,7 @@ import reactivemongo.api.MongoConnection
 
 import reactivemongo.api.gridfs.GridFS
 import reactivemongo.api.BSONSerializationPack
-import scala.concurrent._
-import scala.concurrent.{ Future }
+import scala.concurrent.{ ExecutionContext, Future }
 
 final class GridFSTransport(driver: reactivemongo.api.MongoDriver, val gridfsdb: Future[GridFS[BSONSerializationPack.type]]) {
   def close(): Unit = {
