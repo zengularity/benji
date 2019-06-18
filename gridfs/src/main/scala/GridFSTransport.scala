@@ -4,11 +4,10 @@
 package com.zengularity.benji.gridfs
 
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.{ Failure, Success, Try }
+import scala.util.{ Failure, Try }
 
-import reactivemongo.api.MongoConnection
 import reactivemongo.api.gridfs.GridFS
-import reactivemongo.api.BSONSerializationPack
+import reactivemongo.api.{ BSONSerializationPack, MongoConnection }
 
 import com.zengularity.benji.exception.BenjiUnknownError
 
@@ -35,11 +34,11 @@ object GridFSTransport {
     val res = for {
       mongoUri <- MongoConnection.parseURI(uri)
       con <- driver.connection(mongoUri, strictUri = true)
-    } yield (con, mongoUri)
+    } yield new GridFSTransport(driver, con, mongoUri)
 
-    res match {
-      case Success((connection, mongoUri)) => Success(new GridFSTransport(driver, connection, mongoUri))
-      case Failure(error) => Failure[GridFSTransport](new BenjiUnknownError(s"Fails to create the connection to $uri", Some(error)))
+    res.recoverWith {
+      case error => Failure[GridFSTransport](new BenjiUnknownError(s"Fails to create the connection to $uri", Some(error)))
     }
   }
 }
+
