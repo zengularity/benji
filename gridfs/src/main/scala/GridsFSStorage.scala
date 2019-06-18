@@ -5,7 +5,6 @@
 package com.zengularity.benji.gridfs
 
 import com.zengularity.benji.{ Bucket, ObjectStorage }
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class GridFSStorage(val transport: GridFSTransport, val requestTimeout: Option[Long]) extends ObjectStorage { self =>
 
