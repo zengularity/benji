@@ -6,6 +6,7 @@ package com.zengularity.benji.gridfs
 import scala.concurrent.{ ExecutionContext, Future }
 
 import com.zengularity.benji.{ BucketRef, BucketVersioning }
+import com.zengularity.benji.exception.BucketAlreadyExistsException
 
 final class GridFSBucketRef private[gridfs] (
   storage: GridFSStorage,
@@ -24,4 +25,16 @@ final class GridFSBucketRef private[gridfs] (
     }
   }
 
+  def create(failsIfExists: Boolean = false)(implicit ec: ExecutionContext): Future[Unit] = {
+    val isCreated = for {
+      gridfs <- storage.transport.gridfs(name)
+      isCreated <- gridfs.ensureIndex()
+    } yield isCreated
+
+    isCreated.transform {
+      case Success(false) if failsIfExists => Failure[Unit](BucketAlreadyExistsException("toto"))
+      case Success(_) => Success({})
+      case failed => failed
+    }
+  }
 }
