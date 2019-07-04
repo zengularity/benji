@@ -19,7 +19,7 @@ lazy val core = project.in(file("core")).
     },
     libraryDependencies ++= Seq(
       "org.scala-lang.modules" %% "scala-collection-compat" % "0.3.0",
-      "commons-codec" % "commons-codec" % "1.10",
+      "commons-codec" % "commons-codec" % "1.12",
       Dependencies.slf4jApi % Provided
     )
   )
