@@ -117,7 +117,7 @@ lazy val vfs = project.in(file("vfs")).
       "org.apache.commons" % "commons-vfs2" % "2.3",
       "com.typesafe.play" %% "play-json" % playVer.value,
       Dependencies.slf4jApi,
-      "commons-io" % "commons-io" % "2.4" % Test)
+      "commons-io" % "commons-io" % "2.6" % Test)
   ).dependsOn(core % "test->test;compile->compile")
 
 lazy val play = project.in(file("play")).
