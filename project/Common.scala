@@ -57,7 +57,7 @@ object Common {
         "org.specs2" %% _ % "4.6.0" % Test) ++ Seq(
           "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer,
           "com.typesafe.akka" %% "akka-stream-contrib" % "0.8",
-          "ch.qos.logback" % "logback-classic" % "1.1.7").map(_ % Test)) ++ Wart.settings ++ Publish.settings
+          "ch.qos.logback" % "logback-classic" % "1.1.11").map(_ % Test)) ++ Wart.settings ++ Publish.settings
 
   val wsStream = Seq(
     Dependencies.playWS % Provided,
