@@ -18,7 +18,6 @@ lazy val core = project.in(file("core")).
         x[ReversedMissingMethodProblem]("com.zengularity.benji.BucketVersioning#VersionedListRequest.withPrefix"))
     },
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" %% "scala-collection-compat" % "0.3.0",
       "commons-codec" % "commons-codec" % "1.12",
       Dependencies.slf4jApi % Provided
     )
