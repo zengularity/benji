@@ -99,15 +99,15 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val bucket = storage.bucket(name)
 
       {
-        bucket must notExistsIn(storage, 1, 10.seconds)
+        bucket must notExistsIn(storage, 1, 5.seconds)
       } and {
         bucket must supportCreation
       } and {
-        bucket must existsIn(storage, 1, 10.seconds)
+        bucket must existsIn(storage, 1, 5.seconds)
       } and {
-        bucket.delete() must beTypedEqualTo({}).await(1, 10.seconds)
+        bucket.delete() must beTypedEqualTo({}).await(1, 5.seconds)
       } and {
-        bucket must notExistsIn(storage, 1, 10.seconds)
+        bucket must notExistsIn(storage, 0, 5.seconds).eventually(2, 5.seconds)
       }
     }
 
@@ -283,7 +283,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       } and {
         bucket.delete.ignoreIfNotExists() must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
-        bucket must notExistsIn(storage, 2, 7.seconds)
+        bucket must notExistsIn(storage, 0, 5.seconds).eventually(2, 5.seconds)
       } and {
         bucket.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
       } and {
@@ -296,7 +296,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     "Delete on objects successfully ignore when not existing" in {
       val body = List.fill(10)("qwerty").mkString(" ").getBytes
       val bucket = defaultBucketRef
-      val obj = bucket.obj(s"testignoreobj-${System identityHashCode body}")
+      val obj = bucket.obj(s"test-ignore-obj-${random.nextInt()}")
       val write = obj.put[Array[Byte]]
 
       def upload = { repeat(5) { body } runWith write }.map(_ => {})

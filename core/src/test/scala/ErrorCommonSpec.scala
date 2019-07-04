@@ -146,6 +146,7 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
     implicit
     materializer: Materializer,
     ee: ExecutionEnv) = {
+
     val nonExistingBucket = storage.bucket(s"benji-test-non-existing-bucket-${System identityHashCode storage}")
     val existingBucket = storage.bucket(s"benji-test-existing-bucket-${System identityHashCode storage}")
 
