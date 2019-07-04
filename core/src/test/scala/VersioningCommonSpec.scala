@@ -71,11 +71,11 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
           } and {
             vbucket.setVersioning(enabled = false).
               map(_ => true) must beTrue.
-              setMessage("versioning disabled").await(1, 10.seconds)
+              setMessage("versioning disabled").await(1, 5.seconds)
 
           } and {
             vbucket.isVersioned must beFalse.setMessage("!versioned after").
-              await(1, 5.seconds).eventually(2, 7.seconds)
+              await(0, 5.seconds).eventually(3, 5.seconds)
 
           }
         }
