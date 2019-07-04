@@ -11,7 +11,7 @@ addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.4.2")
 
 addSbtPlugin("com.github.sbt" % "sbt-findbugs" % "2.0.0")
 
-addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.1")
+addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.2")
 
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.3.0")
 
