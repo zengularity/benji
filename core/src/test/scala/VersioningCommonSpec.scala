@@ -318,10 +318,10 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
         }
       }
 
-      "to list versions of a specific object" in {
-        // on purpose use character that needs to be url encoded
-        val testObjName = "test obj name"
+      // on purpose use character that needs to be url encoded
+      lazy val testObjName = s"test obj name ${random.nextInt()}"
 
+      "to list versions of a specific object" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           {
             vbucket.versionedObjects.collect[List]().
@@ -391,7 +391,6 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
       }
 
       "to handle properly object deletion" in {
-        val testObjName = "test obj name"
         val obj = bucket.obj(testObjName)
 
         obj.versioning must beSome[ObjectVersioning].which { vobj =>
@@ -402,7 +401,9 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               } and {
                 forall(l) { _.name must beTypedEqualTo(testObjName) }
               } and {
-                l must contain(beLike[VersionedObject] { case o: VersionedObject if o.isLatest => ok }).exactly(1)
+                l must contain(beLike[VersionedObject] {
+                  case o: VersionedObject if o.isLatest => ok
+                }).exactly(1)
               }
             }.await(1, 10.seconds)
           } and {
