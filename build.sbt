@@ -30,7 +30,7 @@ val scalaXmlVer = Def.setting[String] {
 
 val playVer: Def.Initialize[String] = {
   val playLower = "2.6.13"
-  //val playUpper = "2.7.0"
+  //val playUpper = "2.7.4"
 
   Def.setting[String] {
     sys.env.getOrElse("PLAY_VERSION", playLower)
