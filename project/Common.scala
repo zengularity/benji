@@ -100,7 +100,7 @@ object Common {
 
 object Dependencies {
   object Version {
-    val akka = "2.5.4" // upper 2.5.19 !! breaking akka-stream-contrib
+    val akka = "2.5.23" // upper 2.5.19 !! breaking akka-stream-contrib
 
     val playWS = sys.env.getOrElse("WS_VERSION", "1.1.13") // upper 2.0.2
   }
