@@ -56,7 +56,7 @@ object Common {
       "specs2-core", "specs2-junit").map(
         "org.specs2" %% _ % "4.4.1" % Test) ++ Seq(
           "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer,
-          "com.typesafe.akka" %% "akka-stream-contrib" % "0.8",
+          "com.typesafe.akka" %% "akka-stream-contrib" % "0.10",
           "ch.qos.logback" % "logback-classic" % "1.2.3").map(_ % Test)) ++ Wart.settings ++ Publish.settings
 
   val wsStream = Seq(
