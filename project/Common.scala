@@ -102,7 +102,7 @@ object Dependencies {
   object Version {
     val akka = "2.5.4" // upper 2.5.19 !! breaking akka-stream-contrib
 
-    val playWS = sys.env.getOrElse("WS_VERSION", "1.1.13") // upper 2.0.2
+    val playWS = sys.env.getOrElse("WS_VERSION", "2.0.6") // upper 2.0.6
   }
 
   val playWS = "com.typesafe.play" %% "play-ws-standalone" % Version.playWS
