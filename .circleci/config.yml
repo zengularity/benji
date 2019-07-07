@@ -42,7 +42,7 @@ jobs:
           command: ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
           environment:
             SCALA_VERSION: 2.12.8
-            WS_VERSION: 2.0.2
+            WS_VERSION: 2.0.6
             PLAY_VERSION: 2.7.0
 
       - save_cache:
