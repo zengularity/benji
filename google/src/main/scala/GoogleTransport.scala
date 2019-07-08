@@ -4,9 +4,10 @@
 
 package com.zengularity.benji.google
 
-import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success, Try }
-import scala.collection.JavaConverters._
+
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.duration._
 
 import java.net.URI
 
@@ -20,7 +21,7 @@ import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.services.storage.Storage
 
-import com.zengularity.benji.URIProvider
+import com.zengularity.benji.{ URIProvider, Compat }, Compat.javaConverters._
 
 /**
  * Benji transport for Google Cloud Storage
@@ -44,7 +45,6 @@ final class GoogleTransport(
   servicePath: String,
   val requestTimeout: Option[Long] = None,
   val disableGZip: Boolean = false) {
-  import scala.concurrent.duration._
 
   private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
 
@@ -261,7 +261,8 @@ object GoogleTransport {
   }
 
   private def parseQuery(uri: URI): Map[String, Seq[String]] =
-    new QueryStringDecoder(uri.toString).parameters.asScala.mapValues(_.asScala).toMap
+    Compat.mapValues(new QueryStringDecoder(uri.toString).
+      parameters.asScala.toMap)(_.asScala.toSeq)
 
   private object BoolVal {
     def unapply(value: String): Option[Boolean] = try {

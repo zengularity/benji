@@ -12,7 +12,7 @@ import com.zengularity.benji.google.{
 
 import com.zengularity.benji.google.tests.TestUtils
 
-class GoogleFactorySpec extends org.specs2.mutable.Specification {
+final class GoogleFactorySpec extends org.specs2.mutable.Specification {
   "Google factory" title
 
   "Google storage" should {
@@ -23,7 +23,7 @@ class GoogleFactorySpec extends org.specs2.mutable.Specification {
     {
       val uri = new URI(TestUtils.configUri)
 
-      s"be resolved from $uri" in {
+      s"be resolved from ${uri.toString}" in {
         scheme must beAnInstanceOf[GoogleScheme] and {
           factory(WSInjector, uri) must beAnInstanceOf[GoogleStorage]
         }
@@ -33,7 +33,7 @@ class GoogleFactorySpec extends org.specs2.mutable.Specification {
     {
       val uri = new URI("foo:google")
 
-      s"not be resolved from $uri" in {
+      s"not be resolved from ${uri.toString}" in {
         factory(WSInjector, uri) must throwA[Exception](
           "Expected URI with scheme.*")
       }

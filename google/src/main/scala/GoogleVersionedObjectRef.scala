@@ -110,7 +110,7 @@ final class GoogleVersionedObjectRef(
           val headers = new com.google.api.client.http.HttpHeaders()
 
           range.foreach { r =>
-            headers.setRange(s"bytes=${r.start}-${r.end}")
+            headers.setRange(s"bytes=${r.start.toString}-${r.end.toString}")
           }
 
           headers

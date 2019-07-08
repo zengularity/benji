@@ -22,7 +22,7 @@ object StreamUtils {
   def consume(implicit m: Materializer): Sink[ByteString, Future[String]] = {
     implicit def ec: ExecutionContext = m.executionContext
 
-    Sink.fold[StringBuilder, ByteString](StringBuilder.newBuilder) {
+    Sink.fold[StringBuilder, ByteString](new StringBuilder()) {
       _ ++= _.utf8String
     }.mapMaterializedValue(_.map(_.result()))
   }

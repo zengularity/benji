@@ -6,7 +6,6 @@ import scala.concurrent.Future
 import akka.util.ByteString
 import akka.stream.scaladsl.Source
 import akka.stream.Materializer
-import akka.stream.contrib.TestKit.assertAllStagesStopped
 
 import org.specs2.concurrent.ExecutionEnv
 
@@ -26,15 +25,21 @@ import com.zengularity.benji.tests.TestUtils.{
   versionNotFound
 }
 
-trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specification =>
+trait ErrorCommonSpec extends BenjiMatchers {
+  self: org.specs2.mutable.Specification =>
+
+  // import akka.stream.contrib.TestKit.assertAllStagesStopped
+  protected def assertAllStagesStopped[T](f: => T): T
+
+  protected def random: scala.util.Random
 
   def errorCommonTests(storage: ObjectStorage)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv) = {
 
-    val nonExistingBucket = storage.bucket(s"benji-test-non-existing-bucket-${System identityHashCode storage}")
-    val existingBucket = storage.bucket(s"benji-test-existing-bucket-${System identityHashCode storage}")
+    val nonExistingBucket = storage.bucket(s"benji-test-non-existing-bucket-${random.nextInt().toString}")
+    val existingBucket = storage.bucket(s"benji-test-existing-bucket-${random.nextInt().toString}")
 
     val existingObj = existingBucket.obj("existing")
     val nonExistingObj = existingBucket.obj("non-existing")
@@ -147,8 +152,8 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
     materializer: Materializer,
     ee: ExecutionEnv) = {
 
-    val nonExistingBucket = storage.bucket(s"benji-test-non-existing-bucket-${System identityHashCode storage}")
-    val existingBucket = storage.bucket(s"benji-test-existing-bucket-${System identityHashCode storage}")
+    val nonExistingBucket = storage.bucket(s"benji-test-non-existing-bucket-${random.nextInt().toString}")
+    val existingBucket = storage.bucket(s"benji-test-existing-bucket-${random.nextInt().toString}")
 
     def vNonExistingBucket = nonExistingBucket.versioning.getOrElse(throw new IllegalArgumentException("versioning not supported"))
     def vExistingBucket = existingBucket.versioning.getOrElse(throw new IllegalArgumentException("versioning not supported"))

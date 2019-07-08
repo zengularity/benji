@@ -96,9 +96,11 @@ trait BenjiMatchers { self: Matchers =>
     val matcher = beTypedEqualTo(expected)
     val futureMatcher = matcher.await(retries, duration)
 
-    (futureMatcher ^^ exists).setMessage(s"exists != $expected") and {
-      (futureMatcher ^^ contains).setMessage(s"storage contains != $expected")
-    }
+    (futureMatcher ^^ exists).
+      setMessage(s"exists != ${expected.toString}") and {
+        (futureMatcher ^^ contains).
+          setMessage(s"storage contains != ${expected.toString}")
+      }
   }
 
   private def existsOrNot(

@@ -5,11 +5,14 @@ organization in ThisBuild := "com.zengularity"
 scalaVersion in ThisBuild := "2.12.8"
 
 crossScalaVersions in ThisBuild := Seq(
-  "2.11.12", scalaVersion.value)
+  "2.11.12", scalaVersion.value, "2.13.0")
 
-lazy val core = project.in(file("core")).
-  settings(Common.settings: _*).settings(
+lazy val core = project.in(file("core")).settings(
+  Common.settings ++ Seq(
     name := "benji-core",
+    scalacOptions += { // Silencer
+      "-P:silencer:globalFilters=constructor\\ deprecatedName\\ in\\ class\\ deprecatedName\\ is\\ deprecated"
+    },
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
 
@@ -21,28 +24,24 @@ lazy val core = project.in(file("core")).
       "commons-codec" % "commons-codec" % "1.12",
       Dependencies.slf4jApi % Provided
     )
-  )
+  ))
 
 val scalaXmlVer = Def.setting[String] {
-  if (scalaVersion.value startsWith "2.11") "1.0.5"
+  val sv = scalaVersion.value
+
+  if (sv startsWith "2.11.") "1.0.5"
+  else if (sv startsWith "2.13.") "1.2.0"
   else "1.0.6"
 }
 
-val playVer: Def.Initialize[String] = {
-  val playLower = "2.6.13"
-  //val playUpper = "2.7.4"
-
-  Def.setting[String] {
-    sys.env.getOrElse("PLAY_VERSION", playLower)
-  }
-}
+import Dependencies.Version.{ play => playVer, playJson => playJsonVer }
 
 lazy val playTest = Def.setting {
   "com.typesafe.play" %% "play-test" % playVer.value % Test
 }
 
-lazy val s3 = project.in(file("s3")).
-  settings(Common.settings: _*).settings(
+lazy val s3 = project.in(file("s3")).settings(
+  Common.settings ++ Seq(
     name := "benji-s3",
     libraryDependencies ++= Seq(
       Dependencies.playWSXml,
@@ -71,10 +70,10 @@ lazy val s3 = project.in(file("s3")).
 
       wasPrivate
     }
-  ).dependsOn(core % "test->test;compile->compile")
+  )).dependsOn(core % "test->test;compile->compile")
 
-lazy val google = project.in(file("google")).
-  settings(Common.settings: _*).settings(
+lazy val google = project.in(file("google")).settings(
+  Common.settings ++ Seq(
     name := "benji-google",
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
@@ -96,10 +95,10 @@ lazy val google = project.in(file("google")).
       Dependencies.playWSJson,
       Dependencies.playAhcWS,
       "com.google.apis" % "google-api-services-storage" % "v1-rev20190129-1.28.0")
-  ).dependsOn(core % "test->test;compile->compile")
+  )).dependsOn(core % "test->test;compile->compile")
 
-lazy val vfs = project.in(file("vfs")).
-  settings(Common.settings: _*).settings(
+lazy val vfs = project.in(file("vfs")).settings(
+  Common.settings ++ Seq(
     name := "benji-vfs",
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
@@ -114,10 +113,10 @@ lazy val vfs = project.in(file("vfs")).
     },
     libraryDependencies ++= Seq(
       "org.apache.commons" % "commons-vfs2" % "2.3",
-      "com.typesafe.play" %% "play-json" % playVer.value,
+      "com.typesafe.play" %% "play-json" % playJsonVer.value,
       Dependencies.slf4jApi,
       "commons-io" % "commons-io" % "2.6" % Test)
-  ).dependsOn(core % "test->test;compile->compile")
+  )).dependsOn(core % "test->test;compile->compile")
 
 lazy val play = project.in(file("play")).
   settings(Common.settings ++ Seq(
@@ -132,10 +131,22 @@ lazy val play = project.in(file("play")).
         s"${ver}-play${playMajor}"
       }
     },
-    libraryDependencies ++= Seq(
-      Dependencies.playAhcWS,
-      "com.typesafe.play" %% "play" % playVer.value % Provided,
-      playTest.value),
+    libraryDependencies ++= {
+      val playAhcWS = {
+        if (scalaVersion.value startsWith "2.13.") {
+          Seq(
+            Dependencies.playAhcWS.
+              exclude("org.scala-lang.modules", "scala-java8-compat_2.13"),
+            "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.0")
+        } else {
+          Seq(Dependencies.playAhcWS)
+        }
+      }
+
+      playAhcWS ++ Seq(
+        "com.typesafe.play" %% "play" % playVer.value % Provided,
+        playTest.value)
+    },
     unmanagedSourceDirectories in Test += {
       val v = playVer.value.split("\\.").take(2).mkString(".")
 
@@ -151,7 +162,7 @@ lazy val play = project.in(file("play")).
 lazy val benji = (project in file(".")).
   enablePlugins(ScalaUnidocPlugin).
     settings(Seq(
-      libraryDependencies ++= wsStream ++ Seq(Dependencies.playAhcWS),
+      libraryDependencies ++= wsStream.value ++ Seq(Dependencies.playAhcWS),
       pomPostProcess := Common.transformPomDependencies { depSpec =>
         // Filter in POM the dependencies only required to compile sample in doc
 
@@ -162,7 +173,6 @@ lazy val benji = (project in file(".")).
         }
       },
       excludeFilter in doc := "play",
-      scalacOptions ++= Seq("-Ywarn-unused-import", "-unchecked"),
       scalacOptions in (Compile, doc) ++= List(
         "-skip-packages", "highlightextractor"),
       unidocAllSources in (ScalaUnidoc, unidoc) ~= {

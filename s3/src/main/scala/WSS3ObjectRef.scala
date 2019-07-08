@@ -25,6 +25,7 @@ import com.zengularity.benji.{
   ByteRange,
   Bytes,
   Chunk,
+  Compat,
   ObjectRef,
   Streams,
   ObjectVersioning,
@@ -64,7 +65,9 @@ final class WSS3ObjectRef private[s3] (
       Some(bucket), Some(name), requestTimeout = requestTimeout)
 
     req.head().flatMap {
-      case response if response.status == 200 => Future(response.headers)
+      case response if response.status == 200 =>
+        Future(Compat.mapValues(response.headers)(_.toSeq))
+
       case response =>
         val error = ErrorHandler.ofObject(s"Could not get the head of the object $name in the bucket $bucket", ref)(response)
         Future.failed[Map[String, Seq[String]]](error)
@@ -116,7 +119,7 @@ final class WSS3ObjectRef private[s3] (
       put("").flatMap {
         case Successful(_) => Future.successful(logger.info(s"Successfully copied the object [$bucket/$name] to [$targetBucketName/$targetObjectName]."))
 
-        case response => Future.failed[Unit](new IllegalStateException(s"Could not copy the object [$bucket/$name] to [$targetBucketName/$targetObjectName]. Response: ${response.status} - ${response.statusText}; ${response.body}"))
+        case response => Future.failed[Unit](new IllegalStateException(s"Could not copy the object [$bucket/$name] to [$targetBucketName/$targetObjectName]. Response: ${response.status.toString} - ${response.statusText}; ${response.body}"))
       }
 
   def versioning: Option[ObjectVersioning] = Some(this)
@@ -154,7 +157,7 @@ final class WSS3ObjectRef private[s3] (
         Some(bucket), Some(name), requestTimeout = requestTimeout)
 
       Source.fromFutureSource[ByteString, NotUsed](range.fold(req)(r => req.addHttpHeaders(
-        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap {
+        "Range" -> s"bytes=${r.start.toString}-${r.end.toString}")).withMethod("GET").stream().flatMap {
         case response if response.status == 200 || response.status == 206 =>
           Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed))
         case response =>
@@ -317,7 +320,7 @@ final class WSS3ObjectRef private[s3] (
           completeUpload(etags.reverse, id).map(_ => res)
 
         case st => Future.failed[A](
-          new IllegalStateException(s"invalid upload state: $st"))
+          new IllegalStateException(s"invalid upload state: ${st.toString}"))
       }
   }
 
@@ -363,22 +366,22 @@ final class WSS3ObjectRef private[s3] (
     partNumber: Int, uploadId: String)(implicit ec: ExecutionContext): Future[String] = {
     val req = storage.request(
       Some(bucket), Some(name),
-      query = Some(s"partNumber=$partNumber&uploadId=$uploadId"),
+      query = Some(s"partNumber=${partNumber.toString}&uploadId=$uploadId"),
       requestTimeout = requestTimeout).addHttpHeaders("Content-MD5" -> ContentMD5(bytes))
 
     withContentTypeHeader(req, contentType).
       put(bytes).flatMap {
         case Successful(Etag(value)) => Future.successful {
-          logger.trace(s"Uploaded part $partNumber with ${bytes.length} bytes of the upload $uploadId for $bucket/$name ($value).")
+          logger.trace(s"Uploaded part ${partNumber.toString} with ${bytes.length.toString} bytes of the upload $uploadId for $bucket/$name ($value).")
 
           value
         }
 
         case response @ Successful(_) =>
-          Future.failed[String](new IllegalStateException(s"Response for the upload [$bucket/$name, $uploadId, part: $partNumber] did not include an ETag header: ${response.headers}."))
+          Future.failed[String](new IllegalStateException(s"Response for the upload [$bucket/$name, $uploadId, part: ${partNumber.toString}] did not include an ETag header: ${response.headers.mkString("{", ",", "}")}."))
 
         case response =>
-          val handler = ErrorHandler.ofBucket(s"Could not upload a part for [$bucket/$name, $uploadId, part: $partNumber]", bucket)(_)
+          val handler = ErrorHandler.ofBucket(s"Could not upload a part for [$bucket/$name, $uploadId, part: ${partNumber.toString}]", bucket)(_)
           Future.failed[String](handler(response))
       }
   }
@@ -387,18 +390,20 @@ final class WSS3ObjectRef private[s3] (
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html
    */
   private def completeUpload(etags: List[String], uploadId: String)(implicit ec: ExecutionContext): Future[Unit] = {
-    import scala.xml.Elem
-
     storage.request(Some(bucket), Some(name),
       query = Some(s"uploadId=$uploadId"),
       requestTimeout = requestTimeout).post(
         <CompleteMultipartUpload>
           {
-            etags.zipWithIndex.map[Elem, List[Elem]] {
+            val result: List[Elem] = etags.zipWithIndex.map {
               case (etag, partNumber) =>
                 // Part numbers start at index 1 rather than 0
-                <Part><PartNumber>{ partNumber + 1 }</PartNumber><ETag>{ etag }</ETag></Part>
+                <Part><PartNumber>{
+                  (partNumber + 1).toString
+                }</PartNumber><ETag>{ etag }</ETag></Part>
             }
+
+            result
           }
         </CompleteMultipartUpload>).flatMap {
           case Successful(_) => Future.successful(logger.debug(

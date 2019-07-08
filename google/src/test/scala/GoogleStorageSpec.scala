@@ -5,7 +5,6 @@ import scala.concurrent.duration._
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-import akka.stream.contrib.TestKit.assertAllStagesStopped
 
 import play.api.libs.ws.DefaultBodyWritables._
 
@@ -17,8 +16,9 @@ import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
 import com.zengularity.benji.google.tests.TestUtils
 
-class GoogleStorageSpec(implicit ee: ExecutionEnv)
-  extends org.specs2.mutable.Specification with StorageCommonSpec with VersioningCommonSpec {
+final class GoogleStorageSpec(implicit ee: ExecutionEnv)
+  extends org.specs2.mutable.Specification
+  with StorageCommonSpec with VersioningCommonSpec {
 
   import TestUtils.google
   import tests.benji.StreamUtils._
@@ -30,7 +30,7 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
   implicit def materializer: Materializer = TestUtils.materializer
 
   "Client" should {
-    val bucketName = s"benji-test-${System identityHashCode this}"
+    val bucketName = s"benji-test-${random.nextInt().toString}"
     val objName = "testfile.txt"
 
     commonTests("google", google, bucketName)
@@ -39,7 +39,7 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
     val fileStart = "hello world !!!"
 
     val partCount = 3
-    s"Write file in $bucketName bucket using $partCount parts" in {
+    s"Write file in $bucketName bucket using ${partCount.toString} parts" in {
       val filetest = google.bucket(bucketName).obj(objName)
 
       @SuppressWarnings(Array("org.wartremover.warts.Var"))

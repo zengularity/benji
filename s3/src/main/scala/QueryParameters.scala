@@ -9,7 +9,7 @@ import java.net.URLEncoder
 private[s3] object QueryParameters {
 
   def maxParam(maybeMax: Option[Long]): Option[String] =
-    maybeMax.map(max => s"max-keys=$max")
+    maybeMax.map(max => s"max-keys=${max.toString}")
 
   def tokenParam(token: Option[String]): Option[String] =
     token.map(tok => s"marker=${URLEncoder.encode(tok, "UTF-8")}")

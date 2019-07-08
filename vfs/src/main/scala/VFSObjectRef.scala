@@ -27,6 +27,7 @@ import com.zengularity.benji.{
   ByteRange,
   Bytes,
   Chunk,
+  Compat,
   ObjectRef,
   Streams,
   ObjectVersioning
@@ -39,7 +40,8 @@ final class VFSObjectRef private[vfs] (
 
   private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
   val defaultThreshold = VFSObjectRef.defaultThreshold
-  @inline private def transport = storage.transport
+
+  import storage.transport
 
   def exists(implicit ec: ExecutionContext): Future[Boolean] =
     Future(file.exists)
@@ -50,23 +52,30 @@ final class VFSObjectRef private[vfs] (
     }.flatMap { exists =>
       if (exists) {
         val inputStream = metadataFile.getContent.getInputStream
+
         Future.fromTry {
           Try {
             val json = Json.parse(inputStream)
-            json.as[Map[String, String]].mapValues(str => Seq(str))
+
+            Compat.mapValues(json.as[Map[String, String]]) { Seq(_) }
           }
         }.andThen {
           case _ =>
             try {
               inputStream.close()
             } catch {
-              case NonFatal(err) => logger.warn(s"Fails to close inputstream", err)
+              case NonFatal(err) =>
+                logger.warn(s"Fails to close inputstream", err)
             }
         }
       } else {
         Future { file.exists() }.flatMap {
-          case true => Future.successful(Map.empty[String, Seq[String]])
-          case false => Future.failed[Map[String, Seq[String]]](ObjectNotFoundException(ref))
+          case true =>
+            Future.successful(Map.empty[String, Seq[String]])
+
+          case false =>
+            Future.failed[Map[String, Seq[String]]](
+              ObjectNotFoundException(ref))
         }
       }
     }
@@ -160,7 +169,8 @@ final class VFSObjectRef private[vfs] (
         range.fold[java.io.InputStream](st) { r =>
           if (st.skip(r.start) != r.start) {
             throw new IllegalStateException(
-              s"fails to position at offset: ${r.start}")
+              s"fails to position at offset: ${r.start.toString}")
+
           } else {
             val sz = (r.end - r.start + 1).toInt
 
@@ -172,8 +182,10 @@ final class VFSObjectRef private[vfs] (
       Source.fromFuture(in.map(s => StreamConverters.fromInputStream(() => s)).
         recoverWith {
           case reason: FileNotFoundException =>
-            logger.info(s"Could not get the contents of the object $name in the bucket $bucket : $reason")
-            Future.failed[Source[ByteString, NotUsed]](ObjectNotFoundException(ref))
+            logger.info(s"Could not get the contents of the object $name in the bucket $bucket: ${reason.toString}")
+
+            Future.failed[Source[ByteString, NotUsed]](
+              ObjectNotFoundException(ref))
 
         }).flatMapMerge(1, identity)
     }

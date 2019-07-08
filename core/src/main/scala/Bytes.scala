@@ -40,7 +40,7 @@ final class Bytes private (val bytes: Long) extends AnyVal {
 
   def /:(other: Long): Long = other / bytes
 
-  override def toString = s"${bytes}B"
+  override def toString = s"${bytes.toString}B"
 }
 
 /** Bytes companion object */

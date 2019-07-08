@@ -33,7 +33,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
     ee: ExecutionEnv,
     writer: BodyWritable[Array[Byte]]) = {
 
-    val bucketName = s"benji-test-versioning-${random.nextInt()}"
+    val bucketName = s"benji-test-versioning-${random.nextInt().toString}"
     val objectName = "test-obj"
     val bucket = storage.bucket(bucketName)
 
@@ -176,7 +176,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
           } and {
             vbucket.setVersioning(enabled = false).map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
           } and {
-            vbucket.versionedObjects.collect[Set]() must beTypedEqualTo(allVersions).setMessage(s"!= $allVersions").await(1, 10.seconds)
+            vbucket.versionedObjects.collect[Set]() must beTypedEqualTo(allVersions).setMessage(s"""!= ${allVersions.mkString("[", ",", "]")}""").await(1, 10.seconds)
           }
         }
       }
@@ -318,7 +318,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
       }
 
       // on purpose use character that needs to be url encoded
-      lazy val testObjName = s"test obj name ${random.nextInt()}"
+      lazy val testObjName = s"test obj name ${random.nextInt().toString}"
 
       "to list versions of a specific object" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
