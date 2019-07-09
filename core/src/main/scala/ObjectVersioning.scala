@@ -6,7 +6,6 @@ package com.zengularity.benji
 
 import scala.language.higherKinds
 
-import scala.collection.generic.CanBuildFrom
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
@@ -61,12 +60,13 @@ trait ObjectVersioning {
      * versioning.versions.collect[List]()
      * }}}
      */
-    final def collect[M[_]]()(implicit m: Materializer, builder: CanBuildFrom[M[_], VersionedObject, M[VersionedObject]]): Future[M[VersionedObject]] = {
+    final def collect[M[_]]()(implicit m: Materializer, @deprecatedName(Symbol("builder")) factory: Compat.Factory[M, VersionedObject]): Future[M[VersionedObject]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      apply() runWith Sink.fold(builder()) {
-        _ += (_: VersionedObject)
-      }.mapMaterializedValue(_.map(_.result()))
+      apply() runWith Sink.fold(
+        Compat.newBuilder[M, VersionedObject](factory)) {
+          _ += (_: VersionedObject)
+        }.mapMaterializedValue(_.map(_.result()))
     }
 
     /**

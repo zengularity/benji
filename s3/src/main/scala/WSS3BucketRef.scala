@@ -94,7 +94,7 @@ final class WSS3BucketRef private[s3] (
           case Seq() => Future.successful(false)
 
           case s =>
-            Future.failed[Boolean](new IllegalStateException(s"Unexpected multiple VersioningConfiguration.Status children from S3: $s"))
+            Future.failed[Boolean](new IllegalStateException(s"Unexpected multiple VersioningConfiguration.Status children from S3: ${s.toString}"))
         }
 
       case response =>

@@ -20,6 +20,7 @@ import com.zengularity.benji.{
   BucketRef,
   BucketVersioning,
   Bytes,
+  Compat,
   Object,
   VersionedObject,
   VersionedObjectRef
@@ -29,13 +30,14 @@ import com.zengularity.benji.exception.{
   BucketAlreadyExistsException,
   BucketNotFoundException
 }
-import scala.collection.JavaConverters._
 
 final class GoogleBucketRef private[google] (
   storage: GoogleStorage,
   val name: String) extends BucketRef with BucketVersioning { ref =>
 
-  @inline private def gt = storage.transport
+  import Compat.javaConverters._
+
+  import storage.{ transport => gt }
 
   private case class Objects(
     maybePrefix: Option[String],
@@ -140,17 +142,23 @@ final class GoogleBucketRef private[google] (
   def isVersioned(implicit ec: ExecutionContext): Future[Boolean] = {
     gt.withWSRequest1("", s"/b/$name?fields=versioning")(_.get).flatMap { response =>
       val json = Json.parse(response.body)
+
       json match {
         case JsObject(m) if m.isEmpty =>
           // JSON is empty when bucket versioning has never been configured
           Future.successful(false)
+
         case JsObject(m) if m.contains("versioning") =>
           json \ "versioning" \ "enabled" match {
             case JsDefined(JsBoolean(enabled)) => Future.successful(enabled)
+
             case e: JsUndefined => Future.failed[Boolean](new java.io.IOException(s"Could not parse versioning result: ${e.error}"))
-            case JsDefined(j) => Future.failed[Boolean](new java.io.IOException(s"Could not parse versioning result: unexpected value $j"))
+
+            case JsDefined(j) => Future.failed[Boolean](new java.io.IOException(s"Could not parse versioning result: unexpected value ${Json stringify j}"))
           }
-        case _ => ErrorHandler.ofBucketFromResponse(s"Could not get versioning state of bucket $name", ref)(response)
+
+        case _ => ErrorHandler.ofBucketFromResponse(
+          s"Could not get versioning state of bucket $name", ref)(response)
       }
     }
   }.recoverWith(ErrorHandler.ofBucketToFuture(s"Could not get versioning state of bucket $name", ref))

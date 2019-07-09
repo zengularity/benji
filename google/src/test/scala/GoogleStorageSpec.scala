@@ -5,7 +5,6 @@ import scala.concurrent.duration._
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-import akka.stream.contrib.TestKit.assertAllStagesStopped
 
 import play.api.libs.ws.DefaultBodyWritables._
 
@@ -17,8 +16,9 @@ import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
 import com.zengularity.benji.google.tests.TestUtils
 
-class GoogleStorageSpec(implicit ee: ExecutionEnv)
-  extends org.specs2.mutable.Specification with StorageCommonSpec with VersioningCommonSpec {
+final class GoogleStorageSpec(implicit ee: ExecutionEnv)
+  extends org.specs2.mutable.Specification
+  with StorageCommonSpec with VersioningCommonSpec {
 
   import TestUtils.google
   import tests.benji.StreamUtils._
@@ -30,17 +30,25 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
   implicit def materializer: Materializer = TestUtils.materializer
 
   "Client" should {
-    val bucketName = s"benji-test-${System identityHashCode this}"
-    val objName = "testfile.txt"
-
-    commonTests("google", google, bucketName)
+    commonTests("google", google, s"benji-test-${random.nextInt().toString}")
     commonVersioningTests(google, sampleVersionId = "7")
 
+    // --- Google specific specs/tests
+
+    val bucketName = s"benji-test-${random.nextInt().toString}"
+    lazy val gbucket = google.bucket(bucketName)
+
+    s"Create another bucket $bucketName" in {
+      gbucket.create(failsIfExists = true) must beTypedEqualTo({}).
+        await(0, 5.seconds)
+    }
+
+    val objName = "testfile.txt"
     val fileStart = "hello world !!!"
 
     val partCount = 3
-    s"Write file in $bucketName bucket using $partCount parts" in {
-      val filetest = google.bucket(bucketName).obj(objName)
+    s"Write file in $bucketName bucket using ${partCount.toString} parts" in {
+      val filetest = gbucket.obj(objName)
 
       @SuppressWarnings(Array("org.wartremover.warts.Var"))
       var b = 0.toByte
@@ -68,7 +76,7 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
     }
 
     s"Metadata of a file $objName" in assertAllStagesStopped {
-      val objRef = google.bucket(bucketName).obj(objName)
+      val objRef = gbucket.obj(objName)
 
       objRef.headers() must beLike[Map[String, Seq[String]]] {
         case headers => headers.get("metadata.foo") must beSome(Seq("bar"))
@@ -98,12 +106,16 @@ class GoogleStorageSpec(implicit ee: ExecutionEnv)
       }
     }
 
-    "Use correct toString format on bucket" in {
-      google.bucket("bucketName").toString must_== "GoogleBucketRef(bucketName)"
-    }
+    "Use correct toString format" >> {
+      "on bucket" in {
+        google.bucket("bucketName").
+          toString must_== "GoogleBucketRef(bucketName)"
+      }
 
-    "Use correct toString format on object" in {
-      google.bucket("bucketName").obj("objectName").toString must_== "GoogleObjectRef(bucketName, objectName)"
+      "on object" in {
+        google.bucket("bucketName").obj("objectName").
+          toString must_== "GoogleObjectRef(bucketName, objectName)"
+      }
     }
   }
 }

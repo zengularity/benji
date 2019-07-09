@@ -11,7 +11,13 @@ import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.benji.{ ByteRange, VersionedObjectRef, VersionedObject, Bytes }
+import com.zengularity.benji.{
+  ByteRange,
+  Compat,
+  VersionedObjectRef,
+  VersionedObject,
+  Bytes
+}
 import com.zengularity.benji.exception.{ VersionNotFoundException, ObjectNotFoundException }
 
 import com.zengularity.benji.ws.Successful
@@ -34,7 +40,9 @@ final class WSS3VersionedObjectRef(
       Some(bucket), Some(name), query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout)
 
     req.head().flatMap {
-      case response if response.status == 200 => Future(response.headers)
+      case response if response.status == 200 =>
+        Future(Compat.mapValues(response.headers)(_.toSeq))
+
       case response =>
         val error = ErrorHandler.ofVersion(s"Could not get the head of version $versionId of the object $name in the bucket $bucket", ref)(response)
         Future.failed[Map[String, Seq[String]]](error)
@@ -148,7 +156,7 @@ final class WSS3VersionedObjectRef(
       def req = storage.request(Some(bucket), Some(name), query = Some(s"versionId=$versionId"), requestTimeout = requestTimeout)
 
       Source.fromFutureSource(range.fold(req)(r => req.addHttpHeaders(
-        "Range" -> s"bytes=${r.start}-${r.end}")).withMethod("GET").stream().flatMap {
+        "Range" -> s"bytes=${r.start.toString}-${r.end.toString}")).withMethod("GET").stream().flatMap {
         case response if response.status == 200 || response.status == 206 =>
           Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed))
 

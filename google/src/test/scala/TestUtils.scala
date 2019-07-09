@@ -33,7 +33,7 @@ object TestUtils {
 
   lazy val configUri: String = {
     val projectId = config.getString("google.storage.projectId")
-    val application = s"benji-tests-${System identityHashCode this}"
+    val application = s"benji-tests-${System.identityHashCode(this).toString}"
 
     s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
   }

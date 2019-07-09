@@ -3,7 +3,6 @@ package tests.benji
 import scala.concurrent.duration._
 
 import akka.stream.Materializer
-import akka.stream.contrib.TestKit.assertAllStagesStopped
 import akka.stream.scaladsl.Source
 
 import play.api.libs.ws.BodyWritable
@@ -23,6 +22,9 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
   protected lazy val random = new scala.util.Random(
     System.identityHashCode(self) * System.currentTimeMillis())
 
+  // import akka.stream.contrib.TestKit.assertAllStagesStopped
+  protected def assertAllStagesStopped[T](f: => T): T = f
+
   def minimalCommonTests(storage: ObjectStorage, defaultBucketName: String)(
     implicit
     materializer: Materializer,
@@ -36,9 +38,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     s"Access $bucketName bucket" in assertAllStagesStopped {
       val bucket = storage.bucket(bucketName)
 
-      {
-        bucket must notExistsIn(storage, 1, 5.seconds)
-      } and {
+      bucket must notExistsIn(storage, 1, 5.seconds) and {
         bucket must supportCreation
       } and {
         bucket must existsIn(storage, 2, 7.seconds)
@@ -95,7 +95,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     errorCommonTests(storage)
 
     "Create & delete buckets" in assertAllStagesStopped {
-      val name = s"benji-test-2-${random.nextInt()}"
+      val name = s"benji-test-2-${random.nextInt().toString}"
       val bucket = storage.bucket(name)
 
       {
@@ -112,7 +112,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Creating & deleting non-empty buckets" in assertAllStagesStopped {
-      val name = s"benji-test-nonempty-${random.nextInt()}"
+      val name = s"benji-test-nonempty-${random.nextInt().toString}"
       val bucket = storage.bucket(name)
       val filetest = bucket.obj("testfile.txt")
 
@@ -272,7 +272,8 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Delete on buckets successfully ignore when not existing" in {
-      val bucket = storage.bucket(s"benji-test-testignore-${random.nextInt()}")
+      val bucket = storage.bucket(
+        s"benji-test-testignore-${random.nextInt().toString}")
 
       {
         bucket must notExistsIn(storage, 1, 10.seconds)
@@ -296,7 +297,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     "Delete on objects successfully ignore when not existing" in {
       val body = List.fill(10)("qwerty").mkString(" ").getBytes
       val bucket = defaultBucketRef
-      val obj = bucket.obj(s"test-ignore-obj-${random.nextInt()}")
+      val obj = bucket.obj(s"test-ignore-obj-${random.nextInt().toString}")
       val write = obj.put[Array[Byte]]
 
       def upload = { repeat(5) { body } runWith write }.map(_ => {})
@@ -342,7 +343,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
       "after creating more objects" in {
         (1 to 16).foldLeft(ok) { (res, i) =>
-          val filename = s"$prefix-$i"
+          val filename = s"$prefix-${i.toString}"
 
           res and {
             createFile(filename) must beTypedEqualTo(1590L).await(1, 5.seconds)
@@ -376,7 +377,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       {
         obj.metadata() must beTypedEqualTo(expectedMap).await(1, 10.seconds)
       } and {
-        obj.headers().map(_.filterKeys(_.contains("foo")).values.toList) must beTypedEqualTo(expectedMap.values.toList).await(1, 10.seconds)
+        obj.headers().map(_.filter(_._1.contains("foo")).values.toList) must beTypedEqualTo(expectedMap.values.toList).await(1, 10.seconds)
       }
     }
 
@@ -397,12 +398,10 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Return false when checking object existence of a non-existing bucket" in {
-      val bucket = storage.bucket("unknownbucket")
+      val bucket = storage.bucket(s"unknownbucket-${random.nextInt().toString}")
       val newObj = bucket.obj("new_object.txt")
 
-      {
-        bucket must notExistsIn(storage, 1, 10.seconds)
-      } and {
+      bucket must notExistsIn(storage, 1, 10.seconds) and {
         newObj.exists must beFalse.await(1, 10.seconds)
       }
     }

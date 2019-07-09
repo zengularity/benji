@@ -6,13 +6,11 @@ import scala.concurrent.duration.FiniteDuration
 import akka.util.ByteString
 import akka.stream.scaladsl.{ Source, Sink }
 
-import akka.stream.contrib.TestKit.assertAllStagesStopped
-
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.MatchResult
 
 @SuppressWarnings(Array("org.wartremover.warts.Any"))
-class StreamSpec(implicit ee: ExecutionEnv)
+final class StreamSpec(implicit ee: ExecutionEnv)
   extends org.specs2.mutable.Specification {
 
   "Streams" title
@@ -24,6 +22,9 @@ class StreamSpec(implicit ee: ExecutionEnv)
 
   private implicit def materializer =
     akka.stream.ActorMaterializer.create(system)
+
+  // import akka.stream.contrib.TestKit.assertAllStagesStopped
+  protected def assertAllStagesStopped[T](f: => T): T = f
 
   "Consumer" should {
     "try to take at least up to 5 bytes" >> {

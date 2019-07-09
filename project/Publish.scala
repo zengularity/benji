@@ -10,8 +10,13 @@ object Publish {
 
   lazy val settings = Seq(
     resolvers += "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
-    mimaPreviousArtifacts := Set(
-      organization.value %% moduleName.value % "2.0.0"),
+    mimaPreviousArtifacts := {
+      if (scalaVersion.value startsWith "2.12.") {
+        Set(organization.value %% moduleName.value % "2.0.0")
+      } else {
+        Set.empty[ModuleID]
+      }
+    },
     licenses := Seq("Apache-2.0" ->
       url("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     pomIncludeRepository := { _ => false },

@@ -13,7 +13,9 @@ import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
 import com.zengularity.benji.s3.tests.TestUtils
 
-class S3CephSpec extends org.specs2.mutable.Specification with StorageCommonSpec with VersioningCommonSpec with S3Spec {
+final class S3CephSpec extends org.specs2.mutable.Specification
+  with StorageCommonSpec with VersioningCommonSpec with S3Spec {
+
   import tests.benji.StreamUtils._
   import TestUtils.{ ceph, withMatEx }
 
@@ -24,7 +26,7 @@ class S3CephSpec extends org.specs2.mutable.Specification with StorageCommonSpec
   @inline implicit def materializer = TestUtils.materializer
 
   "Client" should {
-    val bucketName = s"benji-test-${System identityHashCode this}"
+    val bucketName = s"benji-test-${random.nextInt().toString}"
     val objName = "testfile.txt"
 
     withMatEx { implicit ee: EE =>

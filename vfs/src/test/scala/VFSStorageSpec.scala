@@ -6,7 +6,6 @@ import scala.concurrent.Future
 import akka.stream.Materializer
 
 import org.specs2.specification.AfterAll
-import akka.stream.contrib.TestKit.assertAllStagesStopped
 import akka.stream.scaladsl.Source
 
 import play.api.libs.ws.DefaultBodyWritables._
@@ -17,7 +16,9 @@ import com.zengularity.benji.vfs.VFSObjectRef
 
 import tests.benji.StorageCommonSpec
 
-class VFSStorageSpec(implicit ee: ExecutionEnv) extends org.specs2.mutable.Specification with StorageCommonSpec with AfterAll {
+final class VFSStorageSpec(implicit ee: ExecutionEnv)
+  extends org.specs2.mutable.Specification
+  with StorageCommonSpec with AfterAll {
 
   import tests.benji.StreamUtils._
   import TestUtils.vfs
@@ -29,14 +30,14 @@ class VFSStorageSpec(implicit ee: ExecutionEnv) extends org.specs2.mutable.Speci
   implicit def materializer: Materializer = TestUtils.materializer
 
   "VFS client" should {
-    val bucketName = s"benji-test-${System identityHashCode this}"
+    val bucketName = s"benji-test-${random.nextInt().toString}"
 
     commonTests("vfs", vfs, bucketName)
 
     val fileStart = "hello world !!!"
 
     val partCount = 3
-    s"Write file in $bucketName bucket using $partCount parts" in assertAllStagesStopped {
+    s"Write file in $bucketName bucket using ${partCount.toString} parts" in assertAllStagesStopped {
       val filetest = vfs.bucket(bucketName).obj("testfile.txt")
 
       @SuppressWarnings(Array("org.wartremover.warts.Var"))

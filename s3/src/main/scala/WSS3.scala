@@ -8,9 +8,10 @@ import java.net.URI
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success, Try }
-import scala.collection.JavaConverters._
+
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.duration._
 
 import akka.NotUsed
 import akka.stream.Materializer
@@ -20,7 +21,12 @@ import play.api.libs.ws.{ StandaloneWSRequest, StandaloneWSResponse }
 import play.api.libs.ws.ahc.{ AhcWSClientConfig, StandaloneAhcWSClient }
 import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
-import com.zengularity.benji.{ Bucket, ObjectStorage, URIProvider }
+import com.zengularity.benji.{
+  Bucket,
+  Compat,
+  ObjectStorage,
+  URIProvider
+}, Compat.javaConverters._
 
 /**
  * Implementation of the S3 API for Object Storage using Play's WS library.
@@ -33,8 +39,6 @@ class WSS3(
   private val transport: StandaloneAhcWSClient,
   requestBuilder: WSRequestBuilder,
   val requestTimeout: Option[Long] = None) extends ObjectStorage { self =>
-
-  import scala.concurrent.duration._
 
   private[s3] def request(bucketName: Option[String] = None, objectName: Option[String] = None, query: Option[String] = None, requestTimeout: Option[Long] = None): StandaloneWSRequest = {
     val req = requestBuilder(transport, bucketName, objectName, query)
@@ -49,7 +53,7 @@ class WSS3(
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html
    */
   object buckets extends self.BucketsRequest {
-    def error(response: StandaloneWSResponse): Throwable = new IllegalStateException(s"Could not get a list of all buckets. Response: ${response.status} - ${response.body}")
+    def error(response: StandaloneWSResponse): Throwable = new IllegalStateException(s"Could not get a list of all buckets. Response: ${response.status.toString} - ${response.body}")
 
     def apply()(implicit m: Materializer): Source[Bucket, NotUsed] =
       S3.getXml[Bucket](request(requestTimeout = requestTimeout))({ xml =>
@@ -165,7 +169,7 @@ object S3 {
           s"Invalid request timeout parameter in URI: $v"))
 
         case Some(ps) => Failure[Option[Long]](new IllegalArgumentException(
-          s"Invalid request timeout parameter in URI: $ps"))
+          s"Invalid request timeout parameter in URI: ${ps.toString}"))
 
         case _ => Success(Option.empty[Long])
       }
@@ -191,7 +195,7 @@ object S3 {
           Success(apply(accessKey, secretKey, scheme, host))
 
         case Some(style) => Failure[WSS3](new IllegalArgumentException(
-          s"Invalid style parameter in URI: $style"))
+          s"Invalid style parameter in URI: ${style.toString}"))
 
         case _ => Failure[WSS3](new IllegalArgumentException(
           "Expected style parameter in URI"))
@@ -244,7 +248,7 @@ object S3 {
       if (response.status == 200 || response.status == 206) {
 
         Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed).
-          fold(StringBuilder.newBuilder) {
+          fold(new StringBuilder) {
             _ ++= _.utf8String
           }.
           flatMapConcat { buf =>
@@ -255,8 +259,8 @@ object S3 {
   }
 
   private def parseQuery(uri: URI): Map[String, Seq[String]] =
-    new QueryStringDecoder(uri.toString).parameters.
-      asScala.mapValues(_.asScala).toMap
+    Compat.mapValues(new QueryStringDecoder(uri.toString).parameters.
+      asScala.toMap)(_.asScala.toSeq)
 
   private lazy val HttpUrl = "^(http[s]*)://([^:]+):([^@]+)@(.+)$".r
 }

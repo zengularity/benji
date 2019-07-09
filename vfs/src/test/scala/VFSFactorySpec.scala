@@ -7,7 +7,7 @@ import com.zengularity.benji.vfs.{ VFSFactory, VFSStorage }
 
 import tests.benji.DummyInjector
 
-class VFSFactorySpec extends org.specs2.mutable.Specification {
+final class VFSFactorySpec extends org.specs2.mutable.Specification {
   "VFS factory" title
 
   "VFS storage" should {
@@ -19,7 +19,7 @@ class VFSFactorySpec extends org.specs2.mutable.Specification {
     {
       val uri = new URI("vfs:tmp:///")
 
-      s"be resolved from $uri" in {
+      s"be resolved from ${uri.toString}" in {
         service must beAnInstanceOf[VFSFactory] and {
           service(DummyInjector, uri) must beAnInstanceOf[VFSStorage]
         }
@@ -29,7 +29,7 @@ class VFSFactorySpec extends org.specs2.mutable.Specification {
     {
       val uri = new URI("foo:vfs")
 
-      s"not be resolved from $uri" in {
+      s"not be resolved from ${uri.toString}" in {
         service(DummyInjector, uri) must throwA[Exception](
           "Expected URI with scheme.*")
       }
