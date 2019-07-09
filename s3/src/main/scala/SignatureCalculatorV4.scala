@@ -13,11 +13,11 @@ import javax.crypto.spec.SecretKeySpec
 import org.apache.commons.codec.binary.Hex
 import org.apache.commons.codec.digest.DigestUtils
 
-import scala.collection.JavaConverters._
-
 import play.api.libs.ws.WSSignatureCalculator
 import play.shaded.ahc.io.netty.handler.codec.http.HttpHeaders
 import play.shaded.ahc.org.asynchttpclient.{ Request, RequestBuilderBase }
+
+import com.zengularity.benji.Compat.javaConverters._
 
 /**
  * Computes the signature V4 according access and secret keys,

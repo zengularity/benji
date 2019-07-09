@@ -6,7 +6,6 @@ package com.zengularity.benji.google
 
 import java.time.{ Instant, LocalDateTime, ZoneOffset }
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
@@ -32,6 +31,7 @@ import com.zengularity.benji.{
   ByteRange,
   Bytes,
   Chunk,
+  Compat,
   ObjectRef,
   Streams,
   ObjectVersioning,
@@ -39,7 +39,6 @@ import com.zengularity.benji.{
   VersionedObject
 }
 import com.zengularity.benji.ws.{ ContentMD5, Ok, Successful }
-import scala.collection.JavaConverters._
 
 final class GoogleObjectRef private[google] (
   storage: GoogleStorage,
@@ -49,8 +48,8 @@ final class GoogleObjectRef private[google] (
 
   @inline def defaultThreshold = GoogleObjectRef.defaultThreshold
 
-  @inline private def logger = storage.logger
-  @inline private def gt = storage.transport
+  import Compat.javaConverters._
+  import storage.{ logger, transport => gt }
 
   def exists(implicit ec: ExecutionContext): Future[Boolean] = Future {
     gt.client.objects().get(bucket, name).executeUsingHead()
@@ -138,7 +137,7 @@ final class GoogleObjectRef private[google] (
           val headers = new com.google.api.client.http.HttpHeaders()
 
           range.foreach { r =>
-            headers.setRange(s"bytes=${r.start}-${r.end}")
+            headers.setRange(s"bytes=${r.start.toString}-${r.end.toString}")
           }
 
           headers
@@ -287,7 +286,7 @@ final class GoogleObjectRef private[google] (
 
         case st =>
           Future.failed[A](
-            new IllegalStateException(s"invalid upload state: $st"))
+            new IllegalStateException(s"invalid upload state: ${st.toString}"))
       }
   }
 
@@ -324,7 +323,7 @@ final class GoogleObjectRef private[google] (
                 url
               }
               case _ =>
-                Future.failed[String](new BenjiUnknownError(s"missing upload URL: ${response.status} - ${response.statusText}: ${response.headers}"))
+                Future.failed[String](new BenjiUnknownError(s"missing upload URL: ${response.status.toString} - ${response.statusText}: ${response.headers.mkString("{", ",", "}")}"))
             }
             case response =>
               ErrorHandler.ofBucketFromResponse(s"Could not initiate upload for $name in bucket $bucket", bucket)(response)
@@ -348,14 +347,13 @@ final class GoogleObjectRef private[google] (
 
     gt.withWSRequest2(url) { req =>
       val limit = globalSz.fold("*")(_.toString)
-      val reqRange =
-        s"bytes $offset-${offset + bytes.size - 1}/${limit}"
+      val reqRange = s"bytes ${offset.toString}-${(offset + bytes.size - 1).toString}/${limit}"
 
       val baseReq = req.addHttpHeaders(
         "Content-Length" -> bytes.size.toString,
         "Content-Range" -> reqRange)
 
-      logger.debug(s"Prepare upload part: $reqRange; size = ${bytes.size}")
+      logger.debug(s"Prepare upload part: $reqRange; size = ${bytes.size.toString}")
 
       val uploadReq = contentType.fold(baseReq) { typ =>
         baseReq.addHttpHeaders("Content-Type" -> typ)
@@ -387,11 +385,11 @@ final class GoogleObjectRef private[google] (
    */
   @inline private def partResponse(response: StandaloneWSResponse, offset: Long, sz: Int, url: String): Future[String] = response.header("Range") match {
     case Some(range) => Future.successful {
-      logger.trace(s"Uploaded part @$offset with $sz bytes: $url")
+      logger.trace(s"Uploaded part @${offset.toString} with ${sz.toString} bytes: $url")
       range
     }
 
-    case _ => Future.failed[String](BenjiUnknownError(s"missing upload range: ${response.status} - ${response.statusText}: ${response.headers}"))
+    case _ => Future.failed[String](BenjiUnknownError(s"missing upload range: ${response.status.toString} - ${response.statusText}: ${response.headers.mkString("{", ",", "}")}"))
   }
 
   def versioning: Option[ObjectVersioning] = Some(this)

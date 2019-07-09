@@ -33,7 +33,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
     ee: ExecutionEnv,
     writer: BodyWritable[Array[Byte]]) = {
 
-    val bucketName = s"benji-test-versioning-${random.nextInt()}"
+    val bucketName = s"benji-test-versioning-${random.nextInt().toString}"
     val objectName = "test-obj"
     val bucket = storage.bucket(bucketName)
 
@@ -61,21 +61,21 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
           } and {
             vbucket.setVersioning(enabled = true).
               map(_ => true) must beTrue.
-              setMessage("versioning enabled").await(1, 10.seconds)
+              setMessage("versioning enabled").await(1, 7.seconds)
 
           } and {
             vbucket.isVersioned must beTrue.
               setMessage("!versioned after").
-              await(1, 5.seconds).eventually(2, 7.seconds)
+              await(0, 5.seconds).eventually(2, 7.seconds)
 
           } and {
             vbucket.setVersioning(enabled = false).
               map(_ => true) must beTrue.
-              setMessage("versioning disabled").await(1, 10.seconds)
+              setMessage("versioning disabled").await(1, 5.seconds)
 
           } and {
             vbucket.isVersioned must beFalse.setMessage("!versioned after").
-              await(1, 5.seconds).eventually(2, 7.seconds)
+              await(0, 5.seconds).eventually(3, 7.seconds)
 
           }
         }
@@ -105,7 +105,9 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
           } and {
             vbucket.versionedObjects.collect[List]() must beEmpty[List[VersionedObject]].await(1, 10.seconds)
           } and {
-            createObject(bucket, objectName, "hello") must beTrue.await(1, 10.seconds)
+            createObject(bucket, objectName, "hello") must beTrue.
+              await(0, 5.seconds)
+
           } and {
             vbucket.versionedObjects.
               collect[List]() must beLike[List[VersionedObject]] {
@@ -176,7 +178,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
           } and {
             vbucket.setVersioning(enabled = false).map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
           } and {
-            vbucket.versionedObjects.collect[Set]() must beTypedEqualTo(allVersions).setMessage(s"!= $allVersions").await(1, 10.seconds)
+            vbucket.versionedObjects.collect[Set]() must beTypedEqualTo(allVersions).setMessage(s"""!= ${allVersions.mkString("[", ",", "]")}""").await(1, 10.seconds)
           }
         }
       }
@@ -192,8 +194,8 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               setMessage("deleted #1").await(1, 5.seconds)
 
           } and {
-            bucket must notExistsIn(storage, 2, 7.seconds).
-              setMessage("!exists #1")
+            bucket must notExistsIn(storage, 0, 5.seconds).
+              eventually(2, 7.seconds).setMessage("!exists #1")
 
           } and {
             // checking that after delete there's no content left when recreating
@@ -211,8 +213,8 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               setMessage("deleted #2").await(1, 10.seconds)
 
           } and {
-            bucket must notExistsIn(storage, 1, 5.seconds).
-              eventually(2, 5.seconds).setMessage("!exists #2")
+            bucket must notExistsIn(storage, 0, 5.seconds).
+              eventually(3, 7.seconds).setMessage("!exists #2")
           }
         }
       }
@@ -220,7 +222,8 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
       "to get the content and metadata of a specific version by reference" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           {
-            bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
+            bucket.create(failsIfExists = true) must beTypedEqualTo({}).
+              await(0, 5.seconds).eventually(2, 7.seconds)
           } and {
             vbucket.setVersioning(enabled = true).
               map(_ => true) must beTrue.await(1, 10.seconds)
@@ -228,7 +231,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
           } and {
             createObject(
               bucket, objectName, "hello", Map("foov1" -> "barv1")) must beTrue.
-              await(1, 10.seconds)
+              await(1, 7.seconds)
 
           } and {
             vbucket.versionedObjects.
@@ -247,21 +250,25 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
                 } and {
                   ver.versionId must not(beEmpty)
                 } and {
-                  createObject(bucket, objectName, "hello world", Map("foov2" -> "barv2")) must beTrue.
-                    await(1, 10.seconds)
+                  createObject(bucket, objectName, "hello world",
+                    Map("foov2" -> "barv2")) must beTrue.await(1, 10.seconds)
 
                 } and {
                   bucket.obj(objectName).get().
                     runWith(consume) must beTypedEqualTo("hello world").
                     await(1, 10.seconds)
                 } and {
-                  bucket.obj(objectName).metadata() must beTypedEqualTo(Map("foov2" -> Seq("barv2"))).await(1, 10.seconds)
+                  bucket.obj(objectName).metadata() must beTypedEqualTo(
+                    Map("foov2" -> Seq("barv2"))).await(1, 10.seconds)
+
                 } and {
                   vbucket.obj(objectName, ver.versionId).
                     get().runWith(consume) must beTypedEqualTo("hello").
                     await(1, 10.seconds)
                 } and {
-                  vbucket.obj(objectName, ver.versionId).metadata() must beTypedEqualTo(Map("foov1" -> Seq("barv1"))).await(1, 10.seconds)
+                  vbucket.obj(objectName, ver.versionId).
+                    metadata() must beTypedEqualTo(
+                      Map("foov1" -> Seq("barv1"))).await(1, 10.seconds)
                 }
               }.await(1, 10.seconds)
           }
@@ -282,11 +289,11 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
                   "hello").await(1, 10.seconds) and {
 
                     v2.get().runWith(consume) must beTypedEqualTo(
-                      "hello world").await(1, 10.seconds)
+                      "hello world").await(1, 5.seconds)
 
                   } and {
                     obj.get().runWith(consume) must beTypedEqualTo(
-                      "hello world").await(1, 10.seconds)
+                      "hello world").await(1, 5.seconds)
                   } and {
                     v1.delete() must beTypedEqualTo({}).await(1, 10.seconds)
                   } and {
@@ -305,23 +312,21 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           vbucket.versionedObjects.
             collect[List]() must beLike[List[VersionedObject]] {
-              case v :: Nil =>
-                v.versionId must not(beEmpty) and {
-                  bucket.obj(v.name).
-                    versioning must beSome[ObjectVersioning].which {
-                      _.version(v.versionId) must_=== vbucket.obj(
-                        v.name, v.versionId)
-                    }
-                }
-
-            }.await(1, 10.seconds)
+              case v :: Nil => v.versionId must not(beEmpty) and {
+                bucket.obj(v.name).
+                  versioning must beSome[ObjectVersioning].which {
+                    _.version(v.versionId) must_=== vbucket.obj(
+                      v.name, v.versionId)
+                  }
+              }
+            }.await(0, 5.seconds).eventually(2, 7.seconds)
         }
       }
 
-      "to list versions of a specific object" in {
-        // on purpose use character that needs to be url encoded
-        val testObjName = "test obj name"
+      // on purpose use character that needs to be url encoded
+      lazy val testObjName = s"test obj name ${random.nextInt().toString}"
 
+      "to list versions of a specific object" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           {
             vbucket.versionedObjects.collect[List]().
@@ -391,7 +396,6 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
       }
 
       "to handle properly object deletion" in {
-        val testObjName = "test obj name"
         val obj = bucket.obj(testObjName)
 
         obj.versioning must beSome[ObjectVersioning].which { vobj =>
@@ -402,13 +406,17 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               } and {
                 forall(l) { _.name must beTypedEqualTo(testObjName) }
               } and {
-                l must contain(beLike[VersionedObject] { case o: VersionedObject if o.isLatest => ok }).exactly(1)
+                l must contain(beLike[VersionedObject] {
+                  case o: VersionedObject if o.isLatest => ok
+                }).exactly(1)
               }
             }.await(1, 10.seconds)
           } and {
             obj must existsIn(bucket, 1, 10.seconds)
           } and {
-            obj.delete().map(_ => true).aka("delete") must beTypedEqualTo(true).await(1, 10.seconds)
+            obj.delete().map(_ => true).
+              aka("delete") must beTypedEqualTo(true).await(1, 10.seconds)
+
           } and {
             vobj.versions.collect[List]().map { l =>
               {
@@ -416,7 +424,9 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               } and {
                 forall(l) { _.name must beTypedEqualTo(testObjName) }
               } and {
-                l must contain(beLike[VersionedObject] { case o: VersionedObject if o.isLatest => ok }).exactly(0)
+                l must contain(beLike[VersionedObject] {
+                  case o: VersionedObject if o.isLatest => ok
+                }).exactly(0)
               }
             }.await(1, 10.seconds)
           } and {
@@ -426,6 +436,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
       }
     }
 
-    versioningErrorCommonTests(storage, sampleVersionId)
+    // Expect bucketName & objName to still exist (so not delete them before)
+    versioningErrorCommonTests(storage, bucketName, objectName, sampleVersionId)
   }
 }

@@ -60,13 +60,14 @@ private[benji] object BenjiModule {
   object ValidUri {
     @SuppressWarnings(Array(
       "org.wartremover.warts.AsInstanceOf",
-      "org.wartremover.warts.IsInstanceOf"))
+      "org.wartremover.warts.IsInstanceOf",
+      "org.wartremover.warts.ToString"))
     def unapply(value: com.typesafe.config.ConfigValue): Option[URI] =
       if (!value.unwrapped.isInstanceOf[String]) None
       else {
         Try(value.unwrapped.asInstanceOf[String]).map(new URI(_)) match {
           case Failure(cause) => {
-            logger.debug(s"Invalid URI: $value", cause)
+            logger.debug(s"Invalid URI: ${value.toString}", cause)
             Option.empty[URI]
           }
 
@@ -76,7 +77,7 @@ private[benji] object BenjiModule {
             if (registry.schemes contains s) {
               Some(uri)
             } else {
-              logger.debug(s"Unsupported scheme '$s': $uri")
+              logger.debug(s"Unsupported scheme '$s': ${uri.toString}")
               Option.empty[URI]
             }
           }
@@ -84,57 +85,59 @@ private[benji] object BenjiModule {
       }
   }
 
-  def parseConfiguration(configuration: Configuration): Set[(String, URI)] = configuration.getOptional[Configuration]("benji") match {
-    case Some(subConf) => {
-      val parsed = Set.newBuilder[(String, URI)]
+  @SuppressWarnings(Array("org.wartremover.warts.ToString"))
+  def parseConfiguration(configuration: Configuration): Set[(String, URI)] =
+    configuration.getOptional[Configuration]("benji") match {
+      case Some(subConf) => {
+        val parsed = Set.newBuilder[(String, URI)]
 
-      subConf.entrySet.iterator.foreach[Unit] {
-        case ("uri", ValidUri(uri)) => {
-          parsed += "default" -> uri
-          ()
+        subConf.entrySet.iterator.foreach[Unit] {
+          case ("uri", ValidUri(uri)) => {
+            parsed += "default" -> uri
+            ()
+          }
+
+          case ("uri", invalid) =>
+            logger.warn(s"Invalid setting for 'benji.uri': ${invalid.toString}")
+
+          case ("default.uri", ValidUri(uri)) => {
+            parsed += "default" -> uri
+            ()
+          }
+
+          case ("default.uri", invalid) =>
+            logger.warn(s"Invalid setting for 'benji.default.uri': ${invalid.toString}")
+
+          case (key, ValidUri(uri)) if key.endsWith(".uri") => {
+            parsed += key.dropRight(4) -> uri
+            ()
+          }
+
+          case (key, invalid) =>
+            logger.warn(s"Invalid setting for '$key': ${invalid.toString}")
         }
 
-        case ("uri", invalid) =>
-          logger.warn(s"Invalid setting for 'benji.uri': $invalid")
+        val uris = parsed.result()
 
-        case ("default.uri", ValidUri(uri)) => {
-          parsed += "default" -> uri
-          ()
+        if (uris.isEmpty) {
+          logger.warn("No configuration in the 'benji' section")
         }
 
-        case ("default.uri", invalid) =>
-          logger.warn(s"Invalid setting for 'benji.default.uri': $invalid")
-
-        case (key, ValidUri(uri)) if key.endsWith(".uri") => {
-          parsed += key.dropRight(4) -> uri
-          ()
-        }
-
-        case (key, invalid) =>
-          logger.warn(s"Invalid setting for '$key': $invalid")
+        uris
       }
 
-      val uris = parsed.result()
-
-      if (uris.isEmpty) {
-        logger.warn("No configuration in the 'benji' section")
+      case _ => {
+        logger.warn("No 'benji' section found in the configuration")
+        Set.empty
       }
-
-      uris
     }
-
-    case _ => {
-      logger.warn("No 'benji' section found in the configuration")
-      Set.empty
-    }
-  }
 
   def provider(configUri: URI): Try[BenjiProvider] =
     registry.factoryClass(configUri.getScheme) match {
       case Some(cls) => Try(new BenjiProvider(cls, configUri))
 
       case _ => Failure[BenjiProvider](new IllegalArgumentException(
-        s"Unsupported storage URI: $configUri"))
+        s"Unsupported storage URI: ${configUri.toString}"))
     }
 }
 

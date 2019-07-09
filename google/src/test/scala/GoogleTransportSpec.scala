@@ -11,14 +11,14 @@ import com.zengularity.benji.google.tests.TestUtils
 
 import scala.util.Failure
 
-class GoogleTransportSpec extends Specification {
+final class GoogleTransportSpec extends Specification {
   "GoogleTransport" title
 
   import TestUtils.ws
 
   val filename = "gcs-test.json"
   val projectId = TestUtils.config.getString("google.storage.projectId")
-  val application = s"benji-tests-${System identityHashCode this}"
+  val application = s"benji-tests-${System.identityHashCode(this).toString}"
 
   "Factory using URI" should {
     "succeed" >> {

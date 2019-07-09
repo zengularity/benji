@@ -31,7 +31,7 @@ class S3FactorySpec extends org.specs2.mutable.Specification {
     {
       val uri = new URI("foo:s3")
 
-      s"not be resolved from $uri" in {
+      s"not be resolved from ${uri.toString}" in {
         factory(WSInjector, uri) must throwA[Exception](
           "Expected URI with scheme.*")
       }

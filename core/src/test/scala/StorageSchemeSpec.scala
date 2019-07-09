@@ -10,7 +10,7 @@ import com.zengularity.benji.spi.{
   StorageScheme
 }
 
-class StorageSchemeSpec extends org.specs2.mutable.Specification {
+final class StorageSchemeSpec extends org.specs2.mutable.Specification {
   "Scheme aware factory" title
 
   "Dummy storage" should {
@@ -22,7 +22,7 @@ class StorageSchemeSpec extends org.specs2.mutable.Specification {
     {
       val uri = new URI("dummy:foo")
 
-      s"be resolved from $uri" in {
+      s"be resolved from ${uri.toString}" in {
         service(DummyInjector, uri) must_== DummyStorage
       }
     }
@@ -30,7 +30,7 @@ class StorageSchemeSpec extends org.specs2.mutable.Specification {
     {
       val uri = new URI("foo:dummy")
 
-      s"not be resolved $uri" in {
+      s"not be resolved ${uri.toString}" in {
         service(DummyInjector, uri) must throwA[IllegalArgumentException]("foo")
       }
     }

@@ -84,7 +84,7 @@ object VFSTransport {
       val uri = new URI(builtUri.getSchemeSpecificPart)
 
       if (uri.getPath == TemporaryScheme) {
-        temporary(s"benji-${System.currentTimeMillis()}")
+        temporary(s"benji-${System.currentTimeMillis().toString}")
       } else {
         val mngr = new StandardFileSystemManager
         mngr.init()
@@ -117,7 +117,7 @@ object VFSTransport {
     val tmpDir = Files.createTempDirectory(base)
     val rootDir = tmpDir.toFile
 
-    logger.info(s"Temporary folder is: $tmpDir")
+    logger.info(s"Temporary folder is: ${tmpDir.toUri.toString}")
 
     val mngr = new StandardFileSystemManager()
 

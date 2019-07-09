@@ -27,7 +27,7 @@ private[google] object ErrorHandler {
       case (404, _) => BucketNotFoundException(bucketName)
       case (409, "You already own this bucket. Please select another name.") => BucketAlreadyExistsException(bucketName)
       case (409, "The bucket you tried to delete was not empty.") => BucketNotEmptyException(bucketName)
-      case (_, _) => BenjiUnknownError(s"$defaultMessage - Response: $statusCode - $message")
+      case (_, _) => BenjiUnknownError(s"$defaultMessage - Response: ${statusCode.toString} - $message")
     }
 
   def ofBucketFromValues(defaultMessage: => String, bucket: GoogleBucketRef)(statusCode: Int, message: String): Throwable =
@@ -35,13 +35,16 @@ private[google] object ErrorHandler {
 
   def ofBucketFromResponse[T](defaultMessage: => String, bucketName: String)(response: StandaloneWSResponse): Future[T] = {
     val json = Json.parse(response.body)
+
     json \ "error" \ "message" match {
       case JsDefined(JsString(msg)) =>
         Future.failed[T](ofBucketFromValues(defaultMessage, bucketName)(response.status, msg))
+
       case e: JsUndefined =>
-        Future.failed[T](new java.io.IOException(s"$defaultMessage: Could not parse error json ${e.error} in $json"))
+        Future.failed[T](new java.io.IOException(s"$defaultMessage: Could not parse error json ${e.error} in ${Json stringify json}"))
+
       case JsDefined(j) =>
-        Future.failed[T](new java.io.IOException(s"$defaultMessage: Could not parse error json unexpected message value $j in $json"))
+        Future.failed[T](new java.io.IOException(s"$defaultMessage: Could not parse error json unexpected message value ${Json stringify j} in ${Json stringify json}"))
     }
   }
 
@@ -65,10 +68,14 @@ private[google] object ErrorHandler {
     ofBucketToFuture[T](defaultMessage, bucket.name)
 
   def ofObject(defaultMessage: => String, bucketName: String, objName: String): Throwable => Throwable = {
-    case g: GoogleJsonResponseException => (g.getStatusCode, g.getStatusMessage) match {
-      case (404, _) => ObjectNotFoundException(bucketName, objName)
-      case (code, message) => BenjiUnknownError(s"$defaultMessage - Response: $code - $message")
+    case g: GoogleJsonResponseException => g.getStatusCode match {
+      case 404 =>
+        ObjectNotFoundException(bucketName, objName)
+
+      case code =>
+        BenjiUnknownError(s"$defaultMessage - Response: ${code.toString} - ${g.getStatusMessage}")
     }
+
     case b: BenjiException => b
     case error => BenjiUnknownError(s"$defaultMessage - ${error.getMessage}", Some(error))
   }
@@ -86,8 +93,9 @@ private[google] object ErrorHandler {
   def ofVersion(defaultMessage: => String, bucketName: String, objName: String, versionId: String): Throwable => Throwable = {
     case g: GoogleJsonResponseException => (g.getStatusCode, g.getStatusMessage) match {
       case (404, _) => VersionNotFoundException(bucketName, objName, versionId)
-      case (code, message) => BenjiUnknownError(s"$defaultMessage - Response: $code - $message")
+      case (code, message) => BenjiUnknownError(s"$defaultMessage - Response: ${code.toString} - $message")
     }
+
     case b: BenjiException => b
     case error => BenjiUnknownError(s"$defaultMessage - ${error.getMessage}", Some(error))
   }

@@ -6,7 +6,6 @@ import scala.concurrent.Future
 import akka.util.ByteString
 import akka.stream.scaladsl.Source
 import akka.stream.Materializer
-import akka.stream.contrib.TestKit.assertAllStagesStopped
 
 import org.specs2.concurrent.ExecutionEnv
 
@@ -26,15 +25,21 @@ import com.zengularity.benji.tests.TestUtils.{
   versionNotFound
 }
 
-trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specification =>
+trait ErrorCommonSpec extends BenjiMatchers {
+  self: org.specs2.mutable.Specification =>
+
+  // import akka.stream.contrib.TestKit.assertAllStagesStopped
+  protected def assertAllStagesStopped[T](f: => T): T
+
+  protected def random: scala.util.Random
 
   def errorCommonTests(storage: ObjectStorage)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv) = {
 
-    val nonExistingBucket = storage.bucket(s"benji-test-non-existing-bucket-${System identityHashCode storage}")
-    val existingBucket = storage.bucket(s"benji-test-existing-bucket-${System identityHashCode storage}")
+    val nonExistingBucket = storage.bucket(s"benji-test-non-existing-bucket-${random.nextInt().toString}")
+    val existingBucket = storage.bucket(s"benji-test-existing-bucket-${random.nextInt().toString}")
 
     val existingObj = existingBucket.obj("existing")
     val nonExistingObj = existingBucket.obj("non-existing")
@@ -55,9 +60,11 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
 
       "Setup" in assertAllStagesStopped {
         {
-          nonExistingBucket must notExistsIn(storage, 1, 10.seconds)
+          nonExistingBucket must notExistsIn(storage, 0, 5.seconds)
         } and {
-          existingBucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
+          existingBucket.create(failsIfExists = true) must beTypedEqualTo({}).
+            await(1, 5.seconds)
+
         } and {
           existingBucket must existsIn(storage, 1, 10.seconds)
         } and {
@@ -142,17 +149,27 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
   }
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  def versioningErrorCommonTests(storage: ObjectStorage, sampleVersionId: String)(
+  def versioningErrorCommonTests(
+    storage: ObjectStorage,
+    defaultBucketName: String, // must exists before
+    defaultObjName: String, // must exists inside the `defaultBucketName`
+    sampleVersionId: String)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv) = {
-    val nonExistingBucket = storage.bucket(s"benji-test-non-existing-bucket-${System identityHashCode storage}")
-    val existingBucket = storage.bucket(s"benji-test-existing-bucket-${System identityHashCode storage}")
 
-    def vNonExistingBucket = nonExistingBucket.versioning.getOrElse(throw new IllegalArgumentException("versioning not supported"))
-    def vExistingBucket = existingBucket.versioning.getOrElse(throw new IllegalArgumentException("versioning not supported"))
+    val nonExistingBucket = storage.bucket(
+      s"benji-test-non-existing-bucket-${random.nextInt().toString}")
 
-    val existingObj = existingBucket.obj("existing")
+    val existingBucket = storage.bucket(defaultBucketName)
+
+    def vNonExistingBucket = nonExistingBucket.versioning.getOrElse(
+      throw new IllegalArgumentException("versioning not supported"))
+
+    def vExistingBucket = existingBucket.versioning.getOrElse(
+      throw new IllegalArgumentException("versioning not supported"))
+
+    val existingObj = existingBucket.obj(defaultObjName)
     val nonExistingObj = existingBucket.obj("non-existing")
     val objOfNonExistingBucket = nonExistingBucket.obj("testobj")
 
@@ -175,7 +192,7 @@ trait ErrorCommonSpec extends BenjiMatchers { self: org.specs2.mutable.Specifica
         {
           nonExistingBucket must notExistsIn(storage, 1, 10.seconds)
         } and {
-          existingBucket must existsIn(storage, 1, 10.seconds)
+          existingBucket must existsIn(storage, 0, 5.seconds)
         } and {
           existingObj must existsIn(existingBucket, 1, 10.seconds)
         } and {

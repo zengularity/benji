@@ -1,6 +1,7 @@
 # Benji S3 usage
 
-Usage of the Benji module for S3 Storage (e.g. [Amazon S3](https://aws.amazon.com/s3/), [CEPH](https://ceph.com/)).
+Usage of the Benji module for S3 Storage;
+e.g. [Amazon S3](https://aws.amazon.com/s3/) (compatible update to V4), [CEPH](https://ceph.com/).
 
 The first step is a add the dependency in your `build.sbt`.
 

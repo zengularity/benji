@@ -12,7 +12,7 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.benji.{ Bucket, ObjectStorage }
+import com.zengularity.benji.{ Bucket, Compat, ObjectStorage }
 
 /**
  * Implementation of the Google API for Cloud Storage.
@@ -24,7 +24,8 @@ class GoogleStorage(
   private[google] val transport: GoogleTransport,
   val requestTimeout: Option[Long],
   val disableGZip: Boolean) extends ObjectStorage { self =>
-  import scala.collection.JavaConverters._
+
+  import Compat.javaConverters._
 
   def withRequestTimeout(timeout: Long): GoogleStorage =
     new GoogleStorage(transport, Some(timeout), disableGZip)

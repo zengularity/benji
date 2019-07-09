@@ -7,7 +7,6 @@ import com.typesafe.config.{ Config, ConfigFactory }
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
-import akka.stream.contrib.TestKit
 
 import com.zengularity.benji.s3.{ S3, WSS3 }
 
@@ -69,8 +68,7 @@ object TestUtils {
 
   lazy val ceph: WSS3 = S3(cephAccessKey, cephSecretKey, cephProtocol, cephHost)
 
-  def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T =
-    TestKit.assertAllStagesStopped(f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext)))
+  def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
 
   // ---
 

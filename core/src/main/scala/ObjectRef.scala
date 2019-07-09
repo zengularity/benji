@@ -131,7 +131,7 @@ trait ObjectRef { ref =>
       moveTo(targetBucketName, targetObjectName, preventOverwrite)
 
     case _ => Future.failed[Unit](new IllegalArgumentException(
-      s"Target object you specified [$target] is unknown."))
+      s"Target object you specified [${target.bucket}/${target.name}] is unknown."))
   }
 
   /**
@@ -161,7 +161,7 @@ trait ObjectRef { ref =>
       copyTo(targetBucketName, targetObjectName)
 
     case _ => Future.failed[Unit](new IllegalArgumentException(
-      s"Target object you specified [$target] is unknown."))
+      s"Target object you specified [${target.bucket}/${target.name}] is unknown."))
   }
 
   /**

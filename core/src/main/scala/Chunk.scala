@@ -27,7 +27,7 @@ object Chunk {
 
   /** A non-last chunk with some data. */
   final class NonEmpty(val data: ByteString) extends Chunk {
-    override lazy val toString = s"NonEmpty(${data.size})"
+    override lazy val toString = s"NonEmpty(${data.size.toString})"
 
     override def equals(that: Any): Boolean = that match {
       case NonEmpty(other) => data.equals(other)
@@ -45,7 +45,7 @@ object Chunk {
 
   /** A last chunk, possibly with some data (or not). */
   final class Last(val data: ByteString) extends Chunk {
-    override lazy val toString = s"Last(${data.size})"
+    override lazy val toString = s"Last(${data.size.toString})"
 
     override def equals(that: Any): Boolean = that match {
       case Last(bytes) => data.equals(bytes)

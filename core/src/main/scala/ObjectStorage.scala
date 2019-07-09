@@ -6,7 +6,6 @@ package com.zengularity.benji
 
 import scala.language.higherKinds
 
-import scala.collection.generic.CanBuildFrom
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
@@ -41,10 +40,10 @@ trait ObjectStorage { self =>
     /**
      * Collects the bucket objects.
      */
-    def collect[M[_]]()(implicit m: Materializer, builder: CanBuildFrom[M[_], Bucket, M[Bucket]]): Future[M[Bucket]] = {
+    def collect[M[_]]()(implicit m: Materializer, @deprecatedName(Symbol("builder")) factory: Compat.Factory[M, Bucket]): Future[M[Bucket]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      apply() runWith Sink.fold(builder()) {
+      apply() runWith Sink.fold(Compat.newBuilder[M, Bucket](factory)) {
         _ += (_: Bucket)
       }.mapMaterializedValue(_.map(_.result()))
     }
