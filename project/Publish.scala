@@ -3,13 +3,17 @@ import sbt.Keys._
 
 import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
 
-import com.typesafe.tools.mima.plugin.MimaKeys.mimaPreviousArtifacts
+import com.typesafe.tools.mima.plugin.MimaKeys.{
+  mimaFailOnNoPrevious,
+  mimaPreviousArtifacts
+}
 
 object Publish {
   val siteUrl = "https://github.com/zengularity/benji"
 
   lazy val settings = Seq(
     resolvers += "Entrepot Releases" at "https://raw.github.com/zengularity/entrepot/master/releases",
+    mimaFailOnNoPrevious := false,
     mimaPreviousArtifacts := {
       if (scalaVersion.value startsWith "2.12.") {
         Set(organization.value %% moduleName.value % "2.0.0")

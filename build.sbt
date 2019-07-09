@@ -7,6 +7,8 @@ scalaVersion in ThisBuild := "2.12.8"
 crossScalaVersions in ThisBuild := Seq(
   "2.11.12", scalaVersion.value, "2.13.0")
 
+mimaFailOnNoPrevious in ThisBuild := false
+
 lazy val core = project.in(file("core")).settings(
   Common.settings ++ Seq(
     name := "benji-core",
@@ -49,23 +51,30 @@ lazy val s3 = project.in(file("s3")).settings(
       "org.scala-lang.modules" %% "scala-xml" % scalaXmlVer.value % Provided),
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
+      val pkg = "com.zengularity.benji.s3"
 
       val wasPrivate = Seq(
-        x[MissingClassProblem]("com.zengularity.benji.s3.SignatureCalculator"),
-        x[IncompatibleMethTypeProblem]("com.zengularity.benji.s3.VirtualHostWSRequestBuilder.this"),
-        x[IncompatibleMethTypeProblem]("com.zengularity.benji.s3.PathStyleWSRequestBuilder.this"),
-        x[IncompatibleMethTypeProblem]("com.zengularity.benji.s3.WSRequestBuilder.build"),
-        x[MissingTypesProblem]("com.zengularity.benji.s3.WSS3BucketRef$ObjectVersions$"),
-        x[IncompatibleResultTypeProblem]("com.zengularity.benji.s3.WSS3BucketRef#ObjectVersions.<init>$default$2"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.s3.WSS3BucketRef#ObjectVersions.apply"),
-        x[IncompatibleResultTypeProblem]("com.zengularity.benji.s3.WSS3BucketRef#ObjectVersions.apply$default$2"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.s3.WSS3BucketRef#Objects.copy"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.s3.WSS3BucketRef#Objects.this"),
-        x[IncompatibleResultTypeProblem]("com.zengularity.benji.s3.WSS3BucketRef#ObjectVersions.copy$default$2"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.s3.WSS3BucketRef#ObjectVersions.copy"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.s3.WSS3BucketRef#ObjectVersions.this"),
-        x[MissingTypesProblem]("com.zengularity.benji.s3.WSS3BucketRef$Objects$"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.s3.WSS3BucketRef#Objects.apply")
+        x[MissingClassProblem](s"${pkg}.SignatureCalculator"),
+        x[IncompatibleMethTypeProblem](s"${pkg}.VirtualHostWSRequestBuilder.this"),
+        x[IncompatibleMethTypeProblem](s"${pkg}.PathStyleWSRequestBuilder.this"),
+        x[IncompatibleMethTypeProblem](s"${pkg}.WSRequestBuilder.build"),
+        x[MissingTypesProblem](s"${pkg}.WSS3BucketRef$$ObjectVersions$$"),
+        x[IncompatibleResultTypeProblem](s"${pkg}.WSS3BucketRef#ObjectVersions.<init>$$default$$2"),
+        x[DirectMissingMethodProblem](s"${pkg}.WSS3BucketRef#ObjectVersions.apply"),
+        x[IncompatibleResultTypeProblem](s"${pkg}.WSS3BucketRef#ObjectVersions.apply$$default$$2"),
+        x[DirectMissingMethodProblem](s"${pkg}.WSS3BucketRef#Objects.copy"),
+        x[DirectMissingMethodProblem](s"${pkg}.WSS3BucketRef#Objects.this"),
+        x[IncompatibleResultTypeProblem](s"${pkg}.WSS3BucketRef#ObjectVersions.copy$$default$$2"),
+        x[DirectMissingMethodProblem](s"${pkg}.WSS3BucketRef#ObjectVersions.copy"),
+        x[DirectMissingMethodProblem](s"${pkg}.WSS3BucketRef#ObjectVersions.this"),
+        x[MissingTypesProblem](s"${pkg}.WSS3BucketRef$$Objects$$"),
+        x[DirectMissingMethodProblem](s"${pkg}.WSS3BucketRef#Objects.apply"),
+        x[IncompatibleSignatureProblem]("com.zengularity.benji.s3.WSS3BucketRef#ObjectVersions.unapply"),
+        x[IncompatibleSignatureProblem]("com.zengularity.benji.s3.WSS3BucketRef#ObjectVersions.apply$default$1"),
+        x[IncompatibleSignatureProblem]("com.zengularity.benji.s3.WSS3BucketRef#ObjectVersions.<init>$default$1"),
+        x[IncompatibleSignatureProblem]("com.zengularity.benji.s3.WSS3BucketRef#Objects.copy$default$1"),
+        x[IncompatibleSignatureProblem]("com.zengularity.benji.s3.WSS3BucketRef#ObjectVersions.copy$default$1"),
+        x[IncompatibleSignatureProblem]("com.zengularity.benji.s3.WSS3BucketRef#Objects.unapply")
       )
 
       wasPrivate
@@ -77,16 +86,21 @@ lazy val google = project.in(file("google")).settings(
     name := "benji-google",
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
+      val pkg = "com.zengularity.benji.google"
 
       val wasPrivate = Seq(
-        x[MissingTypesProblem]("com.zengularity.benji.google.GoogleBucketRef$Objects$"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.google.GoogleBucketRef#Objects.apply"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.google.GoogleBucketRef#Objects.copy"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.google.GoogleBucketRef#Objects.this"),
-        x[MissingTypesProblem]("com.zengularity.benji.google.GoogleBucketRef$ObjectsVersions$"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.google.GoogleBucketRef#ObjectsVersions.apply"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.google.GoogleBucketRef#ObjectsVersions.copy"),
-        x[DirectMissingMethodProblem]("com.zengularity.benji.google.GoogleBucketRef#ObjectsVersions.this")
+        x[MissingTypesProblem](s"${pkg}.GoogleBucketRef$$Objects$$"),
+        x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#Objects.apply"),
+        x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#Objects.copy"),
+        x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#Objects.this"),
+        x[MissingTypesProblem](s"${pkg}.GoogleBucketRef$$ObjectsVersions$$"),
+        x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#ObjectsVersions.apply"),
+        x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#ObjectsVersions.copy"),
+        x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#ObjectsVersions.this"),
+        x[IncompatibleSignatureProblem]("com.zengularity.benji.google.GoogleBucketRef#Objects.unapply"),
+        x[IncompatibleSignatureProblem]("com.zengularity.benji.google.GoogleBucketRef#Objects.copy$default$1"),
+        x[IncompatibleSignatureProblem]("com.zengularity.benji.google.GoogleBucketRef#ObjectsVersions.unapply"),
+        x[IncompatibleSignatureProblem]("com.zengularity.benji.google.GoogleBucketRef#ObjectsVersions.copy$default$1")
       )
 
       wasPrivate
