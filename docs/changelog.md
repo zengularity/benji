@@ -1,5 +1,10 @@
 # Changelog
 
+## Release 2.0.4
+
+- Support Scala 2.13 (#50)
+- Various dependency updates (#49)
+
 ## Release 2.0.3
 
 - Support Play 2.7 (#26): Version for Benji Play module is now suffixes with Play major (e.g. `2.0.3-play26`)

@@ -308,7 +308,7 @@
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">apply</span><span class="params">()</span><span class="params">(<span class="implicit">implicit </span><span name="m">m: <span class="extype" name="akka.stream.Materializer">Materializer</span></span>)</span><span class="result">: <span class="extype" name="akka.stream.scaladsl.Source">Source</span>[<a href="../Bucket.html" class="extype" name="com.zengularity.benji.Bucket">Bucket</a>, <span class="extype" name="akka.NotUsed">NotUsed</span>]</span>
+        <span class="name">apply</span><span class="params">()</span><span class="params">(<span class="implicit">implicit </span><span name="m">m: <a href="https://doc.akka.io/api/akka/2.5.23/akka/stream/Materializer.html#akka.stream.Materializer" class="extype" name="akka.stream.Materializer">Materializer</a></span>)</span><span class="result">: <a href="https://doc.akka.io/api/akka/2.5.23/akka/stream/scaladsl/Source.html#akka.stream.scaladsl.Source" class="extype" name="akka.stream.scaladsl.Source">Source</a>[<a href="../Bucket.html" class="extype" name="com.zengularity.benji.Bucket">Bucket</a>, <a href="https://doc.akka.io/api/akka/2.5.23/akka/NotUsed.html#akka.NotUsed" class="extype" name="akka.NotUsed">NotUsed</a>]</span>
       </span>
       
       <p class="shortcomment cmt">Lists of all objects within the bucket.</p><div class="fullcomment"><div class="comment cmt"><p>Lists of all objects within the bucket.
@@ -354,9 +354,9 @@
               
         </dd></dl></div>
     </li><li name="com.zengularity.benji.ObjectStorage.BucketsRequest#collect" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="collect[M[_]]()(implicitm:akka.stream.Materializer,implicitbuilder:scala.collection.generic.CanBuildFrom[M[_],com.zengularity.benji.Bucket,M[com.zengularity.benji.Bucket]]):scala.concurrent.Future[M[com.zengularity.benji.Bucket]]"></a><a id="collect[M[_]]()(Materializer,CanBuildFrom[M[_],Bucket,M[Bucket]]):Future[M[Bucket]]"></a>
+      <a id="collect[M[_]]()(implicitm:akka.stream.Materializer,implicitfactory:com.zengularity.benji.Compat.Factory[M,com.zengularity.benji.Bucket]):scala.concurrent.Future[M[com.zengularity.benji.Bucket]]"></a><a id="collect[M[_]]()(Materializer,Factory[M,Bucket]):Future[M[Bucket]]"></a>
       <span class="permalink">
-      <a href="../../../../com/zengularity/benji/vfs/VFSStorage$buckets$.html#collect[M[_]]()(implicitm:akka.stream.Materializer,implicitbuilder:scala.collection.generic.CanBuildFrom[M[_],com.zengularity.benji.Bucket,M[com.zengularity.benji.Bucket]]):scala.concurrent.Future[M[com.zengularity.benji.Bucket]]" title="Permalink">
+      <a href="../../../../com/zengularity/benji/vfs/VFSStorage$buckets$.html#collect[M[_]]()(implicitm:akka.stream.Materializer,implicitfactory:com.zengularity.benji.Compat.Factory[M,com.zengularity.benji.Bucket]):scala.concurrent.Future[M[com.zengularity.benji.Bucket]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -365,7 +365,7 @@
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">collect</span><span class="tparams">[<span name="M">M<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">()</span><span class="params">(<span class="implicit">implicit </span><span name="m">m: <span class="extype" name="akka.stream.Materializer">Materializer</span></span>, <span name="builder">builder: <a href="http://www.scala-lang.org/api/2.12.8/scala/collection/generic/CanBuildFrom.html#scala.collection.generic.CanBuildFrom" class="extype" name="scala.collection.generic.CanBuildFrom">CanBuildFrom</a>[<span class="extype" name="com.zengularity.benji.ObjectStorage.BucketsRequest.collect.M">M</span>[_], <a href="../Bucket.html" class="extype" name="com.zengularity.benji.Bucket">Bucket</a>, <span class="extype" name="com.zengularity.benji.ObjectStorage.BucketsRequest.collect.M">M</span>[<a href="../Bucket.html" class="extype" name="com.zengularity.benji.Bucket">Bucket</a>]]</span>)</span><span class="result">: <a href="http://www.scala-lang.org/api/2.12.8/scala/concurrent/Future.html#scala.concurrent.Future" class="extype" name="scala.concurrent.Future">Future</a>[<span class="extype" name="com.zengularity.benji.ObjectStorage.BucketsRequest.collect.M">M</span>[<a href="../Bucket.html" class="extype" name="com.zengularity.benji.Bucket">Bucket</a>]]</span>
+        <span class="name">collect</span><span class="tparams">[<span name="M">M<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">()</span><span class="params">(<span class="implicit">implicit </span><span name="m">m: <a href="https://doc.akka.io/api/akka/2.5.23/akka/stream/Materializer.html#akka.stream.Materializer" class="extype" name="akka.stream.Materializer">Materializer</a></span>, <span name="factory">factory: <span class="extype" name="com.zengularity.benji.Compat.Factory">Factory</span>[<span class="extype" name="com.zengularity.benji.ObjectStorage.BucketsRequest.collect.M">M</span>, <a href="../Bucket.html" class="extype" name="com.zengularity.benji.Bucket">Bucket</a>]</span>)</span><span class="result">: <a href="http://www.scala-lang.org/api/2.12.8/scala/concurrent/Future.html#scala.concurrent.Future" class="extype" name="scala.concurrent.Future">Future</a>[<span class="extype" name="com.zengularity.benji.ObjectStorage.BucketsRequest.collect.M">M</span>[<a href="../Bucket.html" class="extype" name="com.zengularity.benji.Bucket">Bucket</a>]]</span>
       </span>
       
       <p class="shortcomment cmt">Collects the bucket objects.</p><div class="fullcomment"><div class="comment cmt"><p>Collects the bucket objects.
