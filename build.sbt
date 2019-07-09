@@ -10,7 +10,7 @@ crossScalaVersions in ThisBuild := Seq(
 lazy val core = project.in(file("core")).settings(
   Common.settings ++ Seq(
     name := "benji-core",
-    scalacOptions += { // Silencer
+    scalacOptions in (Compile, compile) += { // Silencer
       "-P:silencer:globalFilters=constructor\\ deprecatedName\\ in\\ class\\ deprecatedName\\ is\\ deprecated"
     },
     mimaBinaryIssueFilters ++= {

@@ -6,7 +6,7 @@ This library is a Scala framework for Object Storage (e.g. S3/Amazon, S3/CEPH, G
 
 The project is using [SBT](http://www.scala-sbt.org/), so to build it from sources the following command can be used.
 
-    sbt publishLocal
+    ./project/build.sh
 
 [![CircleCI](https://circleci.com/gh/zengularity/benji.svg?style=svg)](https://circleci.com/gh/zengularity/benji) 
 [![Zen Entrepot](http://zen-entrepot.nestincloud.io/entrepot/shields/releases/com/zengularity/benji-core_2.12.svg)](https://zen-entrepot.nestincloud.io/entrepot/pom/releases/com/zengularity/benji-core_2.12)
