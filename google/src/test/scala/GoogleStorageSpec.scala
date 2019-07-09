@@ -30,17 +30,25 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
   implicit def materializer: Materializer = TestUtils.materializer
 
   "Client" should {
-    val bucketName = s"benji-test-${random.nextInt().toString}"
-    val objName = "testfile.txt"
-
-    commonTests("google", google, bucketName)
+    commonTests("google", google, s"benji-test-${random.nextInt().toString}")
     commonVersioningTests(google, sampleVersionId = "7")
 
+    // --- Google specific specs/tests
+
+    val bucketName = s"benji-test-${random.nextInt().toString}"
+    lazy val gbucket = google.bucket(bucketName)
+
+    s"Create another bucket $bucketName" in {
+      gbucket.create(failsIfExists = true) must beTypedEqualTo({}).
+        await(0, 5.seconds)
+    }
+
+    val objName = "testfile.txt"
     val fileStart = "hello world !!!"
 
     val partCount = 3
     s"Write file in $bucketName bucket using ${partCount.toString} parts" in {
-      val filetest = google.bucket(bucketName).obj(objName)
+      val filetest = gbucket.obj(objName)
 
       @SuppressWarnings(Array("org.wartremover.warts.Var"))
       var b = 0.toByte
@@ -68,7 +76,7 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
     }
 
     s"Metadata of a file $objName" in assertAllStagesStopped {
-      val objRef = google.bucket(bucketName).obj(objName)
+      val objRef = gbucket.obj(objName)
 
       objRef.headers() must beLike[Map[String, Seq[String]]] {
         case headers => headers.get("metadata.foo") must beSome(Seq("bar"))
@@ -98,12 +106,16 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
       }
     }
 
-    "Use correct toString format on bucket" in {
-      google.bucket("bucketName").toString must_== "GoogleBucketRef(bucketName)"
-    }
+    "Use correct toString format" >> {
+      "on bucket" in {
+        google.bucket("bucketName").
+          toString must_== "GoogleBucketRef(bucketName)"
+      }
 
-    "Use correct toString format on object" in {
-      google.bucket("bucketName").obj("objectName").toString must_== "GoogleObjectRef(bucketName, objectName)"
+      "on object" in {
+        google.bucket("bucketName").obj("objectName").
+          toString must_== "GoogleObjectRef(bucketName, objectName)"
+      }
     }
   }
 }

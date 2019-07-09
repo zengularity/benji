@@ -38,9 +38,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     s"Access $bucketName bucket" in assertAllStagesStopped {
       val bucket = storage.bucket(bucketName)
 
-      {
-        bucket must notExistsIn(storage, 1, 5.seconds)
-      } and {
+      bucket must notExistsIn(storage, 1, 5.seconds) and {
         bucket must supportCreation
       } and {
         bucket must existsIn(storage, 2, 7.seconds)
@@ -400,12 +398,10 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Return false when checking object existence of a non-existing bucket" in {
-      val bucket = storage.bucket("unknownbucket")
+      val bucket = storage.bucket(s"unknownbucket-${random.nextInt().toString}")
       val newObj = bucket.obj("new_object.txt")
 
-      {
-        bucket must notExistsIn(storage, 1, 10.seconds)
-      } and {
+      bucket must notExistsIn(storage, 1, 10.seconds) and {
         newObj.exists must beFalse.await(1, 10.seconds)
       }
     }

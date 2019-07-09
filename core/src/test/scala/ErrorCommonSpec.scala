@@ -60,9 +60,11 @@ trait ErrorCommonSpec extends BenjiMatchers {
 
       "Setup" in assertAllStagesStopped {
         {
-          nonExistingBucket must notExistsIn(storage, 1, 10.seconds)
+          nonExistingBucket must notExistsIn(storage, 0, 5.seconds)
         } and {
-          existingBucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
+          existingBucket.create(failsIfExists = true) must beTypedEqualTo({}).
+            await(1, 5.seconds)
+
         } and {
           existingBucket must existsIn(storage, 1, 10.seconds)
         } and {
@@ -147,18 +149,27 @@ trait ErrorCommonSpec extends BenjiMatchers {
   }
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  def versioningErrorCommonTests(storage: ObjectStorage, sampleVersionId: String)(
+  def versioningErrorCommonTests(
+    storage: ObjectStorage,
+    defaultBucketName: String, // must exists before
+    defaultObjName: String, // must exists inside the `defaultBucketName`
+    sampleVersionId: String)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv) = {
 
-    val nonExistingBucket = storage.bucket(s"benji-test-non-existing-bucket-${random.nextInt().toString}")
-    val existingBucket = storage.bucket(s"benji-test-existing-bucket-${random.nextInt().toString}")
+    val nonExistingBucket = storage.bucket(
+      s"benji-test-non-existing-bucket-${random.nextInt().toString}")
 
-    def vNonExistingBucket = nonExistingBucket.versioning.getOrElse(throw new IllegalArgumentException("versioning not supported"))
-    def vExistingBucket = existingBucket.versioning.getOrElse(throw new IllegalArgumentException("versioning not supported"))
+    val existingBucket = storage.bucket(defaultBucketName)
 
-    val existingObj = existingBucket.obj("existing")
+    def vNonExistingBucket = nonExistingBucket.versioning.getOrElse(
+      throw new IllegalArgumentException("versioning not supported"))
+
+    def vExistingBucket = existingBucket.versioning.getOrElse(
+      throw new IllegalArgumentException("versioning not supported"))
+
+    val existingObj = existingBucket.obj(defaultObjName)
     val nonExistingObj = existingBucket.obj("non-existing")
     val objOfNonExistingBucket = nonExistingBucket.obj("testobj")
 
@@ -181,7 +192,7 @@ trait ErrorCommonSpec extends BenjiMatchers {
         {
           nonExistingBucket must notExistsIn(storage, 1, 10.seconds)
         } and {
-          existingBucket must existsIn(storage, 1, 10.seconds)
+          existingBucket must existsIn(storage, 0, 5.seconds)
         } and {
           existingObj must existsIn(existingBucket, 1, 10.seconds)
         } and {

@@ -105,7 +105,9 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
           } and {
             vbucket.versionedObjects.collect[List]() must beEmpty[List[VersionedObject]].await(1, 10.seconds)
           } and {
-            createObject(bucket, objectName, "hello") must beTrue.await(1, 10.seconds)
+            createObject(bucket, objectName, "hello") must beTrue.
+              await(0, 5.seconds)
+
           } and {
             vbucket.versionedObjects.
               collect[List]() must beLike[List[VersionedObject]] {
@@ -248,21 +250,25 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
                 } and {
                   ver.versionId must not(beEmpty)
                 } and {
-                  createObject(bucket, objectName, "hello world", Map("foov2" -> "barv2")) must beTrue.
-                    await(1, 10.seconds)
+                  createObject(bucket, objectName, "hello world",
+                    Map("foov2" -> "barv2")) must beTrue.await(1, 10.seconds)
 
                 } and {
                   bucket.obj(objectName).get().
                     runWith(consume) must beTypedEqualTo("hello world").
                     await(1, 10.seconds)
                 } and {
-                  bucket.obj(objectName).metadata() must beTypedEqualTo(Map("foov2" -> Seq("barv2"))).await(1, 10.seconds)
+                  bucket.obj(objectName).metadata() must beTypedEqualTo(
+                    Map("foov2" -> Seq("barv2"))).await(1, 10.seconds)
+
                 } and {
                   vbucket.obj(objectName, ver.versionId).
                     get().runWith(consume) must beTypedEqualTo("hello").
                     await(1, 10.seconds)
                 } and {
-                  vbucket.obj(objectName, ver.versionId).metadata() must beTypedEqualTo(Map("foov1" -> Seq("barv1"))).await(1, 10.seconds)
+                  vbucket.obj(objectName, ver.versionId).
+                    metadata() must beTypedEqualTo(
+                      Map("foov1" -> Seq("barv1"))).await(1, 10.seconds)
                 }
               }.await(1, 10.seconds)
           }
@@ -408,7 +414,9 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
           } and {
             obj must existsIn(bucket, 1, 10.seconds)
           } and {
-            obj.delete().map(_ => true).aka("delete") must beTypedEqualTo(true).await(1, 10.seconds)
+            obj.delete().map(_ => true).
+              aka("delete") must beTypedEqualTo(true).await(1, 10.seconds)
+
           } and {
             vobj.versions.collect[List]().map { l =>
               {
@@ -416,7 +424,9 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
               } and {
                 forall(l) { _.name must beTypedEqualTo(testObjName) }
               } and {
-                l must contain(beLike[VersionedObject] { case o: VersionedObject if o.isLatest => ok }).exactly(0)
+                l must contain(beLike[VersionedObject] {
+                  case o: VersionedObject if o.isLatest => ok
+                }).exactly(0)
               }
             }.await(1, 10.seconds)
           } and {
@@ -426,6 +436,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
       }
     }
 
-    versioningErrorCommonTests(storage, sampleVersionId)
+    // Expect bucketName & objName to still exist (so not delete them before)
+    versioningErrorCommonTests(storage, bucketName, objectName, sampleVersionId)
   }
 }
