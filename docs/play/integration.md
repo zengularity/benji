@@ -9,12 +9,12 @@ The latest version of this plugin is for Play 2.6+, and can be enabled by adding
 ```ocaml
 // only for Play 2.6.x
 libraryDependencies ++= Seq(
-  "com.zengularity.benji" %% "benji-play" % "{{site.latest_release}}-play26"
+  "com.zengularity" %% "benji-play" % "{{site.latest_release}}-play26"
 )
 
 // only for Play 2.7.x
 libraryDependencies ++= Seq(
-  "com.zengularity.benji" %% "benji-play" % "{{site.latest_release}}-play27"
+  "com.zengularity" %% "benji-play" % "{{site.latest_release}}-play27"
 )
 ```
 
@@ -24,7 +24,7 @@ Then it's also required to enable the wanted backend, e.g. for S3:
 val benjiVer = {{site.latest_release}}
 
 libraryDependencies ++= Seq("play", "s3").map { mod =>
-  "com.zengularity.benji" %% s"benji-${mod}" % benjiVer,
+  "com.zengularity" %% s"benji-${mod}" % benjiVer,
 }
 ```
 
