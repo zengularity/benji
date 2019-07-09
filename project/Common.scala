@@ -126,7 +126,7 @@ object Dependencies {
     val playWS = sys.env.getOrElse("WS_VERSION", "2.0.6") // upper 2.0.6
 
     val play: Def.Initialize[String] = {
-      val playLower = "2.6.13"
+      val playLower = "2.7.3"
       //val playUpper = "2.7.4"
 
       Def.setting[String] {
