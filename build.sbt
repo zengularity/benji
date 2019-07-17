@@ -126,7 +126,7 @@ lazy val vfs = project.in(file("vfs")).settings(
         x[MissingClassProblem]("com.zengularity.benji.vfs.VFSBucketRef$objects$"))
     },
     libraryDependencies ++= Seq(
-      "org.apache.commons" % "commons-vfs2" % "2.3",
+      "org.apache.commons" % "commons-vfs2" % "2.4",
       "com.typesafe.play" %% "play-json" % playJsonVer.value,
       Dependencies.slf4jApi,
       "commons-io" % "commons-io" % "2.6" % Test)
