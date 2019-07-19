@@ -123,7 +123,7 @@ object Dependencies {
       else "2.5.4" // upper 2.5.19 !! breaking akka-stream-contrib
     }
 
-    val playWS = sys.env.getOrElse("WS_VERSION", "2.0.6") // upper 2.0.6
+    val playWS = sys.env.getOrElse("WS_VERSION", "2.0.7") // upper 2.0.6
 
     val play: Def.Initialize[String] = {
       val playLower = "2.6.13"
