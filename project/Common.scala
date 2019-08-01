@@ -37,7 +37,7 @@ object Common {
       }
     },
     libraryDependencies ++= {
-      val silencerVer = "1.4.1"
+      val silencerVer = "1.4.2"
 
       Seq(
         compilerPlugin("com.github.ghik" %% "silencer-plugin" % silencerVer),
