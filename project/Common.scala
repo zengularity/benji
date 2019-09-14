@@ -19,7 +19,7 @@ object Common {
       "-Xlint",
       "-g:vars"),
     scalacOptions ++= {
-      if (scalaVersion.value startsWith "2.12") {
+      if (scalaBinaryVersion.value == "2.12") {
         Seq(
           "-Ywarn-numeric-widen",
           "-Ywarn-infer-any",
@@ -69,7 +69,7 @@ object Common {
     apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")("scala-library").value,
     libraryDependencies ++= wsStream.value ++ Seq(
       "specs2-core", "specs2-junit").map(
-        "org.specs2" %% _ % "4.6.0" % Test) ++ Seq(
+        "org.specs2" %% _ % "4.7.0" % Test) ++ Seq(
           "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
           "com.typesafe.akka" %% "akka-stream-contrib" % "0.10",
           "ch.qos.logback" % "logback-classic" % "1.2.3").
@@ -125,19 +125,22 @@ object Dependencies {
 
     val playWS = sys.env.getOrElse("WS_VERSION", "2.0.7") // upper 2.0.6
 
-    val play: Def.Initialize[String] = {
-      val playLower = "2.6.13"
-      //val playUpper = "2.7.4"
-
-      Def.setting[String] {
-        sys.env.getOrElse("PLAY_VERSION", playLower)
+    val play: Def.Initialize[String] = Def.setting[String] {
+      val lower = {
+        if (scalaBinaryVersion.value == "2.13") "2.7.3"
+        else "2.6.13"
       }
+
+      sys.env.getOrElse("PLAY_VERSION", lower)
     }
 
-    val playJson: Def.Initialize[String] = {
-      Def.setting[String] {
-        sys.env.getOrElse("PLAY_JSON_VERSION", play.value)
+    val playJson: Def.Initialize[String] = Def.setting[String] {
+      val lower = {
+        if (scalaBinaryVersion.value == "2.13") "2.7.4"
+        else "2.6.13"
       }
+
+      sys.env.getOrElse("PLAY_JSON_VERSION", lower)
     }
   }
 
