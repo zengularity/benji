@@ -24,7 +24,9 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
   // e.g. S3 doesn't guarantee that right after write operation,
   // the result is available (to read operation) on all the cluster
-  protected def readWriteConsistencyRetry: Int = 10
+  protected def rwConsistencyRetry: Int = 5
+
+  protected def rwConsistencyDuration: FiniteDuration = 3.seconds
 
   // import akka.stream.contrib.TestKit.assertAllStagesStopped
   protected def assertAllStagesStopped[T](f: => T): T = f
@@ -45,14 +47,14 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       bucket must notExistsIn(storage, 1, 3.seconds) and {
         bucket must supportCreation(2, 3.seconds)
       } and {
-        bucket must existsIn(storage, readWriteConsistencyRetry, 3.seconds)
+        bucket must existsIn(storage, rwConsistencyRetry, rwConsistencyDuration)
       }
-    } tag "wip"
+    }
 
     s"List objects of the empty $bucketName bucket" in assertAllStagesStopped {
       storage.bucket(bucketName).objects.collect[List]().
         map(_.size) must beTypedEqualTo(0).await(2, 5.seconds)
-    } tag "wip"
+    }
 
     s"Write file in $bucketName bucket" in assertAllStagesStopped {
       val bucket = storage.bucket(bucketName)
@@ -110,11 +112,12 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       } and {
         bucket must supportCreation(1, 3.seconds)
       } and {
-        bucket must existsIn(storage, 10, 3.seconds)
+        bucket must existsIn(storage, rwConsistencyRetry, rwConsistencyDuration)
       } and {
         bucket.delete() must beTypedEqualTo({}).await(1, 3.seconds)
       } and {
-        bucket must notExistsIn(storage, readWriteConsistencyRetry, 3.seconds)
+        bucket must notExistsIn(
+          storage, rwConsistencyRetry, rwConsistencyDuration)
       }
     }
 
@@ -129,7 +132,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
           await(2, 3.seconds)
 
       } and {
-        bucket must existsIn(storage, 2, 3.seconds)
+        bucket must existsIn(storage, rwConsistencyRetry, rwConsistencyDuration)
       } and {
         // uploading file to bucket
         val put = filetest.put[Array[Byte], Long]
@@ -161,7 +164,8 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
         bucket.delete.recursive() must beTypedEqualTo({}).await(2, 3.seconds)
       } and {
         // check that the bucket is effectively deleted
-        bucket must notExistsIn(storage, readWriteConsistencyRetry, 3.seconds).
+        bucket must notExistsIn(
+          storage, rwConsistencyRetry, rwConsistencyDuration).
           setMessage("after delete")
       }
     }
@@ -216,18 +220,23 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
           repeat(20)(body).runWith(put) must beDone.await(2, 5.seconds).
             setMessage("put file1")
         } and {
-          file1 must existsIn(defaultBucketRef, 2, 3.seconds)
+          file1 must existsIn(
+            defaultBucketRef, rwConsistencyRetry, rwConsistencyDuration).
+            setMessage("exists #2")
         } and {
           file1.copyTo(file2) must beDone.await(2, 5.seconds).
             setMessage("file1 copied to file2")
         } and {
-          file2 must existsIn(defaultBucketRef, 2, 3.seconds)
+          file2 must existsIn(
+            defaultBucketRef, rwConsistencyRetry, rwConsistencyDuration).
+            setMessage("exists after copy")
         } and {
           (for {
             _ <- Future.sequence(Seq(file1.delete(), file2.delete()))
             a <- file1.exists
             b <- file2.exists
-          } yield a -> b) must beTypedEqualTo(false -> false).await(2, 5.seconds)
+          } yield a -> b) must beTypedEqualTo(
+            false -> false).await(2, 5.seconds)
         }
     }
 
@@ -251,11 +260,11 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
             } yield ()) must beDone.await(2, 5.seconds)
           } and {
             src must notExistsIn(
-              defaultBucketRef, readWriteConsistencyRetry, 3.seconds).
+              defaultBucketRef, rwConsistencyRetry, rwConsistencyDuration).
               setMessage("src after delete")
           } and {
             target must notExistsIn(
-              defaultBucketRef, readWriteConsistencyRetry, 3.seconds).
+              defaultBucketRef, rwConsistencyRetry, rwConsistencyDuration).
               setMessage("target after delete")
           }
       }
@@ -274,9 +283,11 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
         res.recover {
           case _: IllegalStateException => ()
         } must beDone.await(2, 3.seconds) and {
-          src must existsIn(defaultBucketRef, 2, 3.seconds)
+          src must existsIn(
+            defaultBucketRef, rwConsistencyRetry, rwConsistencyDuration)
         } and {
-          target must existsIn(defaultBucketRef, 2, 3.seconds)
+          target must existsIn(
+            defaultBucketRef, rwConsistencyRetry, rwConsistencyDuration)
         }
       }
 
@@ -320,7 +331,8 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
         bucket.delete.ignoreIfNotExists() must beTypedEqualTo({}).
           await(2, 5.seconds)
       } and {
-        bucket must notExistsIn(storage, 5, 3.seconds)
+        bucket must notExistsIn(
+          storage, rwConsistencyRetry, rwConsistencyDuration)
       } and {
         bucket.delete().failed.map(_ => {}) must beTypedEqualTo({}).
           await(2, 5.seconds)

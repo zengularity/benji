@@ -36,7 +36,8 @@ val scalaXmlVer = Def.setting[String] {
 import Dependencies.Version.{ play => playVer, playJson => playJsonVer }
 
 lazy val playTest = Def.setting {
-  "com.typesafe.play" %% "play-test" % playVer.value % Test
+  ("com.typesafe.play" %% "play-test" % playVer.value % Test).
+    exclude("com.typesafe.akka", "*")
 }
 
 lazy val s3 = project.in(file("s3")).settings(
@@ -110,10 +111,12 @@ lazy val vfs = project.in(file("vfs")).settings(
   name := "benji-vfs",
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
+    val pkg = "com.zengularity.benji.vfs"
 
     val wasPrivate = Seq(
-      x[IncompatibleResultTypeProblem]("com.zengularity.benji.vfs.VFSBucketRef.objects"),
-      x[DirectMissingMethodProblem]("com.zengularity.benji.vfs.BenjiFileSelector.this")
+      x[IncompatibleResultTypeProblem](s"$pkg.VFSBucketRef.objects"),
+      x[DirectMissingMethodProblem](s"$pkg.BenjiFileSelector.this"),
+      x[DirectMissingMethodProblem](s"$pkg.VFSBucketRef.objects")
     )
 
     wasPrivate ++ Seq(

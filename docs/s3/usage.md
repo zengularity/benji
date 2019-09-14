@@ -24,6 +24,8 @@ Then, the S3 client can be used as following in your code.
 ```scala
 import java.nio.file.Paths
 
+import scala.util.{ Failure, Success }
+
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.util.ByteString
@@ -60,12 +62,13 @@ def sample1(implicit m: Materializer): Unit = {
   /* declare the upload pipeline */
   val upload: Sink[ByteString, Future[Long]] =
     newObj.put[ByteString, Long](0L) { (acc, chunk) =>
-      println(s"uploading ${chunk.size} bytes")
+      println(s"uploading ${chunk.size.toString} bytes")
       Future.successful(acc + chunk.size)
     }
 
   (data runWith upload).onComplete {
-    case res => println(s"Upload result: $res")
+    case Failure(e) => println(s"Upload failed: ${e.getMessage}")
+    case Success(_) => println("Upload ok")
   }
   
   /* Get objects list */

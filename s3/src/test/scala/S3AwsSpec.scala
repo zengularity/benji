@@ -36,13 +36,18 @@ final class S3AwsSpec extends Specification with AwsTests {
     "in virtual host with URI",
     TestUtils.awsFromVirtualHostStyleURL)(TestUtils.materializer)
 
-  awsSuite(
+  awsMinimalSuite(
     "in virtual host style with URI V4",
     TestUtils.awsFromVirtualHostStyleURLV4)(TestUtils.materializer)
 }
 
 sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S3Spec { specs: Specification =>
   import TestUtils.withMatEx
+
+  final override protected def rwConsistencyRetry: Int = 40
+
+  final override protected def rwConsistencyDuration =
+    scala.concurrent.duration.FiniteDuration(5, "seconds")
 
   def awsMinimalSuite(
     label: String,
