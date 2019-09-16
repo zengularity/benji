@@ -69,7 +69,7 @@ object Common {
     apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")("scala-library").value,
     libraryDependencies ++= wsStream.value ++ Seq(
       "specs2-core", "specs2-junit").map(
-        "org.specs2" %% _ % "4.6.0" % Test) ++ Seq(
+        "org.specs2" %% _ % "4.7.1" % Test) ++ Seq(
           "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
           "com.typesafe.akka" %% "akka-stream-contrib" % "0.10",
           "ch.qos.logback" % "logback-classic" % "1.2.3").
