@@ -13,7 +13,7 @@ addSbtPlugin("com.github.sbt" % "sbt-findbugs" % "2.0.0")
 
 addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.2")
 
-addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.5.0")
+addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.6.1")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.2.0")
 
