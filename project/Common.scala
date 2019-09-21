@@ -3,12 +3,15 @@ import sbt._
 
 import com.typesafe.tools.mima.plugin.MimaKeys._
 
-object Common {
+object Common extends AutoPlugin {
   import Dependencies.Version.{ akka => akkaVer }
 
   val previousRelease = "1.3.3"
 
-  val settings = Seq(
+  override def trigger = allRequirements
+  override def requires = sbt.plugins.JvmPlugin
+
+  override def projectSettings = Seq(
     scalacOptions ++= Seq(
       "-encoding", "UTF-8",
       "-target:jvm-1.8",
@@ -43,6 +46,11 @@ object Common {
         compilerPlugin("com.github.ghik" %% "silencer-plugin" % silencerVer),
         "com.github.ghik" %% "silencer-lib" % silencerVer % Provided)
     },
+    libraryDependencies ++= Dependencies.wsStream.value ++ Seq(
+      "specs2-core", "specs2-junit").map(
+        "org.specs2" %% _ % "4.7.0" % Test) ++ Seq(
+          "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
+          "ch.qos.logback" % "logback-classic" % "1.2.3").map(_ % Test),
     javacOptions in (Compile, compile) ++= Seq(
       "-source", "1.8", "-target", "1.8"),
     scalacOptions in (Compile, console) ~= {
@@ -66,20 +74,7 @@ object Common {
     fork in Test := true,
     mimaPreviousArtifacts := Set( /* organization.value %% name.value % previousRelease */ ),
     autoAPIMappings := true,
-    apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")("scala-library").value,
-    libraryDependencies ++= wsStream.value ++ Seq(
-      "specs2-core", "specs2-junit").map(
-        "org.specs2" %% _ % "4.7.0" % Test) ++ Seq(
-          "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
-          "com.typesafe.akka" %% "akka-stream-contrib" % "0.10",
-          "ch.qos.logback" % "logback-classic" % "1.2.3").
-          map(_ % Test)) ++ Wart.settings ++ Publish.settings
-
-  lazy val wsStream = Def.setting[Seq[ModuleID]] {
-    Seq(
-      Dependencies.playWS % Provided,
-      "com.typesafe.akka" %% "akka-stream" % akkaVer.value % Provided)
-  }
+    apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")("scala-library").value) ++ Wart.settings ++ Publish.settings
 
   // ---
 
@@ -119,8 +114,7 @@ object Common {
 object Dependencies {
   object Version {
     val akka = Def.setting[String] {
-      if (scalaVersion.value startsWith "2.13.") "2.5.23"
-      else "2.5.4" // upper 2.5.19 !! breaking akka-stream-contrib
+      "2.5.25"
     }
 
     val playWS = sys.env.getOrElse("WS_VERSION", "2.0.7") // upper 2.0.6
@@ -142,6 +136,12 @@ object Dependencies {
 
       sys.env.getOrElse("PLAY_JSON_VERSION", lower)
     }
+  }
+
+  lazy val wsStream = Def.setting[Seq[ModuleID]] {
+    Seq(
+      (playWS % Provided).exclude("com.typesafe.akka", "*"),
+      "com.typesafe.akka" %% "akka-stream" % Version.akka.value % Provided)
   }
 
   val playWS = "com.typesafe.play" %% "play-ws-standalone" % Version.playWS

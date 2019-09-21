@@ -22,6 +22,10 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
   protected lazy val random = new scala.util.Random(
     System.identityHashCode(self) * System.currentTimeMillis())
 
+  // e.g. S3 doesn't guarantee that right after write operation,
+  // the result is available (to read operation) on all the cluster
+  protected def readWriteConsistencyRetry: Int = 10
+
   // import akka.stream.contrib.TestKit.assertAllStagesStopped
   protected def assertAllStagesStopped[T](f: => T): T = f
 
@@ -38,17 +42,17 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     s"Access $bucketName bucket" in assertAllStagesStopped {
       val bucket = storage.bucket(bucketName)
 
-      bucket must notExistsIn(storage, 1, 5.seconds) and {
-        bucket must supportCreation
+      bucket must notExistsIn(storage, 1, 3.seconds) and {
+        bucket must supportCreation(2, 3.seconds)
       } and {
-        bucket must existsIn(storage, 2, 7.seconds)
+        bucket must existsIn(storage, readWriteConsistencyRetry, 3.seconds)
       }
-    }
+    } tag "wip"
 
-    s"Lists objects of the empty $bucketName bucket" in assertAllStagesStopped {
+    s"List objects of the empty $bucketName bucket" in assertAllStagesStopped {
       storage.bucket(bucketName).objects.collect[List]().
-        map(_.size) must beTypedEqualTo(0).await(1, 5.seconds)
-    }
+        map(_.size) must beTypedEqualTo(0).await(2, 5.seconds)
+    } tag "wip"
 
     s"Write file in $bucketName bucket" in assertAllStagesStopped {
       val bucket = storage.bucket(bucketName)
@@ -61,20 +65,20 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val body = List.fill(1000)("hello world !!!").mkString(" ").getBytes
 
       {
-        filetest must notExistsIn(bucket, 1, 10.seconds)
+        filetest must notExistsIn(bucket, 1, 3.seconds)
       } and { // upload file
         (repeat(20)(body) runWith upload) must beTypedEqualTo(319980L).
-          await(1, 10.seconds)
+          await(2, 10.seconds)
       } and {
-        filetest must existsIn(bucket, 1, 10.seconds)
+        filetest must existsIn(bucket, 3, 3.seconds)
       }
     }
 
     "Get contents of file" in assertAllStagesStopped {
       storage.bucket(bucketName).obj("testfile.txt").
-        get() runWith consume aka "response" must beLike[String] {
+        get().runWith(consume) aka "response" must beLike[String] {
           case response => response must startWith("hello world !!!")
-        }.await(1, 10.seconds)
+        }.await(2, 10.seconds)
     }
   }
 
@@ -89,25 +93,28 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
     lazy val defaultBucketRef = storage.bucket(defaultBucketName)
 
+    lazy val random = new scala.util.Random( // Shadow the global random
+      defaultBucketName.hashCode * System.currentTimeMillis())
+
     sequential
 
     minimalCommonTests(storage, defaultBucketName)
     errorCommonTests(storage)
 
     "Create & delete buckets" in assertAllStagesStopped {
-      val name = s"benji-test-2-${random.nextInt().toString}"
+      val name = s"benji-test-create-${random.nextInt().toString}"
       val bucket = storage.bucket(name)
 
       {
-        bucket must notExistsIn(storage, 1, 5.seconds)
+        bucket must notExistsIn(storage, 1, 3.seconds)
       } and {
-        bucket must supportCreation
+        bucket must supportCreation(1, 3.seconds)
       } and {
-        bucket must existsIn(storage, 1, 5.seconds)
+        bucket must existsIn(storage, 10, 3.seconds)
       } and {
-        bucket.delete() must beTypedEqualTo({}).await(1, 5.seconds)
+        bucket.delete() must beTypedEqualTo({}).await(1, 3.seconds)
       } and {
-        bucket must notExistsIn(storage, 0, 5.seconds).eventually(2, 5.seconds)
+        bucket must notExistsIn(storage, readWriteConsistencyRetry, 3.seconds)
       }
     }
 
@@ -118,45 +125,52 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
       bucket must notExistsIn(storage, 1, 10.seconds) and {
         // creating bucket
-        bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 5.seconds)
+        bucket.create(failsIfExists = true) must beTypedEqualTo({}).
+          await(2, 3.seconds)
+
       } and {
-        bucket must existsIn(storage, 1, 10.seconds)
+        bucket must existsIn(storage, 2, 3.seconds)
       } and {
         // uploading file to bucket
         val put = filetest.put[Array[Byte], Long]
-        val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) => Future.successful(sz + chunk.size) }
+        val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) =>
+          Future.successful(sz + chunk.size)
+        }
         val body = "hello world".getBytes()
 
-        Source.single(body).runWith(upload).flatMap(sz => filetest.exists.map(sz -> _)).aka("exists") must
-          beTypedEqualTo(body.length.toLong -> true).await(1, 10.seconds)
+        Source.single(body).runWith(upload) must beTypedEqualTo(
+          body.length.toLong).await(2, 5.seconds)
+
       } and {
         // checking that the upload operation is effective
         // because otherwise the non-recursive delete will unexpectedly succeed
-        filetest.exists must beTrue.await(1, 10.seconds)
+        filetest must existsIn(bucket, 2, 3.seconds)
       } and {
         // checking that metadata are persisted
-        filetest.metadata() must havePairs("foo" -> Seq("bar")).await(1, 10.seconds)
+        filetest.metadata() must havePairs("foo" -> Seq("bar")).
+          await(2, 5.seconds)
       } and {
-        // trying to delete non-empty bucket with non recursive deletes (should not work)
-        (for {
-          _ <- bucket.delete().failed
-        } yield true) must beTrue.await(1, 5.seconds)
+        // Trying to delete non-empty bucket
+        // with non recursive deletes (should not work)
+        bucket.delete().failed.map(_ => true) must beTrue.await(2, 3.seconds)
       } and {
         // the bucket should not be deleted by non-recursive deletes
-        bucket must existsIn(storage, 1, 10.seconds)
+        bucket must existsIn(storage, 2, 5.seconds)
       } and {
         // delete non-empty bucket with recursive delete (should work)
-        bucket.delete.recursive() must beTypedEqualTo({}).await(1, 5.seconds)
+        bucket.delete.recursive() must beTypedEqualTo({}).await(2, 3.seconds)
       } and {
         // check that the bucket is effectively deleted
-        bucket must notExistsIn(storage, 2, 7.seconds)
+        bucket must notExistsIn(storage, readWriteConsistencyRetry, 3.seconds).
+          setMessage("after delete")
       }
     }
 
     "Get partial content of a file" in assertAllStagesStopped {
       (defaultBucketRef.obj("testfile.txt").
         get(range = Some(ByteRange(4, 9))) runWith consume).
-        aka("partial content") must beTypedEqualTo("o worl").await(1, 10.seconds)
+        aka("partial content") must beTypedEqualTo("o worl").
+        await(2, 5.seconds)
     }
 
     "Write and delete file" in assertAllStagesStopped {
@@ -165,17 +179,21 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
       {
-        file.exists.aka("exists #1") must beFalse.await(1, 5.seconds)
+        file must notExistsIn(defaultBucketRef, 2, 3.seconds).
+          setMessage("exists #1")
       } and {
-        { repeat(5) { body } runWith put }.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
+        repeat(5)(body).runWith(put) must beDone.await(2, 5.seconds)
       } and {
-        file.exists.aka("exists #2") must beTrue.await(1, 10.seconds)
+        file must existsIn(defaultBucketRef, 2, 5.seconds).
+          setMessage("exists #2")
       } and {
-        file.delete() must beTypedEqualTo({}).await(1, 10.seconds)
+        file.delete() must beTypedEqualTo({}).await(2, 5.seconds)
       } and {
-        file.exists.aka("exists #3") must beFalse.await(1, 10.seconds)
+        file must notExistsIn(defaultBucketRef, 3, 5.seconds).
+          setMessage("exists #3")
       } and {
-        file.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
+        file.delete().failed.map(_ => {}) must beTypedEqualTo({}).
+          await(2, 5.seconds)
       }
     }
 
@@ -190,84 +208,100 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val file1 = defaultBucketRef.obj(sourceName)
       val file2 = defaultBucketRef.obj("testfile2.txt")
 
-      file1.exists.aka("exists #1") must beFalse.await(1, 5.seconds) and {
-        val put = file1.put[Array[Byte]]
-        val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+      file1 must notExistsIn(defaultBucketRef, 1, 3.seconds).
+        setMessage("exists #1") and {
+          val put = file1.put[Array[Byte]]
+          val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-        { repeat(20) { body } runWith put }.flatMap(_ => file1.exists).
-          aka("exists") must beTrue.await(1, 10.seconds)
-
-      } and {
-        file1.copyTo(file2).flatMap(_ => file2.exists) must beTrue.
-          await(1, 10.seconds)
-      } and {
-        (for {
-          _ <- Future.sequence(Seq(file1.delete(), file2.delete()))
-          a <- file1.exists
-          b <- file2.exists
-        } yield a -> b) must beTypedEqualTo(false -> false).await(1, 10.seconds)
-      }
+          repeat(20)(body).runWith(put) must beDone.await(2, 5.seconds).
+            setMessage("put file1")
+        } and {
+          file1 must existsIn(defaultBucketRef, 2, 3.seconds)
+        } and {
+          file1.copyTo(file2) must beDone.await(2, 5.seconds).
+            setMessage("file1 copied to file2")
+        } and {
+          file2 must existsIn(defaultBucketRef, 2, 3.seconds)
+        } and {
+          (for {
+            _ <- Future.sequence(Seq(file1.delete(), file2.delete()))
+            a <- file1.exists
+            b <- file2.exists
+          } yield a -> b) must beTypedEqualTo(false -> false).await(2, 5.seconds)
+        }
     }
 
     "Write and move file" >> {
-      def moveSpec[R](target: => Future[ObjectRef], preventOverwrite: Boolean = true)(onMove: (ObjectRef, ObjectRef, Future[Unit]) => MatchResult[Future[R]]) = {
-        val file3 = defaultBucketRef.obj("testfile3.txt")
+      def moveSpec[R](target: ObjectRef, preventOverwrite: Boolean = true)(onMove: (ObjectRef, ObjectRef, Future[Unit]) => MatchResult[R]) = {
+        val src = defaultBucketRef.obj(
+          s"testsrc-${random.nextInt().toString}.txt")
 
-        file3.exists.aka("exists #3") must beFalse.await(1, 5.seconds) and (
-          target must beLike[ObjectRef] {
-            case file4 =>
-              val write = file3.put[Array[Byte]]
-              val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+        src must notExistsIn(defaultBucketRef, 2, 3.seconds).
+          setMessage("exists before") and {
+            val write = src.put[Array[Byte]]
+            val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-              { repeat(20) { body } runWith write }.flatMap(_ => file3.exists).
-                aka("exists") must beTrue.await(1, 10.seconds) and {
-                  onMove(file3, file4, file3.moveTo(file4, preventOverwrite))
-                } and {
-                  (for {
-                    _ <- file3.delete.ignoreIfNotExists()
-                    _ <- file4.delete()
-                    a <- file3.exists
-                    b <- file4.exists
-                  } yield a -> b) must beTypedEqualTo(false -> false).
-                    await(1, 10.seconds)
-                }
-          }.await(1, 10.seconds))
+            repeat(20)(body).runWith(write) must beDone.await(2, 3.seconds)
+          } and {
+            onMove(src, target, src.moveTo(target, preventOverwrite))
+          } and {
+            (for {
+              _ <- src.delete.ignoreIfNotExists()
+              _ <- target.delete()
+            } yield ()) must beDone.await(2, 5.seconds)
+          } and {
+            src must notExistsIn(
+              defaultBucketRef, readWriteConsistencyRetry, 3.seconds).
+              setMessage("src after delete")
+          } and {
+            target must notExistsIn(
+              defaultBucketRef, readWriteConsistencyRetry, 3.seconds).
+              setMessage("target after delete")
+          }
       }
 
-      @inline def successful(file3: ObjectRef, file4: ObjectRef, res: Future[Unit]) = (for {
-        _ <- res
-        a <- file3.exists
-        b <- file4.exists
-      } yield a -> b) must beTypedEqualTo(false -> true).await(1, 10.seconds)
+      val targetObj = defaultBucketRef.obj(
+        s"testfile4-${random.nextInt().toString}.txt")
 
-      @inline def failed(file3: ObjectRef, file4: ObjectRef, res: Future[Unit]) = {
-        res.map(_ => false -> false).recoverWith {
-          case _: IllegalStateException => for {
-            a <- file3.exists
-            b <- file4.exists
-          } yield a -> b
-        } must beTypedEqualTo(true -> true).await(1, 10.seconds)
+      val successful = { (_: ObjectRef, _: ObjectRef, res: Future[Unit]) =>
+        res must beDone.await(2, 3.seconds)
+      }
+
+      @inline def failed(
+        src: ObjectRef,
+        target: ObjectRef,
+        res: Future[Unit]) = {
+        res.recover {
+          case _: IllegalStateException => ()
+        } must beDone.await(2, 3.seconds) and {
+          src must existsIn(defaultBucketRef, 2, 3.seconds)
+        } and {
+          target must existsIn(defaultBucketRef, 2, 3.seconds)
+        }
       }
 
       @inline def existingTarget: Future[ObjectRef] = {
-        val target = defaultBucketRef.obj("testfile4.txt")
+        val target = targetObj
         val write = target.put[Array[Byte]]
         val body = List.fill(1000)("qwerty").mkString(" ").getBytes
 
-        { repeat(20) { body } runWith write }.map(_ => target)
+        repeat(20)(body).runWith(write).map(_ => target)
       }
 
       "if prevent overwrite when target doesn't exist" in assertAllStagesStopped {
-        moveSpec[(Boolean, Boolean)](Future.successful(
-          defaultBucketRef.obj("testfile4.txt")))(successful)
+        moveSpec(targetObj)(successful)
       }
 
       "if prevent overwrite when target exists" in assertAllStagesStopped {
-        moveSpec(existingTarget)(failed)
+        existingTarget must beLike[ObjectRef] {
+          case x => moveSpec(x)(failed)
+        }.await(3, 5.seconds)
       }
 
       "if overwrite when target exists" in assertAllStagesStopped {
-        moveSpec(existingTarget, preventOverwrite = false)(successful)
+        existingTarget must beLike[ObjectRef] {
+          case x => moveSpec(x, preventOverwrite = false)(successful)
+        }.await(3, 5.seconds)
       }
     }
 
@@ -278,19 +312,23 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       {
         bucket must notExistsIn(storage, 1, 10.seconds)
       } and {
-        bucket.create(failsIfExists = true) must beTypedEqualTo({}).await(1, 10.seconds)
+        bucket.create(failsIfExists = true) must beTypedEqualTo({}).
+          await(2, 5.seconds)
       } and {
         bucket must existsIn(storage, 2, 7.seconds)
       } and {
-        bucket.delete.ignoreIfNotExists() must beTypedEqualTo({}).await(1, 10.seconds)
+        bucket.delete.ignoreIfNotExists() must beTypedEqualTo({}).
+          await(2, 5.seconds)
       } and {
-        bucket must notExistsIn(storage, 0, 5.seconds).eventually(2, 5.seconds)
+        bucket must notExistsIn(storage, 5, 3.seconds)
       } and {
-        bucket.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
+        bucket.delete().failed.map(_ => {}) must beTypedEqualTo({}).
+          await(2, 5.seconds)
       } and {
-        bucket.delete.ignoreIfNotExists() must beTypedEqualTo({}).await(1, 10.seconds)
+        bucket.delete.ignoreIfNotExists() must beDone.await(2, 5.seconds)
       } and {
-        bucket.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
+        bucket.delete().failed.map(_ => {}) must beTypedEqualTo({}).
+          await(2, 5.seconds)
       }
     }
 
@@ -300,24 +338,26 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val obj = bucket.obj(s"test-ignore-obj-${random.nextInt().toString}")
       val write = obj.put[Array[Byte]]
 
-      def upload = { repeat(5) { body } runWith write }.map(_ => {})
+      def upload = repeat(5)(body).runWith(write)
 
       {
-        obj must notExistsIn(bucket, 1, 10.seconds)
+        obj must notExistsIn(bucket, 2, 3.seconds)
       } and {
-        obj.delete.ignoreIfNotExists() must beTypedEqualTo({}).await(1, 10.seconds)
+        obj.delete.ignoreIfNotExists() must beDone.await(2, 5.seconds)
       } and {
-        upload must beTypedEqualTo({}).await(1, 10.seconds)
+        upload must beDone.await(2, 5.seconds)
       } and {
-        obj must existsIn(bucket, 1, 10.seconds)
+        obj must existsIn(bucket, 2, 3.seconds)
       } and {
-        obj.delete() must beTypedEqualTo({}).await(1, 10.seconds)
+        obj.delete() must beTypedEqualTo({}).await(2, 5.seconds)
       } and {
-        obj.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
+        obj.delete().failed.map(_ => {}) must beTypedEqualTo({}).
+          await(2, 5.seconds)
       } and {
-        obj.delete.ignoreIfNotExists() must beTypedEqualTo({}).await(1, 10.seconds)
+        obj.delete.ignoreIfNotExists() must beDone.await(2, 5.seconds)
       } and {
-        obj.delete().failed.map(_ => {}) must beTypedEqualTo({}).await(1, 10.seconds)
+        obj.delete().failed.map(_ => {}) must beTypedEqualTo({}).
+          await(2, 5.seconds)
       }
     }
 
@@ -326,7 +366,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
       "after preparing bucket" in {
         bucket.objects.collect[List]().
-          map(_.size) must beTypedEqualTo(1).await(1, 5.seconds)
+          map(_.size) must beTypedEqualTo(1).await(2, 5.seconds)
       }
 
       def createFile(name: String) = {
@@ -343,28 +383,29 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
       "after creating more objects" in {
         (1 to 16).foldLeft(ok) { (res, i) =>
-          val filename = s"$prefix-${i.toString}"
+          val filename = s"$prefix-${i.toString}-${random.nextInt().toString}"
 
           res and {
-            createFile(filename) must beTypedEqualTo(1590L).await(1, 5.seconds)
+            createFile(filename) must beTypedEqualTo(1590L).await(2, 5.seconds)
           } and {
-            bucket.obj(filename).exists must beTrue.await(1, 5.seconds)
+            bucket.obj(filename).exists must beTrue.await(2, 5.seconds)
           }
         }
       }
 
       "using batch size 6" in {
-        bucket.objects.collect[List]().map(_.size) must beTypedEqualTo(17).await(1, 5.seconds) and {
-          bucket.objects.withBatchSize(6).collect[List]().
-            map(_.size) must beTypedEqualTo(17).await(1, 5.seconds)
-        }
+        bucket.objects.collect[List]().
+          map(_.size) must beTypedEqualTo(17).await(2, 5.seconds) and {
+            bucket.objects.withBatchSize(6).collect[List]().
+              map(_.size) must beTypedEqualTo(17).await(2, 5.seconds)
+          }
       }
 
       s"using prefix '$prefix'" in {
         bucket.objects.withPrefix(prefix).collect[Set]().
-          map(_.size) must beTypedEqualTo(16).await(1, 5.seconds) and {
+          map(_.size) must beTypedEqualTo(16).await(2, 5.seconds) and {
             bucket.objects.withPrefix("foo").collect[Seq]().
-              map(_.size) must beTypedEqualTo(0).await(1, 5.seconds)
+              map(_.size) must beTypedEqualTo(0).await(2, 5.seconds)
           }
       }
     }
@@ -375,23 +416,23 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val expectedMap = Map("foo" -> Seq("bar"))
 
       {
-        obj.metadata() must beTypedEqualTo(expectedMap).await(1, 10.seconds)
+        obj.metadata() must beTypedEqualTo(expectedMap).await(2, 5.seconds)
       } and {
-        obj.headers().map(_.filter(_._1.contains("foo")).values.toList) must beTypedEqualTo(expectedMap.values.toList).await(1, 10.seconds)
+        obj.headers().map(_.filter(_._1.contains("foo")).values.toList) must beTypedEqualTo(expectedMap.values.toList).await(2, 5.seconds)
       }
     }
 
     "Not create objects if bucket doesn't exist" in {
-      val bucket = storage.bucket("unknownbucket")
+      val bucket = storage.bucket(s"unknownbucket-${random.nextInt().toString}")
       val newObj = bucket.obj("new_object.txt")
       val write = newObj.put[Array[Byte]]
       val body = List.fill(10)("qwerty").mkString(" ").getBytes
-      def upload = { repeat(5) { body } runWith write }.map(_ => {})
+      def upload = repeat(5)(body).runWith(write)
 
       {
         bucket must notExistsIn(storage, 1, 10.seconds)
       } and {
-        upload.failed.map(_ => "Bucket doesn't exist") must beEqualTo("Bucket doesn't exist").await(1, 10.seconds)
+        upload.failed.map(_ => "Bucket doesn't exist") must beEqualTo("Bucket doesn't exist").await(2, 5.seconds)
       } and {
         bucket must notExistsIn(storage, 1, 10.seconds)
       }
@@ -401,14 +442,15 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val bucket = storage.bucket(s"unknownbucket-${random.nextInt().toString}")
       val newObj = bucket.obj("new_object.txt")
 
-      bucket must notExistsIn(storage, 1, 10.seconds) and {
-        newObj.exists must beFalse.await(1, 10.seconds)
+      bucket must notExistsIn(storage, 2, 3.seconds) and {
+        newObj.exists must beFalse.await(2, 5.seconds)
       }
     }
 
     "Versioning feature should be consistent between buckets and objects" in {
       val bucket = defaultBucketRef
-      val obj = bucket.obj("benji-test-versioning-obj")
+      val obj = bucket.obj(
+        s"benji-test-versioning-obj-${random.nextInt().toString}")
 
       bucket.versioning.isDefined must_=== obj.versioning.isDefined
     }
