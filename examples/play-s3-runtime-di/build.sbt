@@ -1,6 +1,6 @@
 name := "benji-s3-play-demo"
 
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.10"
 
 crossScalaVersions in ThisBuild := Seq(
   "2.11.12", scalaVersion.value)
@@ -23,7 +23,7 @@ scalacOptions ++= Seq(
   "-opt:_"
 )
 
-version := "2.0.3"
+version := "2.0.5"
 
 val playVer = Def.setting[String] {
   if (version.value endsWith "-SNAPSHOT") {
