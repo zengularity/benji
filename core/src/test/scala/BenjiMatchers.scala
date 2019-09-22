@@ -16,9 +16,41 @@ import com.zengularity.benji.{
 }
 
 import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.{ Matcher, Matchers }
+import org.specs2.matcher.{ Expectable, Matcher, Matchers }
 
 trait BenjiMatchers { self: Matchers =>
+  sealed trait Named[T] {
+    def apply(subject: T): String
+  }
+
+  implicit object NamedBucket extends Named[BucketRef] {
+    @inline def apply(bucket: BucketRef): String =
+      s"bucket '${bucket.name}'"
+  }
+
+  implicit object NamedObject extends Named[ObjectRef] {
+    @inline def apply(obj: ObjectRef): String =
+      s"object '${obj.name}'"
+  }
+
+  implicit object NamedVersionedObject extends Named[VersionedObjectRef] {
+    @inline def apply(obj: VersionedObjectRef): String =
+      s"object '${obj.name}'"
+  }
+
+  // ---
+
+  lazy val beDone: Matcher[Any] = new Matcher[Any] {
+    def apply[S](e: Expectable[S]) = result({
+      e.value match {
+        case _: akka.NotUsed => true
+        case _: akka.Done => true
+        case _: Unit => true
+        case _ => false
+      }
+    }, "is done", "must be done", e)
+  }
+
   def existsIn(
     storage: ObjectStorage,
     retries: Int, duration: FiniteDuration)(
@@ -51,12 +83,16 @@ trait BenjiMatchers { self: Matchers =>
     materializer: Materializer): Matcher[ObjectRef] =
     existsOrNot(bucket, false, retries, duration)
 
-  def supportCreation(implicit ee: ExecutionEnv): Matcher[BucketRef] = {
+  def supportCreation(retries: Int, duration: FiniteDuration)(implicit ee: ExecutionEnv): Matcher[BucketRef] = {
     implicit val ec = ee.executionContext
 
-    beTypedEqualTo({}).await(1, 5.seconds) ^^ { bucket: BucketRef =>
-      bucket.create()
-    }
+    val tries = retries + 1
+
+    beTypedEqualTo({}).
+      awaitFor(duration).
+      eventually(tries, duration) ^^ { bucket: BucketRef =>
+        bucket.create()
+      }
   }
 
   def supportCheckedCreation(implicit ee: ExecutionEnv): Matcher[BucketRef] = {
@@ -85,6 +121,26 @@ trait BenjiMatchers { self: Matchers =>
 
   // ---
 
+  private def booleanMatcher(
+    expected: Boolean,
+    ok: String,
+    ko: String): Matcher[Boolean] = new Matcher[Boolean] {
+    def apply[B <: Boolean](e: Expectable[B]) =
+      result(e.value == expected, ok, ko, e)
+  }
+
+  @inline private def existsMatcher(n: String) =
+    booleanMatcher(true, s"$n exists", s"$n must exist")
+
+  @inline private def doesntExistMatcher(n: String) =
+    booleanMatcher(false, s"$n doesn't exist", s"$n must not exist")
+
+  @inline private def containsMatcher(n: String) =
+    booleanMatcher(true, s"$n is found", s"$n must be found")
+
+  @inline private def doesntContainMatcher(n: String) =
+    booleanMatcher(false, s"$n is not found", s"$n must not be found")
+
   private def existsOrNot[T](
     exists: T => Future[Boolean],
     contains: T => Future[Boolean],
@@ -92,15 +148,41 @@ trait BenjiMatchers { self: Matchers =>
     retries: Int,
     duration: FiniteDuration)(
     implicit
-    ee: ExecutionEnv): Matcher[T] = {
-    val matcher = beTypedEqualTo(expected)
-    val futureMatcher = matcher.await(retries, duration)
+    ee: ExecutionEnv, nmd: Named[T]): Matcher[T] = {
+    val tries = retries + 1
+    val sleep = duration * 2.2D
 
-    (futureMatcher ^^ exists).
-      setMessage(s"exists != ${expected.toString}") and {
-        (futureMatcher ^^ contains).
-          setMessage(s"storage contains != ${expected.toString}")
+    val xm = new Matcher[T] {
+      def apply[U <: T](e: Expectable[U]) = {
+        val n = nmd(e.value)
+        val underlying = {
+          if (expected) existsMatcher(n)
+          else doesntExistMatcher(n)
+        }
+
+        val m = underlying.awaitFor(duration).
+          eventually(tries, sleep) ^^ exists
+
+        m(e)
       }
+    }
+
+    val cm = new Matcher[T] {
+      def apply[U <: T](e: Expectable[U]) = {
+        val n = nmd(e.value)
+        val underlying = {
+          if (expected) containsMatcher(n)
+          else doesntContainMatcher(n)
+        }
+
+        val m = underlying.awaitFor(duration).
+          eventually(tries, sleep) ^^ contains
+
+        m(e)
+      }
+    }
+
+    xm and cm
   }
 
   private def existsOrNot(

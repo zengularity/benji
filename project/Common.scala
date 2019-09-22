@@ -3,12 +3,15 @@ import sbt._
 
 import com.typesafe.tools.mima.plugin.MimaKeys._
 
-object Common {
+object Common extends AutoPlugin {
   import Dependencies.Version.{ akka => akkaVer }
 
   val previousRelease = "1.3.3"
 
-  val settings = Seq(
+  override def trigger = allRequirements
+  override def requires = sbt.plugins.JvmPlugin
+
+  override def projectSettings = Seq(
     scalacOptions ++= Seq(
       "-encoding", "UTF-8",
       "-target:jvm-1.8",
@@ -19,7 +22,7 @@ object Common {
       "-Xlint",
       "-g:vars"),
     scalacOptions ++= {
-      if (scalaVersion.value startsWith "2.12") {
+      if (scalaBinaryVersion.value == "2.12") {
         Seq(
           "-Ywarn-numeric-widen",
           "-Ywarn-infer-any",
@@ -37,12 +40,18 @@ object Common {
       }
     },
     libraryDependencies ++= {
-      val silencerVer = "1.4.1"
+      val silencerVer = "1.4.2"
 
       Seq(
         compilerPlugin("com.github.ghik" %% "silencer-plugin" % silencerVer),
         "com.github.ghik" %% "silencer-lib" % silencerVer % Provided)
     },
+    libraryDependencies ++= Dependencies.wsStream.value ++ Seq(
+      "specs2-core", "specs2-junit").map(
+        "org.specs2" %% _ % "4.7.0" % Test) ++ Seq(
+          "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
+          "com.typesafe.akka" %% "akka-slf4j" % akkaVer.value,
+          "ch.qos.logback" % "logback-classic" % "1.2.3").map(_ % Test),
     javacOptions in (Compile, compile) ++= Seq(
       "-source", "1.8", "-target", "1.8"),
     scalacOptions in (Compile, console) ~= {
@@ -66,20 +75,7 @@ object Common {
     fork in Test := true,
     mimaPreviousArtifacts := Set( /* organization.value %% name.value % previousRelease */ ),
     autoAPIMappings := true,
-    apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")("scala-library").value,
-    libraryDependencies ++= wsStream.value ++ Seq(
-      "specs2-core", "specs2-junit").map(
-        "org.specs2" %% _ % "4.6.0" % Test) ++ Seq(
-          "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
-          "com.typesafe.akka" %% "akka-stream-contrib" % "0.10",
-          "ch.qos.logback" % "logback-classic" % "1.2.3").
-          map(_ % Test)) ++ Wart.settings ++ Publish.settings
-
-  lazy val wsStream = Def.setting[Seq[ModuleID]] {
-    Seq(
-      Dependencies.playWS % Provided,
-      "com.typesafe.akka" %% "akka-stream" % akkaVer.value % Provided)
-  }
+    apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")("scala-library").value) ++ Wart.settings ++ Publish.settings
 
   // ---
 
@@ -119,26 +115,34 @@ object Common {
 object Dependencies {
   object Version {
     val akka = Def.setting[String] {
-      if (scalaVersion.value startsWith "2.13.") "2.5.23"
-      else "2.5.4" // upper 2.5.19 !! breaking akka-stream-contrib
+      "2.5.25"
     }
 
     val playWS = sys.env.getOrElse("WS_VERSION", "2.0.7") // upper 2.0.6
 
-    val play: Def.Initialize[String] = {
-      val playLower = "2.6.13"
-      //val playUpper = "2.7.4"
-
-      Def.setting[String] {
-        sys.env.getOrElse("PLAY_VERSION", playLower)
+    val play: Def.Initialize[String] = Def.setting[String] {
+      val lower = {
+        if (scalaBinaryVersion.value == "2.13") "2.7.3"
+        else "2.6.13"
       }
+
+      sys.env.getOrElse("PLAY_VERSION", lower)
     }
 
-    val playJson: Def.Initialize[String] = {
-      Def.setting[String] {
-        sys.env.getOrElse("PLAY_JSON_VERSION", play.value)
+    val playJson: Def.Initialize[String] = Def.setting[String] {
+      val lower = {
+        if (scalaBinaryVersion.value == "2.13") "2.7.4"
+        else "2.6.13"
       }
+
+      sys.env.getOrElse("PLAY_JSON_VERSION", lower)
     }
+  }
+
+  lazy val wsStream = Def.setting[Seq[ModuleID]] {
+    Seq(
+      (playWS % Provided).exclude("com.typesafe.akka", "*"),
+      "com.typesafe.akka" %% "akka-stream" % Version.akka.value % Provided)
   }
 
   val playWS = "com.typesafe.play" %% "play-ws-standalone" % Version.playWS
@@ -146,5 +150,5 @@ object Dependencies {
   val playWSJson = "com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS
   val playWSXml = "com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS
 
-  val slf4jApi = "org.slf4j" % "slf4j-api" % "1.7.26"
+  val slf4jApi = "org.slf4j" % "slf4j-api" % "1.7.28"
 }

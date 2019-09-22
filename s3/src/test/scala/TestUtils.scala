@@ -78,10 +78,11 @@ object TestUtils {
 
     import com.zengularity.benji.ObjectStorage
 
-    def storageCleanup(st: ObjectStorage) = st.buckets.collect[List]().flatMap(bs =>
-      Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
-        st.bucket(b.name).delete.recursive()
-      })).map(_ => {})
+    def storageCleanup(st: ObjectStorage): Future[Unit] =
+      st.buckets.collect[List]().flatMap(bs =>
+        Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
+          st.bucket(b.name).delete.recursive()
+        })).map(_ => {})
 
     try {
       Await.result(storageCleanup(aws), Duration("30s"))
