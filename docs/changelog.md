@@ -1,5 +1,9 @@
 # Changelog
 
+## Release 2.0.5
+
+- Various dependency updates
+
 ## Release 2.0.4
 
 - Support Scala 2.13 (#50)

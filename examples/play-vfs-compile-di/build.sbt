@@ -1,6 +1,6 @@
 name := "benji-vfs-play-demo"
 
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.10"
 
 scalacOptions ++= Seq(
   "-encoding", "UTF-8",
@@ -20,7 +20,7 @@ scalacOptions ++= Seq(
   "-opt:_"
 )
 
-version := "2.0.3"
+version := "2.0.5"
 
 val playVer = Def.setting[String] {
   if (version.value endsWith "-SNAPSHOT") {
