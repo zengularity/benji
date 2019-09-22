@@ -241,10 +241,12 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
             bucket.create(failsIfExists = true) must beTypedEqualTo({}).
               await(2, 5.seconds)
           } and {
-            bucket aka "bucket before" must existsIn(storage, 2, 3.seconds)
+            bucket must existsIn(storage, 2, 3.seconds).
+              setMessage("bucket before")
           } and {
-            vbucket.setVersioning(enabled = true).
-              map(_ => true) must beTrue.await(2, 5.seconds)
+            vbucket.setVersioning(enabled = true) must beDone.
+              await(2, 5.seconds).
+              setMessage("versioning enabled")
 
           } and {
             createObject(
