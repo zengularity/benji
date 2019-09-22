@@ -33,6 +33,10 @@ trait ErrorCommonSpec extends BenjiMatchers {
 
   protected def random: scala.util.Random
 
+  protected def rwConsistencyRetry: Int
+
+  protected def rwConsistencyDuration: FiniteDuration
+
   def errorCommonTests(storage: ObjectStorage)(
     implicit
     materializer: Materializer,
@@ -60,19 +64,23 @@ trait ErrorCommonSpec extends BenjiMatchers {
 
       "Setup" in assertAllStagesStopped {
         {
-          nonExistingBucket must notExistsIn(storage, 0, 5.seconds)
+          nonExistingBucket must notExistsIn(storage, 0, 3.seconds)
         } and {
           existingBucket.create(failsIfExists = true) must beTypedEqualTo({}).
             await(1, 5.seconds)
 
         } and {
-          existingBucket must existsIn(storage, 2, 5.seconds)
+          existingBucket must existsIn(
+            storage, rwConsistencyRetry, rwConsistencyDuration)
+
         } and {
-          put(existingObj, "hello".getBytes) must beTypedEqualTo({}).await(2, 5.seconds)
+          put(existingObj, "hello".getBytes) must beDone.await(2, 3.seconds)
         } and {
-          existingObj must existsIn(existingBucket, 3, 3.seconds)
+          existingObj must existsIn(
+            existingBucket, rwConsistencyRetry, rwConsistencyDuration)
+
         } and {
-          nonExistingObj must notExistsIn(existingBucket, 3, 3.seconds)
+          nonExistingObj must notExistsIn(existingBucket, 0, 3.seconds)
         }
       }
 
