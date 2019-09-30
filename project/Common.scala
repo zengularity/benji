@@ -145,9 +145,13 @@ object Dependencies {
       "com.typesafe.akka" %% "akka-stream" % Version.akka.value % Provided)
   }
 
-  val playWS = "com.typesafe.play" %% "play-ws-standalone" % Version.playWS
-  val playAhcWS = "com.typesafe.play" %% "play-ahc-ws-standalone" % Version.playWS
-  val playWSJson = "com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS
+  val playWS = ("com.typesafe.play" %% "play-ws-standalone" % Version.playWS).
+    exclude("org.scala-lang.modules", "*")
+
+  val playAhcWS = ("com.typesafe.play" %% "play-ahc-ws-standalone" % Version.playWS).exclude("org.scala-lang.modules", "*")
+
+  val playWSJson = ("com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS).exclude("org.scala-lang.modules", "*")
+
   val playWSXml = "com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS
 
   val slf4jApi = "org.slf4j" % "slf4j-api" % "1.7.28"
