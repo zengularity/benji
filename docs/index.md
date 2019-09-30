@@ -27,11 +27,6 @@ libraryDependencies += "com.zengularity" %% "benji-google" % benjiVer
 
 // If Play WS is not yet provided:
 libraryDependencies += "com.typesafe.play" %% "play-ws-standalone" % "1.1.3"
-
-resolvers ++= Seq(
-  "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases",
-  "Entrepot Snapshots" at "https://raw.githubusercontent.com/zengularity/entrepot/master/snapshots"
-)
 ```
 
 Then the storage operations can be called according the DSL from your `ObjectStorage` instance.
