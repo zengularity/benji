@@ -198,18 +198,3 @@ lazy val benji = (project in file(".")).
     ) ++ Publish.settings).
   dependsOn(s3, google, vfs, play).
   aggregate(core, s3, google, vfs, play)
-
-publishTo in ThisBuild := Some {
-  import Resolver.mavenStylePatterns
-
-  def localRepo = {
-    val root = new java.io.File(".")
-    root / "target" / "local-repo"
-  }
-
-  val repoDir = sys.env.get("REPO_PATH").map { path =>
-    new java.io.File(path)
-  }.getOrElse(localRepo)
-
-  Resolver.file("repo", repoDir)
-}

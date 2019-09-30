@@ -31,11 +31,22 @@ To prepare a new release the following command must be used.
 
     sbt release
 
-## Publish
+## Publish release
 
-To publish a snapshot or a release on [Zengularity Entrepot](https://github.com/zengularity/entrepot):
+To publish a release on Maven Central, use the following steps.
 
-- set the environment variable `REPO_PATH`; e.g. `export REPO_PATH=/path/to/entrepot/snapshots/`
-- run the command `sbt publish` .
+- Build artifacts: `./project/build.sh`
+- Publish storage modules: `./project/deploy.sh <version> <pgp-key>`
+- Publish play module:
 
-Then in Entrepot, the changes must be commited and pushed.
+```
+export SCALA_MODULES="play:benji-play"
+./project/deploy.sh <version>-play26 <pgp-key>
+./project/deploy.sh <version>-play27 <pgp-key>
+```
+
+- Go to https://oss.sonatype.org/#stagingRepositories and login with user allowed to publish on Maven central.
+
+## Publish snapshot
+
+Execute `./project/snapshot.sh`
