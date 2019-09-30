@@ -6,11 +6,6 @@ The first step is a add the dependency in your `build.sbt`.
 
 ```ocaml
 libraryDependencies += "com.zengularity" %% "benji-vfs" % "{{site.latest_release}}"
-
-resolvers ++= Seq(
-  "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases",
-  "Entrepot Snapshots" at "https://raw.githubusercontent.com/zengularity/entrepot/master/snapshots"
-)
 ```
 
 Then it be used as bellow.
