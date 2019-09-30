@@ -28,15 +28,6 @@ libraryDependencies ++= Seq("play", "s3").map { mod =>
 }
 ```
 
-Note that the following resolvers are also required in the build.
-
-```ocaml
-resolvers ++= Seq(
-  "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases",
-  "Entrepot Snapshots" at "https://raw.githubusercontent.com/zengularity/entrepot/master/snapshots"
-)
-```
-
 ## Setup
 
 The dependency injection can be configured, so that the your controllers can be given `ObjectStorage` instances.

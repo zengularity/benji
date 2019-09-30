@@ -8,8 +8,9 @@ The project is using [SBT](http://www.scala-sbt.org/), so to build it from sourc
 
     ./project/build.sh
 
-[![CircleCI](https://circleci.com/gh/zengularity/benji.svg?style=svg)](https://circleci.com/gh/zengularity/benji) 
-[![Zen Entrepot](https://zen-entrepot.nestincloud.io/entrepot/shields/releases/com/zengularity/benji-core_2.13.svg)](https://zen-entrepot.nestincloud.io/entrepot/pom/releases/com/zengularity/benji-core_2.12)
+[![CircleCI](https://circleci.com/gh/zengularity/benji.svg?style=svg)](https://circleci.com/gh/zengularity/benji)
+[![Maven](https://img.shields.io/maven-central/v/com.zengularity/benji-core_2.13.svg)](http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22benji-core_2.13%22)
+[![Javadocs](https://javadoc.io/badge/com.zengularity/benji-core_2.12.svg)](https://javadoc.io/doc/com.zengularity/benji-core_2.13)
 
 > The environment variable `PLAY_VERSION` can be set to build the `play` module appropriately.
 
