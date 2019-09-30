@@ -11,11 +11,6 @@ libraryDependencies += "com.zengularity" %% "benji-google" % "{{site.latest_rele
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-ahc-ws-standalone" % "1.1.3",
   "com.typesafe.play" %% "play-ws-standalone-json" % "1.1.3")
-
-resolvers ++= Seq(
-  "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases",
-  "Entrepot Snapshots" at "https://raw.githubusercontent.com/zengularity/entrepot/master/snapshots"
-)
 ```
 
 Then, the Google Storage client can be used as following in your code.
