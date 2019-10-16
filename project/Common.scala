@@ -48,7 +48,7 @@ object Common extends AutoPlugin {
     },
     libraryDependencies ++= Dependencies.wsStream.value ++ Seq(
       "specs2-core", "specs2-junit").map(
-        "org.specs2" %% _ % "4.7.1" % Test) ++ Seq(
+        "org.specs2" %% _ % "4.8.0" % Test) ++ Seq(
           "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
           "com.typesafe.akka" %% "akka-slf4j" % akkaVer.value,
           "ch.qos.logback" % "logback-classic" % "1.2.3").map(_ % Test),
