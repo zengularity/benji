@@ -39,6 +39,7 @@ object Common extends AutoPlugin {
         Seq.empty
       }
     },
+    resolvers += "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases", // For previous releases
     libraryDependencies ++= {
       val silencerVer = "1.4.2"
 
@@ -154,5 +155,5 @@ object Dependencies {
 
   val playWSXml = "com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS
 
-  val slf4jApi = "org.slf4j" % "slf4j-api" % "1.7.28"
+  val slf4jApi = "org.slf4j" % "slf4j-api" % "1.7.29"
 }
