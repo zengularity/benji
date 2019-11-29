@@ -104,7 +104,7 @@ lazy val google = project.in(file("google")).settings(
   libraryDependencies ++= Seq(
     Dependencies.playWSJson,
     Dependencies.playAhcWS,
-    "com.google.apis" % "google-api-services-storage" % "v1-rev20190129-1.28.0")
+    "com.google.apis" % "google-api-services-storage" % "v1-rev20191011-1.30.3")
 ).dependsOn(core % "test->test;compile->compile")
 
 lazy val vfs = project.in(file("vfs")).settings(
