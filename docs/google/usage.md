@@ -22,7 +22,7 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+import com.google.auth.oauth2.GoogleCredentials
 
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
@@ -35,7 +35,7 @@ import com.zengularity.benji.google.{
 val projectId = "google-project-123456"
 val appName = "Foo"
 
-def credential: GoogleCredential = GoogleCredential.fromStream(
+def credential: GoogleCredentials = GoogleCredentials.fromStream(
   new java.io.FileInputStream("/path/to/google-credential.json"))
 
 def sample1(implicit m: Materializer): Future[Unit] = {
@@ -73,7 +73,7 @@ There are several factories to create a Google `ObjectStorage` client, either pa
 ```scala
 import akka.stream.Materializer
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+import com.google.auth.oauth2.GoogleCredentials
 
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
@@ -86,7 +86,7 @@ def sample2a(implicit m: Materializer): GoogleStorage = {
   val projectId = "google-project-123456"
   val appName = "Foo"
 
-  def credential = GoogleCredential.fromStream(
+  def credential = GoogleCredentials.fromStream(
     new java.io.FileInputStream("/path/to/google-credential.json"))
 
   def gt: GoogleTransport = GoogleTransport(credential, projectId, appName)

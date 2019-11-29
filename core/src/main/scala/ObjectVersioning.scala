@@ -4,8 +4,6 @@
 
 package com.zengularity.benji
 
-import scala.language.higherKinds
-
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed

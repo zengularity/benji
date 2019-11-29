@@ -4,8 +4,6 @@
 
 package com.zengularity.benji
 
-import scala.language.higherKinds
-
 private[benji] object Compat {
   type Factory[M[_], T] = scala.collection.Factory[T, M[T]]
 

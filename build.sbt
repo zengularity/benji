@@ -1,17 +1,17 @@
 organization in ThisBuild := "com.zengularity"
 
-scalaVersion in ThisBuild := "2.12.8"
+scalaVersion in ThisBuild := "2.12.10"
 
 crossScalaVersions in ThisBuild := Seq(
-  "2.11.12", scalaVersion.value, "2.13.0")
-
-mimaFailOnNoPrevious in ThisBuild := false
+  "2.11.12", scalaVersion.value, "2.13.1")
 
 lazy val core = project.in(file("core")).settings(
   name := "benji-core",
-  scalacOptions in (Compile, compile) += { // Silencer
-    "-P:silencer:globalFilters=constructor\\ deprecatedName\\ in\\ class\\ deprecatedName\\ is\\ deprecated"
-  },
+  scalacOptions in (Compile, compile) ++= Seq(
+    // Silencer
+    "-P:silencer:globalFilters=constructor\\ deprecatedName\\ in\\ class\\ deprecatedName\\ is\\ deprecated",
+    "-language:higherKinds"
+  ),
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
 
@@ -80,6 +80,13 @@ lazy val s3 = project.in(file("s3")).settings(
 
 lazy val google = project.in(file("google")).settings(
   name := "benji-google",
+  mimaPreviousArtifacts := {
+    if (scalaBinaryVersion.value == "2.12") {
+      Set(/*TODO:organization.value %% moduleName.value % "2.1.0"*/)
+    } else {
+      Set.empty[ModuleID]
+    }
+  },
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
     val pkg = "com.zengularity.benji.google"
@@ -104,7 +111,9 @@ lazy val google = project.in(file("google")).settings(
   libraryDependencies ++= Seq(
     Dependencies.playWSJson,
     Dependencies.playAhcWS,
-    "com.google.apis" % "google-api-services-storage" % "v1-rev20190129-1.28.0")
+    "com.google.auth" % "google-auth-library-oauth2-http" % "0.18.0",
+    "com.google.apis" % "google-api-services-storage" % "v1-rev20191011-1.30.3",
+  )
 ).dependsOn(core % "test->test;compile->compile")
 
 lazy val vfs = project.in(file("vfs")).settings(
