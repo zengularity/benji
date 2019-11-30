@@ -16,7 +16,9 @@ import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+import com.google.auth.http.HttpCredentialsAdapter
+import com.google.auth.oauth2.GoogleCredentials
+
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.services.storage.Storage
@@ -37,9 +39,9 @@ import com.zengularity.benji.{ URIProvider, Compat }, Compat.javaConverters._
  * @param disableGZip if true, disables the GZip compression for upload and download (default: false)
  */
 final class GoogleTransport(
-  credential: => GoogleCredential,
+  credential: => GoogleCredentials,
   val projectId: String,
-  builder: GoogleCredential => Storage,
+  builder: GoogleCredentials => Storage,
   ws: StandaloneAhcWSClient,
   baseRestUrl: String,
   servicePath: String,
@@ -63,15 +65,20 @@ final class GoogleTransport(
     new GoogleTransport(cred, id, builder, ws, servicePath, baseRestUrl)
 
   private[google] def accessToken()(implicit ec: ExecutionContext): Future[String] = {
-    if (cred.getAccessToken != null &&
-      // TODO: Use requestTimeout?
-      Option(cred.getExpiresInSeconds).fold(Int.MaxValue)(_.toInt) > 2) {
+    val accessTok = cred.getAccessToken()
 
+    if (accessTok != null && {
+      // TODO: Use requestTimeout?
+      val expiration = Option(accessTok.getExpirationTime).map(_.getTime)
+
+      expiration.forall(_ > (System.currentTimeMillis() + 2000L /*2s*/ ))
+    }) {
       logger.trace("Google Access Token acquired")
-      Future.successful(cred.getAccessToken)
+      Future.successful(accessTok.getTokenValue)
     } else Future {
-      cred.refreshToken()
-      Option(cred.getAccessToken())
+      cred.refresh()
+
+      Option(cred.getAccessToken().getTokenValue)
     }.flatMap {
       case Some(token) => {
         logger.trace(s"Google Access Token refreshed: $token")
@@ -151,16 +158,18 @@ object GoogleTransport {
    *
    * {{{
    * import java.io.FileInputStream
-   * import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+   * import com.google.api.client.googleapis.auth.oauth2.GoogleCredentials
    *
    * def jsonResource = new FileInputStream("/path/to/keys.json")
-   * val credential = GoogleCredential.fromStream(jsonResource)
+   * val credential = GoogleCredentials.fromStream(jsonResource)
    * implicit val googleTransport = GoogleTransport(credential, "foo")
    * }}}
    */
-  def apply(credential: GoogleCredential, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: StandaloneAhcWSClient): GoogleTransport = {
-    val build = new Storage.Builder(http, json, _: GoogleCredential).
-      setApplicationName(application).build()
+  def apply(credential: GoogleCredentials, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: StandaloneAhcWSClient): GoogleTransport = {
+    val build = { creds: GoogleCredentials =>
+      new Storage.Builder(http, json, new HttpCredentialsAdapter(creds)).
+        setApplicationName(application).build()
+    }
 
     new GoogleTransport({
       if (!credential.createScopedRequired) credential else {
@@ -226,7 +235,7 @@ object GoogleTransport {
           case _ => uri.toURL.openStream()
         }
 
-        val credential = GoogleCredential.fromStream(credentialStream)
+        val credential = GoogleCredentials.fromStream(credentialStream)
         val params = parseQuery(uri)
 
         for {

@@ -6,8 +6,6 @@ import com.typesafe.tools.mima.plugin.MimaKeys._
 object Common extends AutoPlugin {
   import Dependencies.Version.{ akka => akkaVer }
 
-  val previousRelease = "1.3.3"
-
   override def trigger = allRequirements
   override def requires = sbt.plugins.JvmPlugin
 
@@ -41,11 +39,13 @@ object Common extends AutoPlugin {
     },
     resolvers += "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases", // For previous releases
     libraryDependencies ++= {
-      val silencerVer = "1.4.2"
+      val silencerVer = "1.4.4"
 
       Seq(
-        compilerPlugin("com.github.ghik" %% "silencer-plugin" % silencerVer),
-        "com.github.ghik" %% "silencer-lib" % silencerVer % Provided)
+        compilerPlugin(("com.github.ghik" %% "silencer-plugin" % silencerVer).
+          cross(CrossVersion.full)),
+        ("com.github.ghik" %% "silencer-lib" % silencerVer % Provided).
+          cross(CrossVersion.full))
     },
     libraryDependencies ++= Dependencies.wsStream.value ++ Seq(
       "specs2-core", "specs2-junit").map(
@@ -74,6 +74,7 @@ object Common extends AutoPlugin {
       }
     },
     fork in Test := true,
+    mimaFailOnNoPrevious in ThisBuild := false,
     mimaPreviousArtifacts := Set( /* organization.value %% name.value % previousRelease */ ),
     autoAPIMappings := true,
     apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")("scala-library").value) ++ Wart.settings ++ Publish.settings

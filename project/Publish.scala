@@ -17,7 +17,6 @@ object Publish {
   lazy val repoUrl = env("PUBLISH_REPO_URL")
 
   lazy val settings = Seq(
-    mimaFailOnNoPrevious := false,
     mimaPreviousArtifacts := {
       if (scalaBinaryVersion.value == "2.12") {
         Set(organization.value %% moduleName.value % "2.0.0")

@@ -1,5 +1,15 @@
 # Changelog
 
+## Release 2.1.0
+
+- Update dependencies (#94):
+
+```
+// For Benji Google
+//Remove dependency on: com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+import com.google.auth.oauth2.GoogleCredentials
+```
+
 ## Release 2.0.5
 
 - Various dependency updates
