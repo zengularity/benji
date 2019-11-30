@@ -82,7 +82,7 @@ lazy val google = project.in(file("google")).settings(
   name := "benji-google",
   mimaPreviousArtifacts := {
     if (scalaBinaryVersion.value == "2.12") {
-      Set(/*TODO:organization.value %% moduleName.value % "2.1.0"*/)
+      Set(organization.value %% moduleName.value % "2.1.0")
     } else {
       Set.empty[ModuleID]
     }

@@ -37,7 +37,7 @@ object Common extends AutoPlugin {
         Seq.empty
       }
     },
-    resolvers += "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases", // For previous releases
+    resolvers += Resolver.sonatypeRepo("staging" /* releases */ ),
     libraryDependencies ++= {
       val silencerVer = "1.4.4"
 
