@@ -86,11 +86,12 @@ object S3 {
    * @return A WSS3 instance configured to work with the S3-compatible API of a the server
    *
    * {{{
-   * S3(
-   *   accessKeyId = "accessKey",
-   *   secretAccessKeyId = "secretAccessKey",
-   *   scheme = "https",
-   *   host = "s3.amazonaws.com")
+   * def init(implicit wc: play.api.libs.ws.ahc.StandaloneAhcWSClient) =
+   *   com.zengularity.benji.s3.S3(
+   *     accessKeyId = "accessKey",
+   *     secretAccessKeyId = "secretAccessKey",
+   *     scheme = "https",
+   *     host = "s3.amazonaws.com")
    * }}}
    */
   def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new PathStyleWSRequestBuilder(new SignatureCalculatorV1(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
@@ -106,11 +107,12 @@ object S3 {
    * @return A WSS3 instance configured to work with the S3-compatible API of a the server
    *
    * {{{
-   * S3.virtualHost(
-   *   accessKeyId = "accessKey",
-   *   secretAccessKeyId = "secretAccessKey",
-   *   scheme = "https",
-   *   host = "s3.amazonaws.com")
+   * def init(implicit wc: play.api.libs.ws.ahc.StandaloneAhcWSClient) =
+   *   com.zengularity.benji.s3.S3.virtualHost(
+   *     accessKeyId = "accessKey",
+   *     secretAccessKeyId = "secretAccessKey",
+   *     scheme = "https",
+   *     host = "s3.amazonaws.com")
    * }}}
    *
    */
@@ -128,12 +130,13 @@ object S3 {
    * @return A WSS3 instance configured to work with the AWS V4
    *
    * {{{
-   * S3.virtualHostAwsV4(
-   *   accessKeyId = "accessKey",
-   *   secretAccessKeyId = "secretAccessKey",
-   *   scheme = "https",
-   *   host = "s3.amazonaws.com",
-   *   region = "us-east-1")
+   * def init(implicit wc: play.api.libs.ws.ahc.StandaloneAhcWSClient) =
+   *   com.zengularity.benji.s3.S3.virtualHostAwsV4(
+   *     accessKeyId = "accessKey",
+   *     secretAccessKeyId = "secretAccessKey",
+   *     scheme = "https",
+   *     host = "s3.amazonaws.com",
+   *     region = "us-east-1")
    * }}}
    *
    */
@@ -146,9 +149,15 @@ object S3 {
    * The `accessKey` and `secretKey` must not be URI-encoded.
    *
    * {{{
-   * S3("s3:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
+   * import play.api.libs.ws.ahc.StandaloneAhcWSClient
+   * import com.zengularity.benji.s3.S3
+   *
+   * def init1(implicit wc: StandaloneAhcWSClient) =
+   *   S3("s3:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
+   *
    * // or
-   * S3(new java.net.URI("s3:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
+   * def init2(implicit wc: StandaloneAhcWSClient) =
+   *   S3(new java.net.URI("s3:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
    * }}}
    *
    * @param config the config element used by the provider to generate the URI

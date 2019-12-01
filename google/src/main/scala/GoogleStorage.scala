@@ -66,17 +66,19 @@ object GoogleStorage {
    * import com.zengularity.benji.google._
    *
    * def sample(implicit gt: GoogleTransport): GoogleStorage =
-   *   GoogleStorage()
+   *   GoogleStorage(gt)
    * }}}
    */
   def apply(gt: GoogleTransport): GoogleStorage =
     new GoogleStorage(gt, gt.requestTimeout, gt.disableGZip)
 }
 
-/**
+/*
  * Response extractor
  *
  * {{{
+ * import com.zengularity.benji.google.HttpResponse
+ *
  * def check(err: Throwable) = err match {
  *   case HttpResponse(code, message) => ???
  * }

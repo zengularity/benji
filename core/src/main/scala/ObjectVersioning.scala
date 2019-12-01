@@ -20,8 +20,14 @@ trait ObjectVersioning {
    * Prepares a request to list the bucket versioned objects.
    *
    * {{{
-   * versioning.versions() // versions.apply()
-   * versioning.versions.collect[Set]()
+   * import akka.stream.Materializer
+   * import com.zengularity.benji.ObjectVersioning
+   *
+   * def foo(versioning: ObjectVersioning)(implicit m: Materializer) =
+   *   versioning.versions() // versions.apply()
+   *
+   * def bar(versioning: ObjectVersioning)(implicit m: Materializer) =
+   *   versioning.versions.collect[Set]()
    * }}}
    */
   def versions: VersionedListRequest
@@ -31,7 +37,11 @@ trait ObjectVersioning {
    * allowing you to perform operations on an object version.
    *
    * {{{
-   * versioning.version("1.0").exists
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.ObjectVersioning
+   *
+   * def foo(versioning: ObjectVersioning)(implicit ec: ExecutionContext) =
+   *   versioning.version("1.0").exists
    * }}}
    */
   def version(versionId: String): VersionedObjectRef
@@ -46,7 +56,11 @@ trait ObjectVersioning {
      * Lists of all versioned objects within the bucket.
      *
      * {{{
-     * versioning.versions()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.ObjectVersioning
+     *
+     * def foo(versioning: ObjectVersioning)(implicit m: Materializer) =
+     *   versioning.versions()
      * }}}
      */
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed]
@@ -55,7 +69,11 @@ trait ObjectVersioning {
      * Collects the bucket objects.
      *
      * {{{
-     * versioning.versions.collect[List]()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.ObjectVersioning
+     *
+     * def foo(versioning: ObjectVersioning)(implicit m: Materializer) =
+     *   versioning.versions.collect[List]()
      * }}}
      */
     final def collect[M[_]]()(implicit m: Materializer, @deprecatedName(Symbol("builder")) factory: Compat.Factory[M, VersionedObject]): Future[M[VersionedObject]] = {

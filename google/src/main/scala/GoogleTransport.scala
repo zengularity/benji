@@ -158,11 +158,17 @@ object GoogleTransport {
    *
    * {{{
    * import java.io.FileInputStream
-   * import com.google.api.client.googleapis.auth.oauth2.GoogleCredentials
+   * import play.api.libs.ws.ahc.StandaloneAhcWSClient
+   * import com.google.auth.oauth2.GoogleCredentials
+   * import com.zengularity.benji.google.GoogleTransport
    *
    * def jsonResource = new FileInputStream("/path/to/keys.json")
    * val credential = GoogleCredentials.fromStream(jsonResource)
-   * implicit val googleTransport = GoogleTransport(credential, "foo")
+   *
+   * def init(implicit wc: StandaloneAhcWSClient) = GoogleTransport(
+   *   credential = credential,
+   *   projectId = "foo",
+   *   application = "appId")
    * }}}
    */
   def apply(credential: GoogleCredentials, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: StandaloneAhcWSClient): GoogleTransport = {
@@ -184,11 +190,16 @@ object GoogleTransport {
    * `google:http://accessKey:secretKey@s3.amazonaws.com/?style=[virtualHost|path]`
    *
    * {{{
-   * GoogleTransport("google:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
+   * import play.api.libs.ws.ahc.StandaloneAhcWSClient
+   * import com.zengularity.benji.google.GoogleTransport
+   *
+   * def init1(implicit wc: StandaloneAhcWSClient) =
+   *   GoogleTransport("google:http://accessKey:secretKey@s3.amazonaws.com/?style=virtualHost")
    *
    * // -- or --
    *
-   * GoogleTransport(new java.net.URI("google:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
+   * def init2(implicit wc: StandaloneAhcWSClient) =
+   *   GoogleTransport(new java.net.URI("google:https://accessKey:secretKey@s3.amazonaws.com/?style=path"))
    * }}}
    *
    * @param config the config element used by the provider to generate the URI

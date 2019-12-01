@@ -21,7 +21,11 @@ trait BucketVersioning {
    * otherwise a future with false.
    *
    * {{{
-   * versioning.isVersioned
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.BucketVersioning
+   *
+   * def foo(versioning: BucketVersioning)(implicit ec: ExecutionContext) =
+   *   versioning.isVersioned
    * }}}
    */
   def isVersioned(implicit ec: ExecutionContext): Future[Boolean]
@@ -31,7 +35,11 @@ trait BucketVersioning {
    * existing versions history will not be erased when versioning is disabled.
    *
    * {{{
-   * versioning.setVersioning(true)
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.BucketVersioning
+   *
+   * def foo(versioning: BucketVersioning)(implicit ec: ExecutionContext) =
+   *   versioning.setVersioning(true)
    * }}}
    */
   def setVersioning(enabled: Boolean)(implicit ec: ExecutionContext): Future[Unit]
@@ -40,7 +48,11 @@ trait BucketVersioning {
    * Prepares a request to list the bucket versioned objects.
    *
    * {{{
-   * versioning.versionedObjects()
+   * import akka.stream.Materializer
+   * import com.zengularity.benji.BucketVersioning
+   *
+   * def foo(versioning: BucketVersioning)(implicit m: Materializer) =
+   *   versioning.versionedObjects()
    * }}}
    */
   def versionedObjects: VersionedListRequest
@@ -50,7 +62,10 @@ trait BucketVersioning {
    * allowing you to perform operations on an object version.
    *
    * {{{
-   * versioning.obj("objInBucket", "1.0")
+   * import com.zengularity.benji.BucketVersioning
+   *
+   * def foo(versioning: BucketVersioning) =
+   *   versioning.obj("objInBucket", "1.0")
    * }}}
    */
   def obj(objectName: String, versionId: String): VersionedObjectRef
@@ -63,7 +78,11 @@ trait BucketVersioning {
      * Lists of the matching versioned objects within the bucket.
      *
      * {{{
-     * versioning.versionedObjects()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketVersioning
+     *
+     * def foo(versioning: BucketVersioning)(implicit m: Materializer) =
+     *   versioning.versionedObjects()
      * }}}
      */
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed]
@@ -72,7 +91,11 @@ trait BucketVersioning {
      * Collects the matching objects.
      *
      * {{{
-     * versioning.versionedObjects.collect[List]()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketVersioning
+     *
+     * def foo(versioning: BucketVersioning)(implicit m: Materializer) =
+     *   versioning.versionedObjects.collect[List]()
      * }}}
      */
     final def collect[M[_]]()(implicit m: Materializer, @deprecatedName(Symbol("builder")) factory: Compat.Factory[M, VersionedObject]): Future[M[VersionedObject]] = {
@@ -90,7 +113,11 @@ trait BucketVersioning {
      * @param max the maximum number of objects fetch at once
      *
      * {{{
-     * versioning.versionedObjects.withBatchSize(10L).collect[Set]()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketVersioning
+     *
+     * def foo(versioning: BucketVersioning)(implicit m: Materializer) =
+     *   versioning.versionedObjects.withBatchSize(10L).collect[Set]()
      * }}}
      */
     def withBatchSize(max: Long): VersionedListRequest
@@ -99,7 +126,11 @@ trait BucketVersioning {
      * Defines the prefix the listed objects must match.
      *
      * {{{
-     * versioning.versionedObjects.withPrefix("foo").collect[Set]()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketVersioning
+     *
+     * def foo(versioning: BucketVersioning)(implicit m: Materializer) =
+     *   versioning.versionedObjects.withPrefix("foo").collect[Set]()
      * }}}
      */
     def withPrefix(prefix: String): VersionedListRequest

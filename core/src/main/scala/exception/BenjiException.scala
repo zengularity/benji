@@ -36,12 +36,20 @@ object BucketNotEmptyException {
  * An error when an operation is refused for an already existing bucket.
  *
  * {{{
- * storage.bucket(bucketName).create(failsIfExists = true).map { _ =>
- *   println(s"\$bucketName created")
- * }.recover {
- *   case BucketAlreadyExistsException(_) =>
- *     println(s"\$bucketName already exists")
- * }
+ * import scala.concurrent.ExecutionContext
+ *
+ * import com.zengularity.benji.ObjectStorage
+ * import com.zengularity.benji.exception.BucketAlreadyExistsException
+ *
+ * def foo(
+ *   storage: ObjectStorage,
+ *   bucketName: String)(implicit ec: ExecutionContext) =
+ *   storage.bucket(bucketName).create(failsIfExists = true).map { _ =>
+ *     println(s"\$bucketName created")
+ *   }.recover {
+ *     case BucketAlreadyExistsException(_) =>
+ *       println(s"\$bucketName already exists")
+ *   }
  * }}}
  */
 case class BucketAlreadyExistsException(

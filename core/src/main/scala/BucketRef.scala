@@ -26,9 +26,13 @@ trait BucketRef {
    * Prepares a request to list the bucket objects.
    *
    * {{{
-   * def enumObjects(b: BucketRef) = b.objects()
+   * import akka.stream.Materializer
+   * import com.zengularity.benji.BucketRef
    *
-   * def objectList(b: BucketRef) = b.objects.collect[List]()
+   * def enumObjects(b: BucketRef)(implicit m: Materializer) = b.objects()
+   *
+   * def objectList(b: BucketRef)(implicit m: Materializer) =
+   *   b.objects.collect[List]()
    * }}}
    */
   def objects: ListRequest
@@ -39,6 +43,10 @@ trait BucketRef {
    * to view a certain bucket.
    *
    * {{{
+   * import scala.concurrent.{ ExecutionContext, Future }
+   *
+   * import com.zengularity.benji.ObjectStorage
+   *
    * def check(store: ObjectStorage, name: String)(
    *   implicit ec: ExecutionContext): Future[Boolean] =
    *   store.bucket(name).exists
@@ -53,7 +61,12 @@ trait BucketRef {
    * @note On some module configuring failsIfExists to true may slow down this operation.
    *
    * {{{
-   * def setupBucket(store: ObjectStorage, name: String)(
+   * import scala.concurrent.{ ExecutionContext, Future }
+   *
+   * import com.zengularity.benji.{ BucketRef, ObjectStorage }
+   *
+   * def setupBucket(
+   *   store: ObjectStorage, name: String)(
    *   implicit ec: ExecutionContext): Future[BucketRef] = {
    *   // Make sure a bucket is available (either a new or existing one)
    *   val bucket = store.bucket(name)
@@ -67,8 +80,15 @@ trait BucketRef {
    * Prepares a request to delete the referenced bucket.
    *
    * {{{
-   * myBucket.delete() // .delete.apply()
-   * myBucket.delete.ignoreIfNotExists() // delete.ignoreIfNotExists.apply()
+   * import akka.stream.Materializer
+   *
+   * import com.zengularity.benji.BucketRef
+   *
+   * def foo(myBucket: BucketRef)(implicit m: Materializer) =
+   *   myBucket.delete() // .delete.apply()
+   *
+   * def bar(myBucket: BucketRef)(implicit m: Materializer) =
+   *   myBucket.delete.ignoreIfNotExists() // delete.ignoreIfNotExists.apply()
    * }}}
    */
   def delete: DeleteRequest
@@ -79,7 +99,11 @@ trait BucketRef {
    * @param objectName the name of child object
    *
    * {{{
-   * myBucket.obj("objInMyBucket").exists()
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.BucketRef
+   *
+   * def foo(myBucket: BucketRef)(implicit ec: ExecutionContext) =
+   *   myBucket.obj("objInMyBucket").exists
    * }}}
    */
   def obj(objectName: String): ObjectRef
@@ -92,7 +116,8 @@ trait BucketRef {
    * related operations, otherwise None.
    *
    * {{{
-   * myBucket.versioning.map(_.isVersioned)
+   * def foo(myBucket: com.zengularity.benji.BucketRef) =
+   *   myBucket.versioning.isDefined
    * }}}
    */
   def versioning: Option[BucketVersioning]
@@ -107,7 +132,11 @@ trait BucketRef {
      * Lists of the matching objects within the bucket.
      *
      * {{{
-     * bucketRef.objects()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketRef
+     *
+     * def foo(bucketRef: BucketRef)(implicit m: Materializer) =
+     *   bucketRef.objects()
      * }}}
      */
     def apply()(implicit m: Materializer): Source[Object, NotUsed]
@@ -116,7 +145,11 @@ trait BucketRef {
      * Collects the matching objects.
      *
      * {{{
-     * bucketRef.objects.collect[List]()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketRef
+     *
+     * def foo(bucketRef: BucketRef)(implicit m: Materializer) =
+     *   bucketRef.objects.collect[List]()
      * }}}
      */
     final def collect[M[_]]()(implicit m: Materializer, @deprecatedName(Symbol("builder")) factory: Compat.Factory[M, Object]): Future[M[Object]] = {
@@ -133,7 +166,11 @@ trait BucketRef {
      * @param max the maximum number of objects fetch at once
      *
      * {{{
-     * bucketRef.objects.withBatchSize(10L).collect[Set]()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketRef
+     *
+     * def foo(bucketRef: BucketRef)(implicit m: Materializer) =
+     *   bucketRef.objects.withBatchSize(10L).collect[Set]()
      * }}}
      */
     def withBatchSize(max: Long): ListRequest
@@ -142,7 +179,11 @@ trait BucketRef {
      * Defines the prefix the listed objects must match.
      *
      * {{{
-     * bucketRef.objects.withPrefix("foo").collect[Set]()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketRef
+     *
+     * def foo(bucketRef: BucketRef)(implicit m: Materializer) =
+     *   bucketRef.objects.withPrefix("foo").collect[Set]()
      * }}}
      */
     def withPrefix(prefix: String): ListRequest
@@ -156,7 +197,11 @@ trait BucketRef {
      * Deletes the current bucket.
      *
      * {{{
-     * myBucket.delete()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketRef
+     *
+     * def foo(bucketRef: BucketRef)(implicit m: Materializer) =
+     *   bucketRef.delete()
      * }}}
      */
     def apply()(implicit m: Materializer): Future[Unit]
@@ -166,8 +211,14 @@ trait BucketRef {
      * if the referenced bucket doesn't exist when executed.
      *
      * {{{
-     * myBucket.delete.ignoreIfNotExists()
-     * myBucket.delete.ignoreIfNotExists.recursive()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketRef
+     *
+     * def foo(myBucket: BucketRef)(implicit m: Materializer) =
+     *   myBucket.delete.ignoreIfNotExists()
+     *
+     * def bar(myBucket: BucketRef)(implicit m: Materializer) =
+     *   myBucket.delete.ignoreIfNotExists.recursive()
      * }}}
      */
     def ignoreIfNotExists: DeleteRequest
@@ -178,8 +229,14 @@ trait BucketRef {
      * if applicable also all versions of the objects.
      *
      * {{{
-     * myBucket.delete.recursive()
-     * myBucket.delete.recursive.ignoreIfNotExists()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.BucketRef
+     *
+     * def foo(myBucket: BucketRef)(implicit m: Materializer) =
+     *   myBucket.delete.recursive()
+     *
+     * def bar(myBucket: BucketRef)(implicit m: Materializer) =
+     *   myBucket.delete.recursive.ignoreIfNotExists()
      * }}}
      */
     def recursive: DeleteRequest
