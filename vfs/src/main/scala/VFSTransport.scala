@@ -44,7 +44,7 @@ object VFSTransport {
    *
    * {{{
    * import org.apache.commons.vfs2.{ FileSystemManager, VFS }
-   * import com.zengularity.vfs.VFSTransport
+   * import com.zengularity.benji.vfs.VFSTransport
    *
    * def fsManager: FileSystemManager = VFS.getManager()
    * implicit def vfsTransport = VFSTransport(fsManager)
@@ -58,8 +58,13 @@ object VFSTransport {
    * Where scheme is any scheme in the providers.xml file
    *
    * {{{
+   * import com.zengularity.benji.vfs.VFSTransport
+   *
+   * def init1 =
    *   VFSTransport("vfs:file:///home/someuser/somedir")
-   *   // or
+   *
+   * // or
+   * def init2 =
    *   VFSTransport(new java.net.URI("vfs:file:///home/someuser/somedir"))
    * }}}
    *
@@ -108,7 +113,7 @@ object VFSTransport {
    * @param base the base name for the temporary directory
    *
    * {{{
-   * import com.zengularity.vfs.VFSTransport
+   * import com.zengularity.benji.vfs.VFSTransport
    *
    * implicit def vfsTransport = VFSTransport.temporary("foo")
    * }}}

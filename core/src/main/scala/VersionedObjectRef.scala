@@ -39,7 +39,11 @@ trait VersionedObjectRef {
    * Prepares a request to delete the referenced object
    *
    * {{{
-   * myObject.delete()
+   * import akka.stream.Materializer
+   * import com.zengularity.benji.VersionedObjectRef
+   *
+   * def foo(myObject: VersionedObjectRef)(implicit m: Materializer) =
+   *   myObject.delete()
    * }}}
    */
   def delete: DeleteRequest
@@ -48,7 +52,11 @@ trait VersionedObjectRef {
    * Prepares the request to get the contents of this specific version.
    *
    * {{{
-   * myObject.get()
+   * import akka.stream.Materializer
+   * import com.zengularity.benji.VersionedObjectRef
+   *
+   * def foo(myObject: VersionedObjectRef)(implicit m: Materializer) =
+   *   myObject.get()
    * }}}
    */
   def get: GetRequest
@@ -57,7 +65,11 @@ trait VersionedObjectRef {
    * Returns the headers of the referenced version.
    *
    * {{{
-   * myObject.headers()
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.VersionedObjectRef
+   *
+   * def foo(myObject: VersionedObjectRef)(implicit ec: ExecutionContext) =
+   *   myObject.headers()
    * }}}
    */
   def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
@@ -67,7 +79,11 @@ trait VersionedObjectRef {
    * (normalized from the `headers`).
    *
    * {{{
-   * myObject.metadata()
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.VersionedObjectRef
+   *
+   * def foo(myObject: VersionedObjectRef)(implicit ec: ExecutionContext) =
+   *   myObject.metadata()
    * }}}
    */
   def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
@@ -78,7 +94,11 @@ trait VersionedObjectRef {
    * to view a certain object.
    *
    * {{{
-   * myObject.exists
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.VersionedObjectRef
+   *
+   * def foo(myObject: VersionedObjectRef)(implicit ec: ExecutionContext) =
+   *   myObject.exists
    * }}}
    */
   def exists(implicit ec: ExecutionContext): Future[Boolean]
@@ -94,7 +114,11 @@ trait VersionedObjectRef {
      * @param range the optional request range
      *
      * {{{
-     * myObject.get()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.VersionedObjectRef
+     *
+     * def foo(myObject: VersionedObjectRef)(implicit m: Materializer) =
+     *   myObject.get()
      * }}}
      */
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed]
@@ -108,7 +132,11 @@ trait VersionedObjectRef {
      * Deletes the current object.
      *
      * {{{
-     * myObject.delete()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.VersionedObjectRef
+     *
+     * def foo(myObject: VersionedObjectRef)(implicit m: Materializer) =
+     *   myObject.delete()
      * }}}
      */
     def apply()(implicit m: Materializer): Future[Unit]
@@ -118,7 +146,11 @@ trait VersionedObjectRef {
      * if the referenced object doesn't exist when executed.
      *
      * {{{
-     * myObject.delete.ignoreIfNotExists()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.VersionedObjectRef
+     *
+     * def foo(myObject: VersionedObjectRef)(implicit m: Materializer) =
+     *   myObject.delete.ignoreIfNotExists()
      * }}}
      */
     def ignoreIfNotExists: DeleteRequest

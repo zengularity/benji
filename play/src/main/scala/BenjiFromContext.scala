@@ -15,6 +15,7 @@ import play.api.libs.ws.ahc.StandaloneAhcWSClient
  *
  * {{{
  * import play.api.ApplicationLoader
+ * import play.modules.benji.BenjiFromContext
  *
  * class MyApplicationLoader extends ApplicationLoader {
  *   def load(context: ApplicationLoader.Context) =
@@ -24,6 +25,7 @@ import play.api.libs.ws.ahc.StandaloneAhcWSClient
  * class MyComponents(context: ApplicationLoader.Context)
  *     extends BenjiFromContext(context) {
  *   lazy val router = play.api.routing.Router.empty
+ *   lazy val httpFilters = Seq.empty[play.api.mvc.EssentialFilter]
  * }
  * }}}
  *

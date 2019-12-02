@@ -51,9 +51,14 @@ trait ObjectStorage { self =>
    * Prepares the request to list the buckets.
    *
    * {{{
-   * def enumBuckets(store: ObjectStorage) = ls.buckets()
+   * import akka.stream.Materializer
+   * import com.zengularity.benji.ObjectStorage
    *
-   * def bucketSet(store: ObjectStorage) = ls.buckets.collect[Set]()
+   * def enumBuckets(store: ObjectStorage)(implicit m: Materializer) =
+   *   store.buckets()
+   *
+   * def bucketSet(store: ObjectStorage)(implicit m: Materializer) =
+   *   store.buckets.collect[Set]()
    * }}}
    */
   def buckets: BucketsRequest

@@ -52,7 +52,11 @@ trait ObjectRef { ref =>
    * to view a certain object.
    *
    * {{{
-   * myObject.exists
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.ObjectRef
+   *
+   * def foo(myObject: ObjectRef)(implicit ec: ExecutionContext) =
+   *   myObject.exists
    * }}}
    */
   def exists(implicit ec: ExecutionContext): Future[Boolean]
@@ -61,7 +65,11 @@ trait ObjectRef { ref =>
    * Returns the headers associated with the currently referenced object.
    *
    * {{{
-   * myObject.headers()
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.ObjectRef
+   *
+   * def foo(myObject: ObjectRef)(implicit ec: ExecutionContext) =
+   *   myObject.headers()
    * }}}
    */
   def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
@@ -71,7 +79,11 @@ trait ObjectRef { ref =>
    * (normalized from the `headers`).
    *
    * {{{
-   * myObject.metadata()
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.ObjectRef
+   *
+   * def foo(myObject: ObjectRef)(implicit ec: ExecutionContext) =
+   *   myObject.metadata()
    * }}}
    */
   def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
@@ -80,7 +92,11 @@ trait ObjectRef { ref =>
    * Prepares the request to get the contents of this object.
    *
    * {{{
-   * myObject.get()
+   * import akka.stream.Materializer
+   * import com.zengularity.benji.ObjectRef
+   *
+   * def foo(myObject: ObjectRef)(implicit m: Materializer) =
+   *   myObject.get()
    * }}}
    */
   def get: GetRequest
@@ -101,8 +117,16 @@ trait ObjectRef { ref =>
    * @tparam A $consumerOutputTparam
    *
    * {{{
-   * def upload[T <: ObjectStorage[_]](obj: ObjectRef[T], data: ByteString) =
-   *   obj.put[ByteString, Unit](NotUsed)((_, _) => Future.successful(NotUsed))
+   * import akka.util.ByteString
+   * import akka.stream.Materializer
+   * import play.api.libs.ws.BodyWritable
+   *
+   * import scala.concurrent.Future
+   * import com.zengularity.benji.ObjectRef
+   *
+   * def upload(obj: ObjectRef)(
+   *   implicit m: Materializer, w: BodyWritable[ByteString]) =
+   *   obj.put[ByteString, Unit]({})((_, _) => Future.successful({}))
    * }}}
    */
   def put[E, A]: PutRequest[E, A]
@@ -111,7 +135,11 @@ trait ObjectRef { ref =>
    * Prepares a request to delete the referenced object.
    *
    * {{{
-   * myObject.delete()
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.ObjectRef
+   *
+   * def foo(myObject: ObjectRef)(implicit ec: ExecutionContext) =
+   *   myObject.delete()
    * }}}
    */
   def delete: DeleteRequest
@@ -123,7 +151,12 @@ trait ObjectRef { ref =>
    * @param preventOverwrite $preventOverwriteParam (default: true)
    *
    * {{{
-   * myObject.moveTo(otherRef)
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.ObjectRef
+   *
+   * def foo(
+   *   myObject: ObjectRef, otherRef: ObjectRef)(
+   *   implicit ec: ExecutionContext) = myObject.moveTo(otherRef)
    * }}}
    */
   final def moveTo(target: ObjectRef, preventOverwrite: Boolean = true)(implicit ec: ExecutionContext): Future[Unit] = target match {
@@ -142,7 +175,11 @@ trait ObjectRef { ref =>
    * @param preventOverwrite $preventOverwriteParam
    *
    * {{{
-   * myObject.moveTo("targetBucket", "newName")
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.ObjectRef
+   *
+   * def foo(myObject: ObjectRef)(implicit ec: ExecutionContext) =
+   *   myObject.moveTo("targetBucket", "newName", false)
    * }}}
    */
   def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext): Future[Unit]
@@ -153,7 +190,13 @@ trait ObjectRef { ref =>
    * @param target $targetParam
    *
    * {{{
-   * myObject.copyTo(otherRef)
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.ObjectRef
+   *
+   * def foo(
+   *   myObject: ObjectRef,
+   *   otherRef: ObjectRef)(implicit ec: ExecutionContext) =
+   *   myObject.copyTo(otherRef)
    * }}}
    */
   def copyTo(target: ObjectRef)(implicit ec: ExecutionContext): Future[Unit] = target match {
@@ -171,7 +214,11 @@ trait ObjectRef { ref =>
    * @param targetObjectName $targetObjectNameParam
    *
    * {{{
-   * myObject.copyTo("targetBucket", "copyName")
+   * import scala.concurrent.ExecutionContext
+   * import com.zengularity.benji.ObjectRef
+   *
+   * def foo(myObject: ObjectRef)(implicit ec: ExecutionContext) =
+   *   myObject.copyTo("targetBucket", "copyName")
    * }}}
    */
   def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit]
@@ -184,7 +231,8 @@ trait ObjectRef { ref =>
    * related operations, otherwise None.
    *
    * {{{
-   * myObject.versioning.map(_.isVersioned)
+   * def foo(myObject: com.zengularity.benji.ObjectRef) =
+   *   myObject.versioning.isDefined
    * }}}
    */
   def versioning: Option[ObjectVersioning]
@@ -200,7 +248,11 @@ trait ObjectRef { ref =>
      * @param range the optional request range
      *
      * {{{
-     * myObject.get()
+     * import akka.stream.Materializer
+     * import com.zengularity.benji.ObjectRef
+     *
+     * def foo(myObject: ObjectRef)(implicit m: Materializer) =
+     *   myObject.get()
      * }}}
      */
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed]
@@ -225,9 +277,21 @@ trait ObjectRef { ref =>
      * @param metadata the object metadata
      *
      * {{{
-     * val put = myObject.put[Array[Byte], Long]
-     * val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) =>
-     *   Future.successful(sz + chunk.size)
+     * import scala.concurrent.Future
+     * import akka.stream.Materializer
+     * import play.api.libs.ws.BodyWritable
+     *
+     * import com.zengularity.benji.ObjectRef
+     *
+     * def foo(myObject: ObjectRef)(
+     *   implicit m: Materializer, w: BodyWritable[Array[Byte]]) = {
+     *   val put = myObject.put[Array[Byte], Long]
+     *
+     *   val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) =>
+     *     Future.successful(sz + chunk.size)
+     *   }
+     *
+     *   upload
      * }
      * }}}
      */
@@ -242,7 +306,11 @@ trait ObjectRef { ref =>
      * Deletes the current object.
      *
      * {{{
-     * myObject.delete()
+     * import scala.concurrent.ExecutionContext
+     * import com.zengularity.benji.ObjectRef
+     *
+     * def foo(myObject: ObjectRef)(implicit ec: ExecutionContext) =
+     *   myObject.delete()
      * }}}
      */
     def apply()(implicit ec: ExecutionContext): Future[Unit]
@@ -252,7 +320,11 @@ trait ObjectRef { ref =>
      * if the referenced object doesn't exist when executed.
      *
      * {{{
-     * myObject.delete.ignoreIfNotExists()
+     * import scala.concurrent.ExecutionContext
+     * import com.zengularity.benji.ObjectRef
+     *
+     * def foo(myObject: ObjectRef)(implicit ec: ExecutionContext) =
+     *   myObject.delete.ignoreIfNotExists()
      * }}}
      */
     def ignoreIfNotExists: DeleteRequest
@@ -267,8 +339,10 @@ object ObjectRef {
    * Extractor.
    *
    * {{{
+   * import com.zengularity.benji.ObjectRef
+   *
    * def description(r: ObjectRef): String = r match {
-   *   case Object(bucket, objName) => s"\$bucket -> \$objName"
+   *   case ObjectRef(bucket, objName) => s"\$bucket -> \$objName"
    * }
    * }}}
    */

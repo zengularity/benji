@@ -26,8 +26,6 @@ trait BenjiComponents {
  * {{{
  * import play.api.ApplicationLoader
  *
- * import com.zengularity.benji.ObjectStorage
- *
  * import play.modules.benji._
  *
  * abstract class OtherComponentsFromContext(

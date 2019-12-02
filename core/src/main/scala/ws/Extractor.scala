@@ -15,10 +15,12 @@ import play.api.libs.ws.StandaloneWSResponse
  * with OK, PARTIAL_CONTENT or NO_CONTENT status code.
  *
  * {{{
- * import play.api.libs.ws.{ WSResponse, WSResponseHeaders }
+ * import play.api.libs.ws.StandaloneWSResponse
+ * import com.zengularity.benji.ws.Successful
  *
- * def foo[T](r: WSResponse)(ifSuc: WSResponse => T): Option[T] = r match {
- *   case Successful(resp) => Some(ifSuc(res))
+ * def foo[T](r: StandaloneWSResponse)(
+ *   ifSuc: StandaloneWSResponse => T): Option[T] = r match {
+ *   case Successful(resp) => Some(ifSuc(resp))
  *   case _ => None
  * }
  * }}}
@@ -39,10 +41,12 @@ object Successful {
  * Extractor to match on successful HTTP response with OK status code.
  *
  * {{{
- * import play.api.libs.ws.{ WSResponse, WSResponseHeaders }
+ * import play.api.libs.ws.StandaloneWSResponse
+ * import com.zengularity.benji.ws.Ok
  *
- * def ifOk[T](r: WSResponse)(f: WSResponse => T): Option[T] = r match {
- *   case OK(resp) => Some(f(res))
+ * def ifOk[T](r: StandaloneWSResponse)(
+ *   f: StandaloneWSResponse => T): Option[T] = r match {
+ *   case Ok(resp) => Some(f(resp))
  *   case _ => None
  * }
  * }}}
