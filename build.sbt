@@ -87,27 +87,6 @@ lazy val google = project.in(file("google")).settings(
       Set.empty[ModuleID]
     }
   },
-  mimaBinaryIssueFilters ++= {
-    import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
-    val pkg = "com.zengularity.benji.google"
-
-    val wasPrivate = Seq(
-      x[MissingTypesProblem](s"${pkg}.GoogleBucketRef$$Objects$$"),
-      x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#Objects.apply"),
-      x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#Objects.copy"),
-      x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#Objects.this"),
-      x[MissingTypesProblem](s"${pkg}.GoogleBucketRef$$ObjectsVersions$$"),
-      x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#ObjectsVersions.apply"),
-      x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#ObjectsVersions.copy"),
-      x[DirectMissingMethodProblem](s"${pkg}.GoogleBucketRef#ObjectsVersions.this"),
-      x[IncompatibleSignatureProblem]("com.zengularity.benji.google.GoogleBucketRef#Objects.unapply"),
-      x[IncompatibleSignatureProblem]("com.zengularity.benji.google.GoogleBucketRef#Objects.copy$default$1"),
-      x[IncompatibleSignatureProblem]("com.zengularity.benji.google.GoogleBucketRef#ObjectsVersions.unapply"),
-      x[IncompatibleSignatureProblem]("com.zengularity.benji.google.GoogleBucketRef#ObjectsVersions.copy$default$1")
-    )
-
-    wasPrivate
-  },
   libraryDependencies ++= Seq(
     Dependencies.playWSJson,
     Dependencies.playAhcWS,
@@ -123,7 +102,6 @@ lazy val vfs = project.in(file("vfs")).settings(
     val pkg = "com.zengularity.benji.vfs"
 
     val wasPrivate = Seq(
-      x[IncompatibleResultTypeProblem](s"$pkg.VFSBucketRef.objects"),
       x[DirectMissingMethodProblem](s"$pkg.BenjiFileSelector.this"),
       x[DirectMissingMethodProblem](s"$pkg.VFSBucketRef.objects")
     )
