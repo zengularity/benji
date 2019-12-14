@@ -46,13 +46,13 @@ jobs:
             PLAY_VERSION: 2.7.1
 
       - run:
-          name: Run Validations and Tests (Scala 2.13, Play 2.7, WS 2.0)
+          name: Run Validations and Tests (Scala 2.13, Play 2.8, WS 2.1)
           command: ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
           environment:
-            SCALA_VERSION: 2.13.0
-            WS_VERSION: 2.0.6
-            PLAY_VERSION: 2.7.3
-            PLAY_JSON_VERSION: 2.7.4
+            SCALA_VERSION: 2.13.1
+            WS_VERSION: 2.1.2
+            PLAY_VERSION: 2.8.0
+            PLAY_JSON_VERSION: 2.8.1
 
       - save_cache:
           paths:
