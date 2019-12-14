@@ -100,6 +100,7 @@ final class GoogleVersionedObjectRef(
   // ---
 
   private final class GoogleGetRequest private[google] () extends GetRequest {
+    @com.github.ghik.silencer.silent(".*fromFutureSource.*")
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 

@@ -23,6 +23,7 @@ object TestUtils {
 
   lazy val system: ActorSystem = ActorSystem("benji-google-tests")
 
+  @com.github.ghik.silencer.silent
   lazy val materializer: Materializer =
     akka.stream.ActorMaterializer.create(system)
 

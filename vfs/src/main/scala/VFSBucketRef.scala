@@ -34,6 +34,7 @@ final class VFSBucketRef private[vfs] (
       new BenjiFileSelector(dir.getName, FileType.FILE, prefix)
 
     @SuppressWarnings(Array("org.wartremover.warts.Throw"))
+    @com.github.ghik.silencer.silent(".*fromFuture.*")
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 

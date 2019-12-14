@@ -116,10 +116,6 @@ object Common extends AutoPlugin {
 
 object Dependencies {
   object Version {
-    val akka = Def.setting[String] {
-      "2.5.25"
-    }
-
     val playWS = sys.env.getOrElse("WS_VERSION", "2.0.8") // upper 2.0.6
 
     val play: Def.Initialize[String] = Def.setting[String] {
@@ -129,6 +125,11 @@ object Dependencies {
       }
 
       sys.env.getOrElse("PLAY_VERSION", lower)
+    }
+
+    val akka = Def.setting[String] {
+      if (play.value startsWith "2.8.") "2.6.1"
+      else "2.5.25"
     }
 
     val playJson: Def.Initialize[String] = Def.setting[String] {

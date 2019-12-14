@@ -150,6 +150,7 @@ final class WSS3VersionedObjectRef(
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
    */
   private object RESTGetRequest extends GetRequest {
+    @com.github.ghik.silencer.silent(".*fromFutureSource.*")
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
