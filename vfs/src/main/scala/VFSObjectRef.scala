@@ -33,6 +33,8 @@ import com.zengularity.benji.{
   ObjectVersioning
 }
 
+import com.github.ghik.silencer.silent
+
 final class VFSObjectRef private[vfs] (
   storage: VFSStorage,
   val bucket: String,
@@ -157,6 +159,7 @@ final class VFSObjectRef private[vfs] (
   // ---
 
   private final class VFSGetRequest private[vfs] () extends GetRequest {
+    @silent(".*fromFuture.*")
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
@@ -194,6 +197,7 @@ final class VFSObjectRef private[vfs] (
   private final class RESTPutRequest[E, A] private[vfs] ()
     extends ref.PutRequest[E, A] {
 
+    @silent(".*fromFuture.*")
     def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
       implicit def ec: ExecutionContext = m.executionContext
 

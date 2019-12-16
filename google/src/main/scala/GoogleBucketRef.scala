@@ -31,6 +31,8 @@ import com.zengularity.benji.exception.{
   BucketNotFoundException
 }
 
+import com.github.ghik.silencer.silent
+
 final class GoogleBucketRef private[google] (
   storage: GoogleStorage,
   val name: String) extends BucketRef with BucketVersioning { ref =>
@@ -45,6 +47,7 @@ final class GoogleBucketRef private[google] (
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = list(None)
 
     @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
+    @silent(".*fromFutureSource.*")
     private def list(nextToken: Option[String])(implicit m: Materializer): Source[Object, NotUsed] = {
       implicit val ec: ExecutionContext = m.executionContext
 
@@ -183,6 +186,7 @@ final class GoogleBucketRef private[google] (
     def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = list(None)
 
     @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
+    @silent(".*fromFutureSource.*")
     private def list(nextToken: Option[String])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       implicit val ec: ExecutionContext = m.executionContext
 

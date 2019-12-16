@@ -40,6 +40,8 @@ import com.zengularity.benji.{
 }
 import com.zengularity.benji.ws.{ ContentMD5, Ok, Successful }
 
+import com.github.ghik.silencer.silent
+
 final class GoogleObjectRef private[google] (
   storage: GoogleStorage,
   val bucket: String,
@@ -127,6 +129,7 @@ final class GoogleObjectRef private[google] (
 
   /** A GET request for Google Cloud Storage */
   final class GoogleGetRequest private[google] () extends GetRequest {
+    @silent(".*fromFutureSource.*")
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
@@ -213,6 +216,7 @@ final class GoogleObjectRef private[google] (
    *
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#simple
    */
+  @silent(".*fromFuture.*")
   private def putSimple[A](contentType: Option[String], metadata: Map[String, String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer): Flow[Chunk, A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
@@ -297,6 +301,7 @@ final class GoogleObjectRef private[google] (
    * @param contentType $contentTypeParam
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#start-resumable
    */
+  @silent(".*fromFuture.*")
   private def initiateUpload(contentType: Option[String], metadata: Map[String, String])(implicit m: Materializer): Source[String, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
@@ -413,6 +418,7 @@ final class GoogleObjectRef private[google] (
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
     @SuppressWarnings(Array("org.wartremover.warts.Recursion", "org.wartremover.warts.Throw"))
+    @silent(".*fromFutureSource.*")
     private def apply(nextToken: Option[String], maybeEmpty: Boolean)(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       implicit val ec: ExecutionContext = m.executionContext
 

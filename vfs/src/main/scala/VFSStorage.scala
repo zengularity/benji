@@ -34,6 +34,7 @@ class VFSStorage(
     private val selector = new FileTypeSelector(FileType.FOLDER)
     private val rootBaseFile = transport.fsManager.getBaseFile
 
+    @com.github.ghik.silencer.silent(".*fromFuture.*")
     def apply()(implicit m: Materializer): Source[Bucket, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 

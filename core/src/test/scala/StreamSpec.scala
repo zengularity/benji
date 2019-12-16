@@ -20,6 +20,7 @@ final class StreamSpec(implicit ee: ExecutionEnv)
   private implicit lazy val system =
     akka.actor.ActorSystem("benji-core-tests")
 
+  @com.github.ghik.silencer.silent
   private implicit def materializer =
     akka.stream.ActorMaterializer.create(system)
 

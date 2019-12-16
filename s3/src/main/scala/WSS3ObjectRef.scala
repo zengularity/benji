@@ -36,6 +36,8 @@ import com.zengularity.benji.s3.QueryParameters._
 import com.zengularity.benji.ws.{ ContentMD5, Successful }
 import com.zengularity.benji.exception.ObjectNotFoundException
 
+import com.github.ghik.silencer.silent
+
 final class WSS3ObjectRef private[s3] (
   private val storage: WSS3,
   val bucket: String,
@@ -150,6 +152,7 @@ final class WSS3ObjectRef private[s3] (
    * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html RESTObjectGET]]
    */
   final class RESTGetRequest(val target: ref.type) extends GetRequest {
+    @silent(".*fromFutureSource.*")
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
@@ -274,6 +277,7 @@ final class WSS3ObjectRef private[s3] (
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
    */
+  @silent(".*fromFuture.*")
   private def putSimple[A](contentType: Option[String], metadata: Map[String, String], z: => A, f: (A, Chunk) => Future[A])(implicit m: Materializer): Flow[Chunk, A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
@@ -328,6 +332,7 @@ final class WSS3ObjectRef private[s3] (
    * Initiates a multi-part upload and returns the upload ID we're supposed to include when uploading parts later on.
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
    */
+  @silent(".*fromFuture.*")
   private def initiateUpload(metadata: Map[String, String])(implicit ec: ExecutionContext): Source[String, NotUsed] = Source fromFuture {
     storage.request(Some(bucket), Some(name), Some("uploads"),
       requestTimeout = requestTimeout).addHttpHeaders(metadata.toSeq: _*).

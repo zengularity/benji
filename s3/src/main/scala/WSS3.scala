@@ -248,6 +248,7 @@ object S3 {
   /** Returns a WS client (take care to close it once used). */
   private[s3] def client(config: AhcWSClientConfig = AhcWSClientConfig())(implicit materializer: Materializer): StandaloneAhcWSClient = StandaloneAhcWSClient(config)
 
+  @com.github.ghik.silencer.silent(".*fromFuture.*")
   private[s3] def getXml[T](req: => StandaloneWSRequest)(
     f: scala.xml.Elem => Source[T, NotUsed],
     err: StandaloneWSResponse => Throwable)(implicit m: Materializer): Source[T, NotUsed] = {
