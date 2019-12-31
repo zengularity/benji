@@ -40,23 +40,36 @@ EOF
 }
 
 if [ "x$SCALA_MODULES" = "x" ]; then
-    SCALA_MODULES="core:benji-core s3:benji-s3 google:benji-google vfs:benji-vfs"
-    # play:benji-play
+    SCALA_MODULES="core:benji-core s3:benji-s3 google:benji-google vfs:benji-vfs play:benji-play"
 fi
 
 SCALA_VERSIONS="2.11 2.12 2.13"
+PLAY_VERSIONS="26 27 28"
+
 BASES=""
 
 for V in $SCALA_VERSIONS; do
     for M in $SCALA_MODULES; do
         B=`echo "$M" | cut -d ':' -f 1`
         SCALA_DIR="$B/target/scala-$V"
+        N=`echo "$M" | cut -d ':' -f 2`
+        BASE_NAME="$SCALA_DIR/${N}_$V"
+        FOUND=0
 
-        if [ ! -d "$SCALA_DIR" ]; then
+        if [ -r "${BASE_NAME}-$VERSION.pom" ]; then
+            BASES="$BASES ${BASE_NAME}-$VERSION"
+            FOUND=1
+        fi
+
+        for PV in $PLAY_VERSIONS; do
+            if [ -r "${BASE_NAME}-${VERSION}-play$PV.pom" ]; then
+                BASES="$BASES ${BASE_NAME}-${VERSION}-play$PV"
+                FOUND=`expr $FOUND + 1`
+            fi
+        done
+
+        if [ $FOUND -eq 0 ]; then
             echo "Skip Scala version $V for $M"
-        else
-            N=`echo "$M" | cut -d ':' -f 2`
-            BASES="$BASES $SCALA_DIR/$N"_$V-$VERSION
         fi
     done
 done
