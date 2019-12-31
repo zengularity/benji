@@ -16,6 +16,11 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "com.zengularity" %% "benji-play" % "{{site.latest_release}}-play27"
 )
+
+// only for Play 2.8.x
+libraryDependencies ++= Seq(
+  "com.zengularity" %% "benji-play" % "{{site.latest_release}}-play28"
+)
 ```
 
 Then it's also required to enable the wanted backend, e.g. for S3:
