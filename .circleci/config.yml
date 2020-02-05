@@ -31,17 +31,17 @@ jobs:
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
 
-      - run:
-          name: Run Validations and Tests (Scala 2.11, Play 2.6, WS 1.1)
-          command: ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
-          environment:
-            SCALA_VERSION: 2.11.12
+#      - run:
+#          name: Run Validations and Tests (Scala 2.11, Play 2.6, WS 1.1)
+#          command: ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
+#          environment:
+#            SCALA_VERSION: 2.11.12
 
       - run:
           name: Run Validations and Tests (Scala 2.12, Play 2.7, WS 2.0)
           command: ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
           environment:
-            SCALA_VERSION: 2.12.8
+            SCALA_VERSION: 2.12.10
             WS_VERSION: 2.0.6
             PLAY_VERSION: 2.7.1
 

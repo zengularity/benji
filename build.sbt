@@ -128,6 +128,15 @@ lazy val play = project.in(file("play")).settings(
       s"${ver}-play${playMajor}"
     }
   },
+  mimaPreviousArtifacts := {
+    val playMajor = playVer.value.split("\\.").take(2).mkString
+
+    if (scalaBinaryVersion.value == "2.12") {
+      Set(organization.value %% moduleName.value % s"2.0.5-play${playMajor}")
+    } else {
+      Set.empty[ModuleID]
+    }
+  },
   libraryDependencies ++= {
     val playAhcWS = {
       if (scalaVersion.value startsWith "2.13.") {
@@ -155,6 +164,8 @@ lazy val play = project.in(file("play")).settings(
     compiled.filter { _.getName endsWith "NamedStorage.java" }
   }
 ).dependsOn(core % "test->test;compile->compile", vfs % "test->compile")
+
+mimaPreviousArtifacts := Set.empty
 
 lazy val benji = (project in file(".")).
   enablePlugins(ScalaUnidocPlugin).

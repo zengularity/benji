@@ -19,7 +19,7 @@ object Publish {
   lazy val settings = Seq(
     mimaPreviousArtifacts := {
       if (scalaBinaryVersion.value == "2.12") {
-        Set(organization.value %% moduleName.value % "2.0.0")
+        Set(organization.value %% moduleName.value % "2.0.5")
       } else {
         Set.empty[ModuleID]
       }
