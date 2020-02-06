@@ -32,12 +32,12 @@ echo "$GOOGLE_CREDENTIALS" | base64 -d | gzip -dc > \
 JVM_MAX_MEM="2048M"
 JVM_OPTS="-Xms$JVM_MAX_MEM -Xmx$JVM_MAX_MEM -XX:+CMSClassUnloadingEnabled -XX:ReservedCodeCacheSize=192m -XX:MetaspaceSize=512M -XX:MaxMetaspaceSize=512M"
 
-SBT_OPTS=""
+SBT_OPTS="++$SCALA_VERSION"
 
 # Scalariform check
 echo "[INFO] Check the source format and backward compatibility"
 
-sbt "$SBT_OPTS" ++$SCALA_VERSION error scalariformFormat test:scalariformFormat > /dev/null
+sbt "$SBT_OPTS" error scalariformFormat test:scalariformFormat > /dev/null
 git diff --exit-code || (cat >> /dev/stdout <<EOF
 [ERROR] Scalariform check failed, see differences above.
 To fix, format your sources using sbt scalariformFormat test:scalariformFormat before submitting a pull request.
