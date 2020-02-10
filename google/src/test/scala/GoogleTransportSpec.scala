@@ -16,7 +16,7 @@ final class GoogleTransportSpec extends Specification {
 
   import TestUtils.ws
 
-  val filename = "gcs-test.json"
+  val filename = "gcs-cred1.json"
   val projectId = TestUtils.config.getString("google.storage.projectId")
   val application = s"benji-tests-${System.identityHashCode(this).toString}"
 

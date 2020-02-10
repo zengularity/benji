@@ -32,33 +32,52 @@ object TestUtils {
 
   def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
 
-  lazy val configUri: String = {
+  lazy val configUris: (String, List[String]) = {
     val projectId = config.getString("google.storage.projectId")
     val application = s"benji-tests-${System.identityHashCode(this).toString}"
 
-    s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
+    def uri(i: Int) = s"google:classpath://gcs-cred${i}.json?application=$application&projectId=$projectId"
+
+    val headUri = uri(1)
+
+    headUri -> ((2 to 10).flatMap { i =>
+      if (getClass.getResource(s"/gcs-cred${i}.json") != null) {
+        println(s"--> Google credentials #$i ...")
+
+        List(uri(i))
+      } else {
+        List.empty
+      }
+    }).toList
   }
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
-  lazy val googleTransport: GoogleTransport = GoogleTransport(configUri).get
+  private lazy val googleTransports: (GoogleTransport, List[GoogleTransport]) =
+    GoogleTransport(configUris._1).get -> configUris._2.
+      map { GoogleTransport(_).get }
 
-  lazy val google: GoogleStorage = GoogleStorage(googleTransport)
+  lazy val google: List[GoogleStorage] = GoogleStorage(
+    googleTransports._1) +: googleTransports._2.map(GoogleStorage(_))
 
   // ---
 
   def close(): Unit = if (inited) {
-    import com.zengularity.benji.ObjectStorage
-
     implicit def m: Materializer = materializer
     implicit def ec: ExecutionContext = m.executionContext
 
-    def storageCleanup(st: ObjectStorage) = st.buckets.collect[List]().flatMap(bs =>
-      Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
-        st.bucket(b.name).delete.recursive()
-      })).map(_ => {})
+    def storageCleanup(it: Iterator[GoogleStorage]) = {
+      val st = it.next()
+
+      st.buckets.collect[List]().flatMap(bs =>
+        Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
+          st.bucket(b.name).delete.recursive()
+        })).map(_ => {})
+    }
 
     try {
-      Await.result(storageCleanup(google), Duration("30s"))
+      Await.result(storageCleanup(
+        Iterator.continually(google).flatten), Duration("30s"))
+
     } catch {
       case e: Throwable => logger.warn("fails to cleanup GCS", e)
     }

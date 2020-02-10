@@ -31,7 +31,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
   // import akka.stream.contrib.TestKit.assertAllStagesStopped
   protected def assertAllStagesStopped[T](f: => T): T = f
 
-  def minimalCommonTests(storage: ObjectStorage, defaultBucketName: String)(
+  def minimalCommonTests(storage: => ObjectStorage, defaultBucketName: String)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv,
@@ -86,7 +86,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
   def commonTests(
     storageKind: String,
-    storage: ObjectStorage,
+    storage: => ObjectStorage,
     defaultBucketName: String)(
     implicit
     materializer: Materializer,

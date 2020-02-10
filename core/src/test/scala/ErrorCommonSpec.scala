@@ -37,7 +37,7 @@ trait ErrorCommonSpec extends BenjiMatchers {
 
   protected def rwConsistencyDuration: FiniteDuration
 
-  def errorCommonTests(storage: ObjectStorage)(
+  def errorCommonTests(storage: => ObjectStorage)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv) = {
@@ -169,7 +169,7 @@ trait ErrorCommonSpec extends BenjiMatchers {
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   def versioningErrorCommonTests(
-    storage: ObjectStorage,
+    storage: => ObjectStorage,
     defaultBucketName: String, // must exists before
     defaultObjName: String, // must exists inside the `defaultBucketName`
     sampleVersionId: String)(

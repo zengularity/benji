@@ -10,7 +10,7 @@ import play.api.libs.ws.DefaultBodyWritables._
 
 import org.specs2.concurrent.ExecutionEnv
 
-import com.zengularity.benji.google.GoogleObjectRef
+import com.zengularity.benji.google.{ GoogleObjectRef, GoogleStorage }
 
 import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
@@ -20,7 +20,6 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
   extends org.specs2.mutable.Specification
   with StorageCommonSpec with VersioningCommonSpec {
 
-  import TestUtils.google
   import tests.benji.StreamUtils._
 
   "Google Cloud Storage" title
@@ -28,6 +27,9 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
   sequential
 
   implicit def materializer: Materializer = TestUtils.materializer
+
+  private val it = Iterator.continually(TestUtils.google).flatten
+  def google: GoogleStorage = it.next
 
   "Client" should {
     commonTests("google", google, s"benji-test-${random.nextInt().toString}")

@@ -21,7 +21,7 @@ final class GoogleFactorySpec extends org.specs2.mutable.Specification {
     def factory = scheme.factoryClass.getDeclaredConstructor().newInstance()
 
     {
-      val uri = new URI(TestUtils.configUri)
+      val uri = new URI(TestUtils.configUris._1)
 
       s"be resolved from ${uri.toString}" in {
         scheme must beAnInstanceOf[GoogleScheme] and {

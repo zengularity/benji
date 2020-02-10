@@ -25,8 +25,17 @@ cat > google/src/test/resources/local.conf << EOF
 google.storage.projectId=$GOOGLE_PROJECTID
 EOF
 
-echo "$GOOGLE_CREDENTIALS" | base64 -d | gzip -dc > \
-  google/src/test/resources/gcs-test.json
+for I in `seq 1 10`; do
+  N="GOOGLE_CREDENTIALS${I}"
+  C=${!N}
+
+  if [ `echo -n "$C" | wc -c` -gt 0 ]; then
+    echo "Preparing Google credentials #$I ..."
+
+    echo "$C" | base64 -d | gzip -dc > \
+      "google/src/test/resources/gcs-cred$I.json"
+  fi
+done
 
 # Runtime settings
 JVM_MAX_MEM="2048M"

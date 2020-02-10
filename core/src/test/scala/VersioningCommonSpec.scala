@@ -31,7 +31,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
 
   protected def rwConsistencyDuration: FiniteDuration
 
-  def commonVersioningTests(storage: ObjectStorage, sampleVersionId: String)(
+  def commonVersioningTests(storage: => ObjectStorage, sampleVersionId: String)(
     implicit
     materializer: Materializer,
     ee: ExecutionEnv,
