@@ -94,17 +94,11 @@ final class GoogleBucketRef private[google] (
     case err => Future.failed[Boolean](err)
   }
 
-  def create(failsIfExists: Boolean = false)(implicit ec: ExecutionContext): Future[Unit] =
-    Future {
-      val nb = new model.Bucket()
-      nb.setName(name)
-
-      gt.client.buckets().insert(gt.projectId, nb).execute()
-      ()
-    }.recoverWith(ErrorHandler.ofBucketToFuture(s"Could not create bucket $name", ref))
-      .recoverWith {
-        case BucketAlreadyExistsException(_) if !failsIfExists => Future.successful({})
-      }
+  def create(failsIfExists: Boolean = false)(implicit ec: ExecutionContext): Future[Unit] = gt.executeBucketOp(GoogleTransport.CreateBucket(name)).
+    recoverWith(ErrorHandler.ofBucketToFuture(s"Could not create bucket $name", ref))
+    .recoverWith {
+      case BucketAlreadyExistsException(_) if !failsIfExists => Future.successful({})
+    }
 
   private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
     implicit val ec: ExecutionContext = m.executionContext
@@ -115,15 +109,20 @@ final class GoogleBucketRef private[google] (
   }
 
   private case class GoogleDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
-    private def delete()(implicit ec: ExecutionContext): Future[Unit] = {
-      Future { gt.client.buckets().delete(name).execute(); () }
-    }
+    private def delete()(implicit ec: ExecutionContext): Future[Unit] =
+      gt.executeBucketOp(GoogleTransport.DeleteBucket(name))
 
     def apply()(implicit m: Materializer): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
-      val rawResult = if (isRecursive) emptyBucket().flatMap(_ => delete()) else delete()
-      val result = rawResult.recoverWith(ErrorHandler.ofBucketToFuture(s"Could not delete bucket $name", ref))
+      val rawResult = {
+        if (!isRecursive) delete()
+        else emptyBucket().flatMap(_ => delete())
+      }
+
+      val result = rawResult.recoverWith(
+        ErrorHandler.ofBucketToFuture(s"Could not delete bucket $name", ref))
+
       if (ignoreExists)
         result.recover { case BucketNotFoundException(_) => () }
       else

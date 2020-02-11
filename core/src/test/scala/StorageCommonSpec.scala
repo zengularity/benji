@@ -307,13 +307,13 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
       "if prevent overwrite when target exists" in assertAllStagesStopped {
         existingTarget must beLike[ObjectRef] {
-          case x => moveSpec(x)(failed)
+          case obj => moveSpec(obj)(failed)
         }.await(3, 5.seconds)
       }
 
       "if overwrite when target exists" in assertAllStagesStopped {
         existingTarget must beLike[ObjectRef] {
-          case x => moveSpec(x, preventOverwrite = false)(successful)
+          case obj => moveSpec(obj, preventOverwrite = false)(successful)
         }.await(3, 5.seconds)
       }
     }
