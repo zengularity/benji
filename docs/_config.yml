@@ -2,5 +2,5 @@ theme: jekyll-theme-minimal
 title: Benji
 description: Scala framework for Object Storage
 show_downloads: false
-latest_release: 2.1.2
+latest_release: 2.1.3
 logo: assets/img/logo.png
