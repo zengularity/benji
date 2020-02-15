@@ -40,7 +40,11 @@ class WSS3(
   requestBuilder: WSRequestBuilder,
   val requestTimeout: Option[Long] = None) extends ObjectStorage { self =>
 
-  private[s3] def request(bucketName: Option[String] = None, objectName: Option[String] = None, query: Option[String] = None, requestTimeout: Option[Long] = None): StandaloneWSRequest = {
+  private[s3] def request(
+    bucketName: Option[String] = None,
+    objectName: Option[String] = None,
+    query: Option[String] = None,
+    requestTimeout: Option[Long] = None): StandaloneWSRequest = {
     val req = requestBuilder(transport, bucketName, objectName, query)
 
     requestTimeout.fold(req) { t => req.withRequestTimeout(t.milliseconds) }
@@ -62,7 +66,9 @@ class WSS3(
         Source(buckets.map { bucket =>
           Bucket(
             name = (bucket \ "Name").text,
-            creationTime = LocalDateTime.parse((bucket \ "CreationDate").text, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+            creationTime = LocalDateTime.parse(
+              (bucket \ "CreationDate").text,
+              DateTimeFormatter.ISO_OFFSET_DATE_TIME))
         })
       }, error)
 

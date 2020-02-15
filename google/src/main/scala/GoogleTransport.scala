@@ -5,14 +5,25 @@
 package com.zengularity.benji.google
 
 import scala.util.{ Failure, Success, Try }
+import scala.util.control.NonFatal
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
 
 import java.net.URI
 
 import play.api.libs.ws.StandaloneWSRequest
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
+
+import akka.NotUsed
+import akka.stream.{ QueueOfferResult, Materializer, OverflowStrategy }
+import akka.stream.scaladsl.{
+  Flow,
+  Keep,
+  Source,
+  SourceQueueWithComplete,
+  Sink
+}
 
 import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
@@ -21,9 +32,12 @@ import com.google.auth.oauth2.GoogleCredentials
 
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
-import com.google.api.services.storage.Storage
+
+import com.google.api.services.storage.{ Storage, model }
 
 import com.zengularity.benji.{ URIProvider, Compat }, Compat.javaConverters._
+
+import com.zengularity.benji.exception.BenjiUnknownError
 
 /**
  * Benji transport for Google Cloud Storage
@@ -132,6 +146,83 @@ final class GoogleTransport(
   def withDisableGZip(disableGZip: Boolean): GoogleTransport =
     new GoogleTransport(credential, projectId, builder, ws,
       baseRestUrl, servicePath, requestTimeout, disableGZip)
+
+  // Bucket operations
+  import GoogleTransport.{ BucketOp, CreateBucket, DeleteBucket }
+
+  /*
+   * [[https://cloud.google.com/storage/quotas 1 operation per 2-second limit]]
+   */
+  private val bucketOpFlow = {
+    @SuppressWarnings(Array("org.wartremover.warts.Var"))
+    @volatile var errors = 0L // successive errors
+
+    def execute(op: BucketOp)(f: => Unit): Source[Unit, NotUsed] =
+      Source.single[Unit](try {
+        f
+
+        op.result.success({})
+
+        errors = 0L // reset internal error counter
+      } catch {
+        case NonFatal(cause) =>
+          op.result.failure(cause)
+          errors += 1L
+      }).initialDelay(250.milliseconds * errors)
+
+    Flow[BucketOp].throttle(
+      elements = 1,
+      per = 2.seconds, // hardcoded Google rate limit
+      maximumBurst = 0,
+      mode = akka.stream.ThrottleMode.Shaping).flatMapConcat {
+      case c @ CreateBucket(name) => execute(c) {
+        val nb = new model.Bucket()
+        nb.setName(name)
+
+        client.buckets().insert(projectId, nb).execute()
+
+        ()
+      }
+
+      case d @ DeleteBucket(name) => execute(d) {
+        client.buckets().delete(name).execute()
+
+        ()
+      }
+    }
+  }
+
+  private[google] type Q = SourceQueueWithComplete[BucketOp]
+  private[google] val queue: Q = {
+    import GoogleTransport.adminMaterializer
+
+    Source.queue[BucketOp](1024, OverflowStrategy.backpressure).
+      viaMat(bucketOpFlow)(Keep.left[Q, NotUsed]).
+      to(Sink.ignore).run()
+
+  }
+
+  private[google] def executeBucketOp(op: BucketOp)(
+    implicit
+    ec: ExecutionContext): Future[Unit] = {
+    logger.debug(s"Enqueue bucket operation: ${op.show}")
+
+    queue.offer(op).flatMap {
+      case QueueOfferResult.Failure(cause) =>
+        Future.failed[Unit](cause)
+
+      case QueueOfferResult.Dropped =>
+        Future.failed[Unit](new BenjiUnknownError(
+          s"Fails to enqueue bucket operation: ${op.show}"))
+
+      case QueueOfferResult.QueueClosed =>
+        Future.failed[Unit](new BenjiUnknownError(
+          s"Bucket operation queue already closed: ${op.show}"))
+
+      case _ =>
+        op.result.future
+    }
+  }
 }
 
 /** Google transport factory. */
@@ -289,7 +380,29 @@ object GoogleTransport {
       def bool = value.toBoolean
       Some(bool)
     } catch {
-      case scala.util.control.NonFatal(_) => Option.empty[Boolean]
+      case NonFatal(_) => Option.empty[Boolean]
     }
+  }
+
+  // ---
+
+  @com.github.ghik.silencer.silent
+  private[google] implicit lazy val adminMaterializer: Materializer = {
+    val adminSystem = akka.actor.ActorSystem()
+
+    akka.stream.ActorMaterializer.create(adminSystem)
+  }
+
+  private[google] sealed trait BucketOp {
+    val result = Promise[Unit]()
+    def show: String
+  }
+
+  private[google] final case class CreateBucket(name: String) extends BucketOp {
+    val show = s"create($name)"
+  }
+
+  private[google] final case class DeleteBucket(name: String) extends BucketOp {
+    val show = s"delete($name)"
   }
 }

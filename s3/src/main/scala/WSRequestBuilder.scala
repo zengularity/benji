@@ -36,6 +36,73 @@ private[s3] object WSRequestBuilder {
       "Host" -> hostHeader,
       "X-Request-Style" -> style).sign(calculator)
 
+  private[s3] def appendName(
+    url: StringBuilder,
+    name: String): StringBuilder = {
+    name.foreach {
+      case '!' =>
+        url.append("%21")
+
+      case '#' =>
+        url.append("%23")
+
+      case '%' =>
+        url.append("%26")
+
+      case '$' =>
+        url.append("%24")
+
+      case '&' =>
+        url.append("%26")
+
+      case '\'' =>
+        url.append("%27")
+
+      case '(' =>
+        url.append("%28")
+
+      case ')' =>
+        url.append("%29")
+
+      case '*' =>
+        url.append("%2A")
+
+      case '+' =>
+        url.append("%2B")
+
+      case ',' =>
+        url.append("%2C")
+
+      case '/' =>
+        url.append("%2F")
+
+      case ':' =>
+        url.append("%3A")
+
+      case ';' =>
+        url.append("%3B")
+
+      case '=' =>
+        url.append("%3D")
+
+      case '?' =>
+        url.append("%3F")
+
+      case '@' =>
+        url.append("%40")
+
+      case '[' =>
+        url.append("%5B")
+
+      case ']' =>
+        url.append("%5D")
+
+      case chr =>
+        url.append(chr)
+    }
+
+    url
+  }
 }
 
 /** Extractor for URL. */
@@ -70,7 +137,7 @@ private[s3] final class PathStyleWSRequestBuilder private[s3] (
     }
 
     objectName.foreach { name =>
-      url.append('/').append(name)
+      WSRequestBuilder.appendName(url.append('/'), name)
     }
 
     query.foreach { string =>
@@ -107,7 +174,7 @@ private[s3] final class VirtualHostWSRequestBuilder private[s3] (
     url.append(host).append('/')
 
     objectName.foreach { name =>
-      url.append(name)
+      WSRequestBuilder.appendName(url, name)
     }
 
     query.foreach { string =>

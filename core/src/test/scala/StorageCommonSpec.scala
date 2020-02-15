@@ -206,7 +206,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       // See https://github.com/zengularity/benji/pull/23
       val sourceName = {
         if (storageKind == "ceph") "ceph.txt"
-        else "Capture d’écran 2018-11-14 à 09.35.49.png"
+        else "Capture d’écran 2018-11-14 à 09.35.49 (1).png"
       }
 
       val file1 = defaultBucketRef.obj(sourceName)
@@ -231,12 +231,14 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
             defaultBucketRef, rwConsistencyRetry, rwConsistencyDuration).
             setMessage("exists after copy")
         } and {
-          (for {
-            _ <- Future.sequence(Seq(file1.delete(), file2.delete()))
-            a <- file1.exists
-            b <- file2.exists
-          } yield a -> b) must beTypedEqualTo(
-            false -> false).await(2, 5.seconds)
+          Future.sequence(Seq(file1.delete(), file2.delete())).
+            map(_ => {}) must beTypedEqualTo({}).await(2, 5.seconds)
+        } and {
+          file1 must notExistsIn(defaultBucketRef, 2, 3.seconds).
+            setMessage("file1 must no longer exist")
+        } and {
+          file2 must notExistsIn(defaultBucketRef, 2, 3.seconds).
+            setMessage("file2 must no longer exist")
         }
     }
 
@@ -305,13 +307,13 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
       "if prevent overwrite when target exists" in assertAllStagesStopped {
         existingTarget must beLike[ObjectRef] {
-          case x => moveSpec(x)(failed)
+          case obj => moveSpec(obj)(failed)
         }.await(3, 5.seconds)
       }
 
       "if overwrite when target exists" in assertAllStagesStopped {
         existingTarget must beLike[ObjectRef] {
-          case x => moveSpec(x, preventOverwrite = false)(successful)
+          case obj => moveSpec(obj, preventOverwrite = false)(successful)
         }.await(3, 5.seconds)
       }
     }

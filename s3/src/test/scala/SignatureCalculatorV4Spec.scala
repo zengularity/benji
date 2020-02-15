@@ -36,6 +36,16 @@ class SignatureCalculatorV4Spec extends org.specs2.mutable.Specification {
         "/documents%20and%20settings/my-object//example")
     }
 
+    "encode path" in {
+      val encodedName = WSRequestBuilder.appendName(
+        new StringBuilder(), "foo !#$%&'()*+,/:;=?@[] étoile").result()
+
+      val req = new RequestBuilder().
+        setUrl(s"http://my-bucket.s3.amazonaws.com/${encodedName}").build()
+
+      calculator.canonicalUri(req) must_=== "/foo%20%21%23%24%26%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D%20%C3%A9toile"
+    }
+
     "compute canonical empty URI" in {
       val req2 = new RequestBuilder().
         setUrl("http://iam.amazonaws.com").build()
