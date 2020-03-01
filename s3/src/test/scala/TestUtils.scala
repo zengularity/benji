@@ -11,7 +11,7 @@ import akka.stream.Materializer
 import com.zengularity.benji.s3.{ S3, WSS3 }
 
 object TestUtils {
-  val logger = org.slf4j.LoggerFactory.getLogger("tests")
+  val logger: org.slf4j.Logger = org.slf4j.LoggerFactory.getLogger("tests")
 
   @SuppressWarnings(Array("org.wartremover.warts.Var"))
   @volatile private var inited = false

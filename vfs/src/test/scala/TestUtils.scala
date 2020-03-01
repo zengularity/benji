@@ -10,7 +10,7 @@ import com.zengularity.benji.vfs.{ VFSStorage, VFSTransport }
 object TestUtils {
   import com.typesafe.config.{ Config, ConfigFactory }
 
-  val logger = org.slf4j.LoggerFactory.getLogger("tests")
+  val logger: org.slf4j.Logger = org.slf4j.LoggerFactory.getLogger("tests")
 
   @SuppressWarnings(Array("org.wartremover.warts.Var"))
   @volatile private var inited = false

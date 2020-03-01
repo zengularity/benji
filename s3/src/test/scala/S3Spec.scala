@@ -4,6 +4,7 @@ import scala.concurrent.duration._
 
 import akka.stream.Materializer
 
+import org.specs2.specification.core.Fragment
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 
 import com.zengularity.benji.s3.tests.TestUtils
@@ -14,7 +15,7 @@ trait S3Spec { _: org.specs2.mutable.Specification =>
   def s3Suite(
     s3f: => com.zengularity.benji.s3.WSS3,
     bucketName: String,
-    objName: String)(implicit m: Materializer) = {
+    objName: String)(implicit m: Materializer): Fragment = {
     lazy val storage = s3f
 
     "paginate the bucket objects" in withMatEx { implicit ee: EE =>

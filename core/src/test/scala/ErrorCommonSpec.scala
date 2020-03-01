@@ -7,6 +7,7 @@ import akka.util.ByteString
 import akka.stream.scaladsl.Source
 import akka.stream.Materializer
 
+import org.specs2.specification.core.Fragment
 import org.specs2.concurrent.ExecutionEnv
 
 import com.zengularity.benji.{
@@ -40,7 +41,7 @@ trait ErrorCommonSpec extends BenjiMatchers {
   def errorCommonTests(storage: ObjectStorage)(
     implicit
     materializer: Materializer,
-    ee: ExecutionEnv) = {
+    ee: ExecutionEnv): Fragment = {
 
     val nonExistingBucket = storage.bucket(s"benji-test-non-existing-bucket-${random.nextInt().toString}")
     val existingBucket = storage.bucket(s"benji-test-existing-bucket-${random.nextInt().toString}")
@@ -175,7 +176,7 @@ trait ErrorCommonSpec extends BenjiMatchers {
     sampleVersionId: String)(
     implicit
     materializer: Materializer,
-    ee: ExecutionEnv) = {
+    ee: ExecutionEnv): Fragment = {
 
     val nonExistingBucket = storage.bucket(
       s"benji-test-non-existing-bucket-${random.nextInt().toString}")

@@ -1,6 +1,6 @@
 package tests.benji
 
-import scala.concurrent.Future
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 
 import akka.stream.Materializer
@@ -84,7 +84,7 @@ trait BenjiMatchers { self: Matchers =>
     existsOrNot(bucket, false, retries, duration)
 
   def supportCreation(retries: Int, duration: FiniteDuration)(implicit ee: ExecutionEnv): Matcher[BucketRef] = {
-    implicit val ec = ee.executionContext
+    implicit val ec: ExecutionContext = ee.executionContext
 
     val tries = retries + 1
 
@@ -96,7 +96,7 @@ trait BenjiMatchers { self: Matchers =>
   }
 
   def supportCheckedCreation(implicit ee: ExecutionEnv): Matcher[BucketRef] = {
-    implicit val ec = ee.executionContext
+    implicit val ec: ExecutionContext = ee.executionContext
 
     beTypedEqualTo[Unit]({}).await(1, 5.seconds) ^^ { bucket: BucketRef =>
       bucket.create(failsIfExists = true)
@@ -193,7 +193,7 @@ trait BenjiMatchers { self: Matchers =>
     implicit
     ee: ExecutionEnv,
     materializer: Materializer): Matcher[BucketRef] = {
-    implicit val ec = ee.executionContext
+    implicit val ec: ExecutionContext = ee.executionContext
 
     existsOrNot[BucketRef](
       exists = _.exists,
@@ -214,7 +214,7 @@ trait BenjiMatchers { self: Matchers =>
     implicit
     ee: ExecutionEnv,
     materializer: Materializer): Matcher[ObjectRef] = {
-    implicit val ec = ee.executionContext
+    implicit val ec: ExecutionContext = ee.executionContext
 
     existsOrNot[ObjectRef](
       exists = _.exists,
@@ -235,7 +235,7 @@ trait BenjiMatchers { self: Matchers =>
     implicit
     ee: ExecutionEnv,
     materializer: Materializer): Matcher[VersionedObjectRef] = {
-    implicit val ec = ee.executionContext
+    implicit val ec: ExecutionContext = ee.executionContext
 
     existsOrNot[VersionedObjectRef](
       exists = _.exists,

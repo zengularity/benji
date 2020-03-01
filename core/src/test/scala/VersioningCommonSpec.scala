@@ -8,6 +8,7 @@ import akka.stream.Materializer
 
 import play.api.libs.ws.BodyWritable
 
+import org.specs2.specification.core.Fragment
 import org.specs2.concurrent.ExecutionEnv
 
 import com.zengularity.benji.{
@@ -35,7 +36,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
     implicit
     materializer: Materializer,
     ee: ExecutionEnv,
-    writer: BodyWritable[Array[Byte]]) = {
+    writer: BodyWritable[Array[Byte]]): Fragment = {
 
     val bucketName = s"benji-test-versioning-${random.nextInt().toString}"
     val objectName = "test-obj"

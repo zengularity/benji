@@ -7,6 +7,7 @@ import akka.stream.scaladsl.Source
 
 import play.api.libs.ws.BodyWritable
 
+import org.specs2.specification.core.Fragment
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.MatchResult
 
@@ -35,7 +36,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     implicit
     materializer: Materializer,
     ee: ExecutionEnv,
-    writer: BodyWritable[Array[Byte]]) = {
+    writer: BodyWritable[Array[Byte]]): Fragment = {
 
     val bucketName = defaultBucketName
 
@@ -91,7 +92,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     implicit
     materializer: Materializer,
     ee: ExecutionEnv,
-    writer: BodyWritable[Array[Byte]]) = {
+    writer: BodyWritable[Array[Byte]]): Fragment = {
 
     lazy val defaultBucketRef = storage.bucket(defaultBucketName)
 

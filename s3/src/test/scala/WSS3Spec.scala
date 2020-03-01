@@ -54,7 +54,8 @@ class WSS3Spec extends Specification {
     "fail" >> {
       "when the provider fail" in {
         val exception: Throwable = new Exception("foo")
-        implicit val provider = URIProvider[Throwable](Failure[URI])
+        implicit val provider: URIProvider[Throwable] =
+          URIProvider[Throwable](Failure[URI])
 
         S3(exception) must beFailedTry.withThrowable[Exception]("foo")
       }
