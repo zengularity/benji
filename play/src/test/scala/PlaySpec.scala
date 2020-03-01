@@ -16,7 +16,7 @@ import play.modules.benji.{ BenjiFromContext, NamedStorage, TestUtils }
 
 import org.specs2.specification.core.Fragments
 
-class PlaySpec extends org.specs2.mutable.Specification {
+final class PlaySpec extends org.specs2.mutable.Specification {
   "Play integration" title
 
   sequential
@@ -141,7 +141,7 @@ class PlaySpec extends org.specs2.mutable.Specification {
 
   // ---
 
-  def configuredAppBuilder = {
+  private def configuredAppBuilder = {
     val env = play.api.Environment.simple(mode = play.api.Mode.Test)
     val config = play.api.Configuration.load(env)
     val modules = config.getOptional[Seq[String]]("play.modules.enabled").
@@ -169,5 +169,6 @@ class InjectMultiple @Inject() (
   @NamedStorage("bar") val bar: ObjectStorage,
   @NamedStorage("lorem") val lorem: ObjectStorage,
   @NamedStorage("ipsum") val ipsum: ObjectStorage) {
-  @inline def storages = Vector(defaultStorage, namedDefault, bar, lorem, ipsum)
+  @inline def storages: Vector[ObjectStorage] =
+    Vector(defaultStorage, namedDefault, bar, lorem, ipsum)
 }

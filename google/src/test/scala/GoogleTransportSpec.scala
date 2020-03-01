@@ -16,9 +16,10 @@ final class GoogleTransportSpec extends Specification {
 
   import TestUtils.ws
 
-  val filename = "gcs-test.json"
-  val projectId = TestUtils.config.getString("google.storage.projectId")
-  val application = s"benji-tests-${System.identityHashCode(this).toString}"
+  private val filename = "gcs-test.json"
+  private val projectId = TestUtils.config.getString("google.storage.projectId")
+  private val application =
+    s"benji-tests-${System.identityHashCode(this).toString}"
 
   "Factory using URI" should {
     "succeed" >> {
@@ -56,7 +57,8 @@ final class GoogleTransportSpec extends Specification {
     "fail" >> {
       "when the provider fail" in {
         val exception: Throwable = new Exception("foo")
-        implicit val provider = URIProvider[Throwable](Failure[URI])
+        implicit val provider: URIProvider[Throwable] =
+          URIProvider[Throwable](Failure[URI])
 
         GoogleTransport(exception) must beFailedTry.
           withThrowable[Exception]("foo")

@@ -11,14 +11,18 @@ import com.zengularity.benji.exception.{
 }
 
 object TestUtils {
-  def bucketNotEmpty(bucket: BucketRef) = BucketNotEmptyException(bucket)
+  def bucketNotEmpty(bucket: BucketRef): BucketNotEmptyException =
+    BucketNotEmptyException(bucket)
 
-  def bucketAlreadyExists(bucket: BucketRef) =
+  def bucketAlreadyExists(bucket: BucketRef): BucketAlreadyExistsException =
     BucketAlreadyExistsException(bucket)
 
-  def versionNotFound(ref: VersionedObjectRef) = VersionNotFoundException(ref)
+  def versionNotFound(ref: VersionedObjectRef): VersionNotFoundException =
+    VersionNotFoundException(ref)
 
-  def bucketNotFound(bucket: BucketRef) = BucketNotFoundException(bucket)
+  def bucketNotFound(bucket: BucketRef): BucketNotFoundException =
+    BucketNotFoundException(bucket)
 
-  def objectNotFound(ref: ObjectRef) = ObjectNotFoundException(ref)
+  def objectNotFound(ref: ObjectRef): ObjectNotFoundException =
+    ObjectNotFoundException(ref)
 }

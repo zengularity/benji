@@ -5,7 +5,7 @@ import play.api.{ ApplicationLoader, Configuration, Environment, Mode }
 import play.api.inject.guice.GuiceApplicationBuilder
 
 object PlayUtil {
-  def context = {
+  def context: ApplicationLoader.Context = {
     val env = Environment.simple(mode = Mode.Test)
 
     ApplicationLoader.Context(env, None,

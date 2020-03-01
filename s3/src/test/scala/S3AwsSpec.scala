@@ -43,6 +43,7 @@ final class S3AwsSpec extends Specification with AwsTests {
 
 sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S3Spec { specs: Specification =>
   import TestUtils.withMatEx
+  import org.specs2.specification.core.Fragment
 
   final override protected def rwConsistencyRetry: Int = 40
 
@@ -51,7 +52,7 @@ sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S
 
   def awsMinimalSuite(
     label: String,
-    s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer) = s"S3 client $label" should {
+    s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer): Fragment = s"S3 client $label" should {
     val bucketName = s"benji-test-${random.nextInt().toString}"
 
     withMatEx { implicit ee: EE => minimalCommonTests(s3f, bucketName) }
@@ -59,7 +60,7 @@ sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S
 
   def awsSuite(
     label: String,
-    s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer) = s"S3 client $label" should {
+    s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer): Fragment = s"S3 client $label" should {
     val bucketName = s"benji-test-${random.nextInt().toString}"
 
     withMatEx { implicit ee: EE =>

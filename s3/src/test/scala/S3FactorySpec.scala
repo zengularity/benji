@@ -55,7 +55,7 @@ class S3FactorySpec extends org.specs2.mutable.Specification {
 
   import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
-  implicit def materializer = TestUtils.materializer
+  private implicit def materializer = TestUtils.materializer
 
   object WSInjector extends Injector {
     private val WS = classOf[StandaloneAhcWSClient]

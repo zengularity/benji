@@ -15,7 +15,8 @@ final class StreamSpec(implicit ee: ExecutionEnv)
 
   "Streams" title
 
-  val timeout = FiniteDuration(5L, java.util.concurrent.TimeUnit.SECONDS)
+  private val timeout =
+    FiniteDuration(5L, java.util.concurrent.TimeUnit.SECONDS)
 
   private implicit lazy val system =
     akka.actor.ActorSystem("benji-core-tests")

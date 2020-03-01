@@ -23,7 +23,7 @@ final class S3CephSpec extends org.specs2.mutable.Specification
 
   sequential
 
-  @inline implicit def materializer = TestUtils.materializer
+  @inline private implicit def materializer = TestUtils.materializer
 
   "Client" should {
     val bucketName = s"benji-test-${random.nextInt().toString}"
