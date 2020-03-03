@@ -73,9 +73,6 @@ private[s3] object WSRequestBuilder {
       case ',' =>
         url.append("%2C")
 
-      case '/' =>
-        url.append("%2F")
-
       case ':' =>
         url.append("%3A")
 
