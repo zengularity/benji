@@ -92,8 +92,15 @@ trait S3Spec extends BenjiMatchers { _: org.specs2.mutable.Specification =>
       val body = List.fill(100)("hello").mkString(" ").getBytes
       val upload = Source.single(body).runWith(put)
 
-      upload must beDone.await(2, 5.seconds)
-      file.delete() must beTypedEqualTo({}).await(1, 5.seconds)
+      {
+        upload must beDone.await(2, 5.seconds)
+      } and {
+        file must existsIn(bucket, 10, 5.seconds)
+      } and {
+        file.delete() must beTypedEqualTo({}).await(1, 5.seconds)
+      } and {
+        file must notExistsIn(bucket, 10, 5.seconds)
+      }
     }
   }
 }
