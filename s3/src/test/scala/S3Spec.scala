@@ -3,13 +3,18 @@ package tests.benji.s3
 import scala.concurrent.duration._
 
 import akka.stream.Materializer
+import akka.stream.scaladsl.Source
+
+import play.api.libs.ws.DefaultBodyWritables._
 
 import org.specs2.specification.core.Fragment
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 
 import com.zengularity.benji.s3.tests.TestUtils
 
-trait S3Spec { _: org.specs2.mutable.Specification =>
+import tests.benji.BenjiMatchers
+
+trait S3Spec extends BenjiMatchers { _: org.specs2.mutable.Specification =>
   import TestUtils.withMatEx
 
   def s3Suite(
@@ -76,6 +81,19 @@ trait S3Spec { _: org.specs2.mutable.Specification =>
 
     "Use correct toString format on object" in {
       storage.bucket("bucketName").obj("objectName").toString must_== "WSS3ObjectRef(bucketName, objectName)"
+    }
+
+    s"write and delete a file with object name containing a slash" in withMatEx { implicit ee: EE =>
+      val filename = "accounts/testfile.txt"
+      val bucket = storage.bucket(bucketName)
+      val file = bucket.obj(filename)
+
+      val put = file.put[Array[Byte]]
+      val body = List.fill(100)("hello").mkString(" ").getBytes
+      val upload = Source.single(body).runWith(put)
+
+      upload must beDone.await(2, 5.seconds)
+      file.delete() must beTypedEqualTo({}).await(1, 5.seconds)
     }
   }
 }
