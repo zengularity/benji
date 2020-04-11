@@ -49,7 +49,7 @@ EOF
 )
 
 # MiMa, Tests
-SBT_CMD=";error ;text:compile ;mimaReportBinaryIssues"
+SBT_CMD=";error ;test:compile ;mimaReportBinaryIssues"
 SBT_CMD="$SBT_CMD ;info ;testQuick -- stopOnFail"
 
 sbt "$SBT_OPTS" "$SBT_CMD"

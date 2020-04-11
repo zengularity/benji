@@ -29,7 +29,7 @@ commands:
   build_n_test:
     description: Build & Run tests
     parameters:
-      name:
+      title:
         type: string
         default: "Build & tests"
     steps:
@@ -38,7 +38,7 @@ commands:
           - scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
 
       - run:
-          name: << parameters.name >>
+          name: << parameters.title >>
           command: ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
 
       - save_cache:
@@ -59,6 +59,57 @@ commands:
                       -print -exec cp {} test-reports \;
           when: always
 
+  publish_snapshots:
+    description: Publish artifacts to Snapshots repository
+    parameters:
+      release_suffix:
+        type: string
+        default: ""
+      play_version:
+        type: string
+        default: ""
+      play_json_version:
+        type: string
+        default: ""
+      ws_version:
+        type: string
+        default: ""
+      scala_versions:
+        type: string
+        default: ""
+    steps:
+      - deploy:
+          name: Publish artifacts to Sonatype Snapshots
+          command: |
+                    if [ ! "${CIRCLE_BRANCH}" = "master" ]; then
+                      echo "Skipped on branch ${CIRCLE_BRANCH}"
+                      exit 0
+                    fi
+                    
+                    export PUBLISH_REPO_NAME="Sonatype Nexus Repository Manager"
+                    export PUBLISH_REPO_ID="oss.sonatype.org"
+                    export PUBLISH_REPO_URL="https://oss.sonatype.org/content/repositories/snapshots"
+                    
+                    if [ "x$PUBLISH_USER" = "x" -o "x$PUBLISH_PASS" = "x" ]; then
+                      echo "Missing publication credentials"
+                      exit 1
+                    fi
+                    
+                    export RELEASE_SUFFIX="<< parameters.release_suffix >>"
+                    export PLAY_VERSION="<< parameters.play_version >>"
+                    export PLAY_JSON_VERSION="<< parameters.play_json_version >>"
+                    export WS_VERSION="<< parameters.ws_version >>"
+                    
+                    echo "Publishing artifacts for $PLAY_VERSION"
+                    
+                    if [ "x<< parameters.scala_versions >>" = "x" ]; then
+                      sbt +publish
+                    else
+                      for V in `echo "<< parameters.scala_versions >>"`; do
+                        sbt ++$V publish
+                      done
+                    fi
+
 jobs:
   scala211_jdk8:
     docker:
@@ -73,7 +124,7 @@ jobs:
       - checkout
       - setup_sbt
       - build_n_test:
-          name: Run Validations and Tests (Scala 2.11, Play 2.6, WS 1.1)
+          title: Run Validations and Tests (Scala 2.11, Play 2.6, WS 1.1)
       - collect_test_reports
       - store_test_results:
           path: test-reports
@@ -93,7 +144,7 @@ jobs:
       - checkout
       - setup_sbt
       - build_n_test:
-          name: Run Validations and Tests (Scala 2.12, Play 2.7, WS 2.0)
+          title: Run Validations and Tests (Scala 2.12, Play 2.7, WS 2.0)
       - collect_test_reports
       - store_test_results:
           path: test-reports
@@ -114,10 +165,48 @@ jobs:
       - checkout
       - setup_sbt
       - build_n_test:
-          name: Run Validations and Tests (Scala 2.13, Play 2.8, WS 2.1)
+          title: Run Validations and Tests (Scala 2.13, Play 2.8, WS 2.1)
       - collect_test_reports
       - store_test_results:
           path: test-reports
+
+  publish_snapshots:
+    docker:
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+      - setup_sbt
+
+      - publish_snapshots:
+          release_suffix: play26
+          play_version: 2.6.7
+          play_json_version: 2.6.7
+          ws_version: 1.1.6
+          scala_versions: 2.11.12 2.12.10
+
+      - publish_snapshots:
+          release_suffix: play27
+          play_version: 2.7.1
+          play_json_version: 2.7.4
+          ws_version: 2.0.6
+          scala_versions: 2.12.10
+
+      - publish_snapshots:
+          release_suffix: play27
+          play_version: 2.7.3
+          play_json_version: 2.7.4
+          ws_version: 2.0.6
+          scala_versions: 2.13.1
+
+      - publish_snapshots:
+          release_suffix: play28
+          play_version: 2.8.0
+          play_json_version: 2.8.1
+          ws_version: 2.1.2
+          scala_versions: 2.13.1
 
 workflows:
   version: 2
@@ -131,3 +220,12 @@ workflows:
       - scala213_play28_jdk9:
           requires:
             - scala212_play27_jdk8 # Workaround for sequential storage access
+      - publish_snapshots:
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - scala211_jdk8
+            - scala212_play27_jdk8
+            - scala213_play28_jdk9
