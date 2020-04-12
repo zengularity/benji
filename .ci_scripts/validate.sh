@@ -32,10 +32,12 @@ echo "$GOOGLE_CREDENTIALS" | base64 -d | gzip -dc > \
 JVM_MAX_MEM="2048M"
 JVM_OPTS="-Xms$JVM_MAX_MEM -Xmx$JVM_MAX_MEM -XX:+CMSClassUnloadingEnabled -XX:ReservedCodeCacheSize=192m -XX:MetaspaceSize=512M -XX:MaxMetaspaceSize=512M"
 
+export _JAVA_OPTIONS="$JVM_OPTS"
+
 SBT_OPTS="++$SCALA_VERSION"
 
 # Scalariform check
-echo "[INFO] Check the source format and backward compatibility"
+echo "[info] Check the source format and backward compatibility"
 
 sbt "$SBT_OPTS" error scalariformFormat test:scalariformFormat > /dev/null
 git diff --exit-code || (cat >> /dev/stdout <<EOF
@@ -47,4 +49,7 @@ EOF
 )
 
 # MiMa, Tests
-sbt "$SBT_OPTS" ';error ;mimaReportBinaryIssues ;testQuick -- stopOnFail'
+SBT_CMD=";error ;test:compile ;mimaReportBinaryIssues"
+SBT_CMD="$SBT_CMD ;info ;testQuick -- stopOnFail"
+
+sbt "$SBT_OPTS" "$SBT_CMD"
