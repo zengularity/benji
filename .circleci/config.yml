@@ -180,6 +180,10 @@ jobs:
       - checkout
       - setup_sbt
 
+      - restore_cache:
+          keys:
+          - scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
+
       - publish_snapshots:
           release_suffix: play26
           play_version: 2.6.7
@@ -207,6 +211,13 @@ jobs:
           play_json_version: 2.8.1
           ws_version: 2.1.2
           scala_versions: 2.13.1
+
+      - save_cache:
+          paths:
+            - ~/.ivy2
+            - ~/.sbt
+            - ~/.coursier/cache
+          key: scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
 
 workflows:
   version: 2
