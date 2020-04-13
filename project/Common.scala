@@ -24,7 +24,6 @@ object Common extends AutoPlugin {
 
       if (ver == "2.12") {
         Seq(
-          "-Xmax-classfile-name", "128",
           "-Ywarn-numeric-widen",
           "-Ywarn-infer-any",
           "-Ywarn-dead-code",
@@ -36,7 +35,19 @@ object Common extends AutoPlugin {
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit",
           "-Ywarn-extra-implicit")
-      } else if (ver != "2.13") {
+      } else {
+        Seq.empty
+      }
+    },
+    scalacOptions in (Compile, compile) ++= {
+      if (scalaBinaryVersion.value != "2.13") {
+        Seq("-Xmax-classfile-name", "128")
+      } else {
+        Seq.empty
+      }
+    },
+    scalacOptions in (Test, compile) ++= {
+      if (scalaBinaryVersion.value != "2.13") {
         Seq("-Xmax-classfile-name", "128")
       } else {
         Seq.empty
