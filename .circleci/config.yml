@@ -255,9 +255,9 @@ jobs:
           play_json_version: 2.8.1
           variant: Play 2.8, WS 2.1
 
-  # --- S3 --- #
+  # --- Integration: S3/Google --- #
 
-  s3_scala211_jdk8:
+  int_scala211_jdk8:
     docker:
       - image: circleci/openjdk:8-jdk
 
@@ -265,11 +265,11 @@ jobs:
     
     steps:
       - test_suite:
-          modules: s3
+          modules: s3 google
           scala_version: 2.11.12
           variant: Play 2.6, WS 1.1
 
-  s3_scala212_play27_jdk8:
+  int_scala212_play27_jdk8:
     docker:
       - image: circleci/openjdk:8-jdk
 
@@ -277,13 +277,13 @@ jobs:
 
     steps:
       - test_suite:
-          modules: s3
+          modules: s3 google
           scala_version: 2.12.11
           ws_version: 2.0.6
           play_version: 2.7.1
           variant: Play 2.7, WS 2.0
 
-  s3_scala213_play28_jdk9:
+  int_scala213_play28_jdk9:
     docker:
       - image: circleci/openjdk:9-jdk
 
@@ -291,50 +291,7 @@ jobs:
 
     steps:
       - test_suite:
-          modules: s3
-          scala_version: 2.13.2
-          ws_version: 2.1.2
-          play_version: 2.8.0
-          play_json_version: 2.8.1
-          variant: Play 2.8, WS 2.1
-
-  # --- Google Cloud Storage --- #
-
-  google_scala211_jdk8:
-    docker:
-      - image: circleci/openjdk:8-jdk
-
-    working_directory: ~/repo
-    
-    steps:
-      - test_suite:
-          modules: google
-          scala_version: 2.11.12
-          variant: Play 2.6, WS 1.1
-
-  google_scala212_play27_jdk8:
-    docker:
-      - image: circleci/openjdk:8-jdk
-
-    working_directory: ~/repo
-
-    steps:
-      - test_suite:
-          modules: google
-          scala_version: 2.12.11
-          ws_version: 2.0.6
-          play_version: 2.7.1
-          variant: Play 2.7, WS 2.0
-
-  google_scala213_play28_jdk9:
-    docker:
-      - image: circleci/openjdk:9-jdk
-
-    working_directory: ~/repo
-
-    steps:
-      - test_suite:
-          modules: google
+          modules: s3 google
           scala_version: 2.13.2
           ws_version: 2.1.2
           play_version: 2.8.0
@@ -415,31 +372,18 @@ workflows:
       - common_scala212_play27_jdk8
       - common_scala213_play28_jdk9
 
-      # S3
-      - s3_scala211_jdk8:
+      # S3/Google
+      - int_scala211_jdk8:
           requires:
             - common_scala211_jdk8
-      - s3_scala212_play27_jdk8:
+      - int_scala212_play27_jdk8:
           requires:
             - common_scala212_play27_jdk8
-            - s3_scala211_jdk8
-      - s3_scala213_play28_jdk9:
+            - int_scala211_jdk8
+      - int_scala213_play28_jdk9:
           requires:
             - common_scala213_play28_jdk9
-            - s3_scala212_play27_jdk8
-
-      # Google
-      - google_scala211_jdk8:
-          requires:
-            - common_scala211_jdk8
-      - google_scala212_play27_jdk8:
-          requires:
-            - common_scala212_play27_jdk8
-            - google_scala211_jdk8
-      - google_scala213_play28_jdk9:
-          requires:
-            - common_scala213_play28_jdk9
-            - google_scala212_play27_jdk8
+            - int_scala212_play27_jdk8
 
       # Master
       - publish_snapshots:
@@ -448,9 +392,6 @@ workflows:
               only:
                 - master
           requires:
-            - s3_scala211_jdk8
-            - s3_scala212_play27_jdk8
-            - s3_scala213_play28_jdk9
-            - google_scala211_jdk8
-            - google_scala212_play27_jdk8
-            - google_scala213_play28_jdk9
+            - int_scala211_jdk8
+            - int_scala212_play27_jdk8
+            - int_scala213_play28_jdk9
