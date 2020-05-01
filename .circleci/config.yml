@@ -134,6 +134,32 @@ commands:
       - store_test_results:
           path: test-reports
 
+  check_examples:
+    description: Check examples
+    parameters:
+      module:
+        type: string
+        default: ""
+
+    steps:
+      - checkout
+      - setup_sbt
+
+      - restore_cache:
+          keys:
+          - *scala_cache_key
+
+      - run:
+          name: Build example << parameters.module >>
+          command: cd examples && sbt +test:compile
+
+      - save_cache:
+          paths:
+            - ~/.ivy2
+            - ~/.sbt
+            - ~/.coursier/cache
+          key: *scala_cache_key
+
   publish_snapshots:
     parameters:
       release_suffix:
@@ -229,6 +255,92 @@ jobs:
           play_json_version: 2.8.1
           variant: Play 2.8, WS 2.1
 
+  # --- S3 --- #
+
+  s3_scala211_jdk8:
+    docker:
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
+    
+    steps:
+      - test_suite:
+          modules: s3
+          scala_version: 2.11.12
+          variant: Play 2.6, WS 1.1
+
+  s3_scala212_play27_jdk8:
+    docker:
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
+
+    steps:
+      - test_suite:
+          modules: s3
+          scala_version: 2.12.11
+          ws_version: 2.0.6
+          play_version: 2.7.1
+          variant: Play 2.7, WS 2.0
+
+  s3_scala213_play28_jdk9:
+    docker:
+      - image: circleci/openjdk:9-jdk
+
+    working_directory: ~/repo
+
+    steps:
+      - test_suite:
+          modules: s3
+          scala_version: 2.13.2
+          ws_version: 2.1.2
+          play_version: 2.8.0
+          play_json_version: 2.8.1
+          variant: Play 2.8, WS 2.1
+
+  # --- Google Cloud Storage --- #
+
+  google_scala211_jdk8:
+    docker:
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
+    
+    steps:
+      - test_suite:
+          modules: google
+          scala_version: 2.11.12
+          variant: Play 2.6, WS 1.1
+
+  google_scala212_play27_jdk8:
+    docker:
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
+
+    steps:
+      - test_suite:
+          modules: google
+          scala_version: 2.12.11
+          ws_version: 2.0.6
+          play_version: 2.7.1
+          variant: Play 2.7, WS 2.0
+
+  google_scala213_play28_jdk9:
+    docker:
+      - image: circleci/openjdk:9-jdk
+
+    working_directory: ~/repo
+
+    steps:
+      - test_suite:
+          modules: google
+          scala_version: 2.13.2
+          ws_version: 2.1.2
+          play_version: 2.8.0
+          play_json_version: 2.8.1
+          variant: Play 2.8, WS 2.1
+
   # --- Master jobs --- #
 
   publish_snapshots:
@@ -280,21 +392,65 @@ jobs:
             - ~/.coursier/cache
           key: *scala_cache_key
 
+  examples:
+    docker:
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
+
+    steps:
+      - check_examples:
+          module: play-vfs-compile-di
+
+      - check_examples:
+          module: play-s3-runtime-di
+
 workflows:
   version: 2
 
   main_suite:
     jobs:
+      # Common
       - common_scala211_jdk8
       - common_scala212_play27_jdk8
       - common_scala213_play28_jdk9
 
+      # S3
+      - s3_scala211_jdk8:
+          requires:
+            - common_scala211_jdk8
+      - s3_scala212_play27_jdk8:
+          requires:
+            - common_scala212_play27_jdk8
+            - s3_scala211_jdk8
+      - s3_scala213_play28_jdk9:
+          requires:
+            - common_scala213_play28_jdk9
+            - s3_scala212_play27_jdk8
+
+      # Google
+      - google_scala211_jdk8:
+          requires:
+            - common_scala211_jdk8
+      - google_scala212_play27_jdk8:
+          requires:
+            - common_scala212_play27_jdk8
+            - google_scala211_jdk8
+      - google_scala213_play28_jdk9:
+          requires:
+            - common_scala213_play28_jdk9
+            - google_scala212_play27_jdk8
+
+      # Master
       - publish_snapshots:
           filters:
             branches:
               only:
                 - master
           requires:
-            - common_scala211_jdk8
-            - common_scala212_play27_jdk8
-            - common_scala213_play28_jdk9
+            - s3_scala211_jdk8
+            - s3_scala212_play27_jdk8
+            - s3_scala213_play28_jdk9
+            - google_scala211_jdk8
+            - google_scala212_play27_jdk8
+            - google_scala213_play28_jdk9
