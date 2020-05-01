@@ -121,12 +121,14 @@ commands:
     steps:
       - checkout
       - setup_sbt
+
       - build_n_test:
           scala_version: << parameters.scala_version >>
           ws_version: << parameters.ws_version >>
           play_version: << parameters.play_version >>
           play_json_version: << parameters.play_json_version >>
           variant: << parameters.variant >>
+          modules: << parameters.modules >>
 
       - collect_test_reports
       - store_test_results:
@@ -184,7 +186,9 @@ commands:
                     fi
 
 jobs:
-  scala211_jdk8:
+  # --- Common tests --- #
+
+  common_scala211_jdk8:
     docker:
       - image: circleci/openjdk:8-jdk
 
@@ -192,10 +196,11 @@ jobs:
     
     steps:
       - test_suite:
+          modules: core vfs play
           scala_version: 2.11.12
           variant: Play 2.6, WS 1.1
 
-  scala212_play27_jdk8:
+  common_scala212_play27_jdk8:
     docker:
       - image: circleci/openjdk:8-jdk
 
@@ -203,12 +208,13 @@ jobs:
 
     steps:
       - test_suite:
+          modules: core vfs play
           scala_version: 2.12.11
           ws_version: 2.0.6
           play_version: 2.7.1
           variant: Play 2.7, WS 2.0
 
-  scala213_play28_jdk9:
+  common_scala213_play28_jdk9:
     docker:
       - image: circleci/openjdk:9-jdk
 
@@ -216,11 +222,14 @@ jobs:
 
     steps:
       - test_suite:
+          modules: core vfs play
           scala_version: 2.13.2
           ws_version: 2.1.2
           play_version: 2.8.0
           play_json_version: 2.8.1
           variant: Play 2.8, WS 2.1
+
+  # --- Master jobs --- #
 
   publish_snapshots:
     docker:
@@ -276,13 +285,9 @@ workflows:
 
   main_suite:
     jobs:
-      - scala211_jdk8
-      - scala212_play27_jdk8:
-          requires:
-            - scala211_jdk8 # Workaround for sequential storage access
-      - scala213_play28_jdk9:
-          requires:
-            - scala212_play27_jdk8 # Workaround for sequential storage access
+      - common_scala211_jdk8
+      - common_scala212_play27_jdk8
+      - common_scala213_play28_jdk9
 
       - publish_snapshots:
           filters:
@@ -290,6 +295,6 @@ workflows:
               only:
                 - master
           requires:
-            - scala211_jdk8
-            - scala212_play27_jdk8
-            - scala213_play28_jdk9
+            - common_scala211_jdk8
+            - common_scala212_play27_jdk8
+            - common_scala213_play28_jdk9
