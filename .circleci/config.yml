@@ -415,3 +415,12 @@ workflows:
             - int_scala211_jdk8
             - int_scala212_play27_jdk8
             - int_scala213_play28_jdk9
+
+      - check_examples:
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - publish_snapshots
+
