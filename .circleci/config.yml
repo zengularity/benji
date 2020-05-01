@@ -32,6 +32,9 @@ commands:
       variant:
         type: string
         default: ""
+      java_version:
+        type: string
+        default: "openjdk8"
       scala_version:
         type: string
         default: "2.13.2"
@@ -52,6 +55,10 @@ commands:
       - restore_cache:
           keys:
           - &scala_cache_key scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "version.sbt" }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
+
+      - restore_cache:
+          keys:
+          - &compile_cache_key compile-{{ arch }}-<< parameters.java_version >>-<< parameters.scala_version >>-{{ .Revision }}
 
       - run:
           name: Build and test; << parameters.scala_version >>, << parameters.variant >> (<< parameters.modules >>)
@@ -79,6 +86,13 @@ commands:
 
       - save_cache:
           paths:
+            - ~/repo/core/target/scala-*
+            - ~/repo/vfs/target/scala-*
+            - ~/repo/play/target/scala-*
+          key: *compile_cache_key
+
+      - save_cache:
+          paths:
             - ~/.ivy2
             - ~/.sbt
             - ~/.coursier/cache
@@ -102,6 +116,9 @@ commands:
       variant:
         type: string
         default: ""
+      java_version:
+        type: string
+        default: "openjdk8"
       scala_version:
         type: string
         default: "2.13.2"
@@ -123,6 +140,7 @@ commands:
       - setup_sbt
 
       - build_n_test:
+          java_version: << parameters.java_version >>
           scala_version: << parameters.scala_version >>
           ws_version: << parameters.ws_version >>
           play_version: << parameters.play_version >>
@@ -248,6 +266,7 @@ jobs:
 
     steps:
       - test_suite:
+          java_version: openjdk9
           modules: core vfs play
           scala_version: 2.13.2
           ws_version: 2.1.2
@@ -292,6 +311,7 @@ jobs:
     steps:
       - test_suite:
           modules: s3 google
+          java_version: openjdk9
           scala_version: 2.13.2
           ws_version: 2.1.2
           play_version: 2.8.0
