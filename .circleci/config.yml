@@ -416,7 +416,7 @@ workflows:
             - int_scala212_play27_jdk8
             - int_scala213_play28_jdk9
 
-      - check_examples:
+      - examples:
           filters:
             branches:
               only:
