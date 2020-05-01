@@ -1,9 +1,9 @@
 organization in ThisBuild := "com.zengularity"
 
-scalaVersion in ThisBuild := "2.12.10"
+scalaVersion in ThisBuild := "2.12.11"
 
 crossScalaVersions in ThisBuild := Seq(
-  "2.11.12", scalaVersion.value, "2.13.1")
+  "2.11.12", scalaVersion.value, "2.13.2")
 
 lazy val core = project.in(file("core")).settings(
   name := "benji-core",
@@ -26,10 +26,10 @@ lazy val core = project.in(file("core")).settings(
 )
 
 val scalaXmlVer = Def.setting[String] {
-  val sv = scalaVersion.value
+  val sv = scalaBinaryVersion.value
 
-  if (sv startsWith "2.11.") "1.0.5"
-  else if (sv startsWith "2.13.") "1.2.0"
+  if (sv == "2.11") "1.0.5"
+  else if (sv == "2.13") "1.2.0"
   else "1.0.6"
 }
 

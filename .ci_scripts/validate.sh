@@ -49,7 +49,14 @@ EOF
 )
 
 # MiMa, Tests
-SBT_CMD=";error ;test:compile ;mimaReportBinaryIssues"
-SBT_CMD="$SBT_CMD ;info ;testQuick -- stopOnFail"
+SBT_CMD=";error ;test:compile ;mimaReportBinaryIssues; info"
+
+if [ "x$SBT_TEST_PROJECTS" = "x" ]; then
+  SBT_CMD="$SBT_CMD ;testQuick -- stopOnFail"
+else
+  for M in $SBT_TEST_PROJECTS; do
+    SBT_CMD="$SBT_CMD ;$M/testQuick -- stopOnFail"
+  done
+fi
 
 sbt "$SBT_OPTS" "$SBT_CMD"
