@@ -1,6 +1,6 @@
 name := "benji-vfs-play-demo"
 
-scalaVersion := "2.12.10"
+scalaVersion := "2.12.11"
 
 scalacOptions ++= Seq(
   "-encoding", "UTF-8",
@@ -20,7 +20,7 @@ scalacOptions ++= Seq(
   "-opt:_"
 )
 
-version := "2.0.5"
+version := "2.2.0-SNAPSHOT"
 
 val playVer = Def.setting[String] {
   if (version.value endsWith "-SNAPSHOT") {
@@ -29,11 +29,6 @@ val playVer = Def.setting[String] {
     s"${version.value}-play27"
   }
 }
-
-resolvers ++= Seq(
-  "Entrepot Releases" at "https://raw.githubusercontent.com/zengularity/entrepot/master/releases",
-  "Entrepot Snapshots" at "https://raw.githubusercontent.com/zengularity/entrepot/master/snapshots"
-)
 
 libraryDependencies ++= Seq(
   "com.zengularity" %% "benji-vfs" % version.value,

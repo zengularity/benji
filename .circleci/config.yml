@@ -10,7 +10,7 @@ commands:
     steps:
       - restore_cache:
           keys:
-          - sbt-{{ checksum "project/build.properties" }}
+          - &sbt_cache_key sbt-{{ checksum "project/build.properties" }}
 
       - run:
           name: Setup SBT
@@ -24,29 +24,79 @@ commands:
       - save_cache:
           paths:
             - ~/.sbt
-          key: sbt-{{ checksum "project/build.properties" }}
+          key: *sbt_cache_key
 
   build_n_test:
     description: Build & Run tests
     parameters:
-      title:
+      variant:
         type: string
-        default: "Build & tests"
+        default: ""
+      java_version:
+        type: string
+        default: "openjdk8"
+      scala_version:
+        type: string
+        default: "2.13.2"
+      ws_version:
+        type: string
+        default: ""
+      play_version:
+        type: string
+        default: ""
+      play_json_version:
+        type: string
+        default: ""
+      modules: # space separated
+        type: string
+        default: "core"
+
     steps:
       - restore_cache:
           keys:
-          - scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
+          - &scala_cache_key scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "version.sbt" }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
+
+      - restore_cache:
+          keys:
+          - &compile_cache_key compile-{{ arch }}-<< parameters.java_version >>-<< parameters.scala_version >>-{{ .Revision }}
 
       - run:
-          name: << parameters.title >>
-          command: ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
+          name: Build and test; << parameters.scala_version >>, << parameters.variant >> (<< parameters.modules >>)
+          command: |
+                    export SCALA_VERSION="<< parameters.scala_version >>"
+
+                    PV="<< parameters.play_version >>"
+                    if [ ! "x$PV" = "x" ]; then
+                      export PLAY_VERSION="$PV"
+                    fi
+                    
+                    JV="<< parameters.play_json_version >>"
+                    if [ ! "x$JV" = "x" ]; then
+                      export PLAY_JSON_VERSION="$JV"
+                    fi
+                    
+                    WV="<< parameters.ws_version >>"
+                    if [ ! "x$WV" = "x" ]; then
+                      export WS_VERSION="$WV"
+                    fi
+
+                    export SBT_TEST_PROJECTS="<< parameters.modules >>"
+
+                    ./.ci_scripts/retry.sh 3 ./.ci_scripts/validate.sh
+
+      - save_cache:
+          paths:
+            - ~/repo/core/target/scala-*
+            - ~/repo/vfs/target/scala-*
+            - ~/repo/play/target/scala-*
+          key: *compile_cache_key
 
       - save_cache:
           paths:
             - ~/.ivy2
             - ~/.sbt
             - ~/.coursier/cache
-          key: scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
+          key: *scala_cache_key
 
   collect_test_reports:
     description: Collect test reports
@@ -59,8 +109,76 @@ commands:
                       -print -exec cp {} test-reports \;
           when: always
 
+  test_suite:
+    description: Test suite
+
+    parameters:
+      variant:
+        type: string
+        default: ""
+      java_version:
+        type: string
+        default: "openjdk8"
+      scala_version:
+        type: string
+        default: "2.13.2"
+      ws_version:
+        type: string
+        default: ""
+      play_version:
+        type: string
+        default: ""
+      play_json_version:
+        type: string
+        default: ""
+      modules: # space separated
+        type: string
+        default: "core"
+
+    steps:
+      - checkout
+      - setup_sbt
+
+      - build_n_test:
+          java_version: << parameters.java_version >>
+          scala_version: << parameters.scala_version >>
+          ws_version: << parameters.ws_version >>
+          play_version: << parameters.play_version >>
+          play_json_version: << parameters.play_json_version >>
+          variant: << parameters.variant >>
+          modules: << parameters.modules >>
+
+      - collect_test_reports
+      - store_test_results:
+          path: test-reports
+
+  check_examples:
+    description: Check examples
+    parameters:
+      module:
+        type: string
+        default: ""
+
+    steps:
+      - checkout
+      - setup_sbt
+
+      - restore_cache:
+          keys:
+          - *scala_cache_key
+
+      - run:
+          name: Build example << parameters.module >>
+          command: cd examples && sbt +test:compile
+
+      - save_cache:
+          paths:
+            - ~/.ivy2
+            - ~/.sbt
+            - ~/.coursier/cache
+          key: *scala_cache_key
+
   publish_snapshots:
-    description: Publish artifacts to Snapshots repository
     parameters:
       release_suffix:
         type: string
@@ -77,6 +195,7 @@ commands:
       scala_versions:
         type: string
         default: ""
+    description: Publish artifacts << parameters.release_suffix >> to Snapshots repository
     steps:
       - deploy:
           name: Publish artifacts to Sonatype Snapshots
@@ -111,64 +230,95 @@ commands:
                     fi
 
 jobs:
-  scala211_jdk8:
+  # --- Common tests --- #
+
+  common_scala211_jdk8:
+    docker:
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
+    
+    steps:
+      - test_suite:
+          modules: core vfs play
+          scala_version: 2.11.12
+          variant: Play 2.6, WS 1.1
+
+  common_scala212_play27_jdk8:
     docker:
       - image: circleci/openjdk:8-jdk
 
     working_directory: ~/repo
 
-    environment:
-      SCALA_VERSION: 2.11.12
-    
     steps:
-      - checkout
-      - setup_sbt
-      - build_n_test:
-          title: Run Validations and Tests (Scala 2.11, Play 2.6, WS 1.1)
-      - collect_test_reports
-      - store_test_results:
-          path: test-reports
+      - test_suite:
+          modules: core vfs play
+          scala_version: 2.12.11
+          ws_version: 2.0.6
+          play_version: 2.7.1
+          variant: Play 2.7, WS 2.0
 
-  scala212_play27_jdk8:
-    docker:
-      - image: circleci/openjdk:8-jdk
-
-    working_directory: ~/repo
-
-    environment:
-      SCALA_VERSION: 2.12.10
-      WS_VERSION: 2.0.6
-      PLAY_VERSION: 2.7.1
-    
-    steps:
-      - checkout
-      - setup_sbt
-      - build_n_test:
-          title: Run Validations and Tests (Scala 2.12, Play 2.7, WS 2.0)
-      - collect_test_reports
-      - store_test_results:
-          path: test-reports
-
-  scala213_play28_jdk9:
+  common_scala213_play28_jdk9:
     docker:
       - image: circleci/openjdk:9-jdk
 
     working_directory: ~/repo
 
-    environment:
-      SCALA_VERSION: 2.13.1
-      WS_VERSION: 2.1.2
-      PLAY_VERSION: 2.8.0
-      PLAY_JSON_VERSION: 2.8.1
+    steps:
+      - test_suite:
+          java_version: openjdk9
+          modules: core vfs play
+          scala_version: 2.13.2
+          ws_version: 2.1.2
+          play_version: 2.8.0
+          play_json_version: 2.8.1
+          variant: Play 2.8, WS 2.1
+
+  # --- Integration: S3/Google --- #
+
+  int_scala211_jdk8:
+    docker:
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
     
     steps:
-      - checkout
-      - setup_sbt
-      - build_n_test:
-          title: Run Validations and Tests (Scala 2.13, Play 2.8, WS 2.1)
-      - collect_test_reports
-      - store_test_results:
-          path: test-reports
+      - test_suite:
+          modules: s3 google
+          scala_version: 2.11.12
+          variant: Play 2.6, WS 1.1
+
+  int_scala212_play27_jdk8:
+    docker:
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
+
+    steps:
+      - test_suite:
+          modules: s3 google
+          scala_version: 2.12.11
+          ws_version: 2.0.6
+          play_version: 2.7.1
+          variant: Play 2.7, WS 2.0
+
+  int_scala213_play28_jdk9:
+    docker:
+      - image: circleci/openjdk:9-jdk
+
+    working_directory: ~/repo
+
+    steps:
+      - test_suite:
+          modules: s3 google
+          java_version: openjdk9
+          scala_version: 2.13.2
+          ws_version: 2.1.2
+          play_version: 2.8.0
+          play_json_version: 2.8.1
+          variant: Play 2.8, WS 2.1
+
+  # --- Master jobs --- #
 
   publish_snapshots:
     docker:
@@ -182,61 +332,86 @@ jobs:
 
       - restore_cache:
           keys:
-          - scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
+          - *scala_cache_key
 
       - publish_snapshots:
           release_suffix: play26
           play_version: 2.6.7
           play_json_version: 2.6.7
           ws_version: 1.1.6
-          scala_versions: 2.11.12 2.12.10
+          scala_versions: 2.11.12 2.12.11
 
       - publish_snapshots:
           release_suffix: play27
           play_version: 2.7.1
           play_json_version: 2.7.4
           ws_version: 2.0.6
-          scala_versions: 2.12.10
+          scala_versions: 2.12.11
 
       - publish_snapshots:
           release_suffix: play27
           play_version: 2.7.4
           play_json_version: 2.7.4
           ws_version: 2.0.6
-          scala_versions: 2.13.1
+          scala_versions: 2.13.2
 
       - publish_snapshots:
           release_suffix: play28
           play_version: 2.8.0
           play_json_version: 2.8.1
           ws_version: 2.1.2
-          scala_versions: 2.13.1
+          scala_versions: 2.13.2
 
       - save_cache:
           paths:
             - ~/.ivy2
             - ~/.sbt
             - ~/.coursier/cache
-          key: scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
+          key: *scala_cache_key
+
+  examples:
+    docker:
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
+
+    steps:
+      - check_examples:
+          module: play-vfs-compile-di
+
+      - check_examples:
+          module: play-s3-runtime-di
 
 workflows:
   version: 2
 
   main_suite:
     jobs:
-      - scala211_jdk8
-      - scala212_play27_jdk8:
+      # Common
+      - common_scala211_jdk8
+      - common_scala212_play27_jdk8
+      - common_scala213_play28_jdk9
+
+      # S3/Google
+      - int_scala211_jdk8:
           requires:
-            - scala211_jdk8 # Workaround for sequential storage access
-      - scala213_play28_jdk9:
+            - common_scala211_jdk8
+      - int_scala212_play27_jdk8:
           requires:
-            - scala212_play27_jdk8 # Workaround for sequential storage access
+            - common_scala212_play27_jdk8
+            - int_scala211_jdk8
+      - int_scala213_play28_jdk9:
+          requires:
+            - common_scala213_play28_jdk9
+            - int_scala212_play27_jdk8
+
+      # Master
       - publish_snapshots:
           filters:
             branches:
               only:
                 - master
           requires:
-            - scala211_jdk8
-            - scala212_play27_jdk8
-            - scala213_play28_jdk9
+            - int_scala211_jdk8
+            - int_scala212_play27_jdk8
+            - int_scala213_play28_jdk9

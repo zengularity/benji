@@ -2,7 +2,7 @@ package tests.benji.s3
 
 import java.net.URI
 
-import com.zengularity.benji.spi.{ Injector, Registry, StorageScheme }
+import com.zengularity.benji.spi.Injector
 
 import com.zengularity.benji.spi.{ Registry, StorageScheme }
 
