@@ -113,7 +113,7 @@ lazy val vfs = project.in(file("vfs")).settings(
     "org.apache.commons" % "commons-vfs2" % "2.6.0",
     "com.typesafe.play" %% "play-json" % playJsonVer.value,
     Dependencies.slf4jApi,
-    "commons-io" % "commons-io" % "2.6" % Test)
+    "commons-io" % "commons-io" % "2.7" % Test)
 ).dependsOn(core % "test->test;compile->compile")
 
 lazy val play = project.in(file("play")).settings(
