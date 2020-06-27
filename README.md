@@ -37,13 +37,12 @@ To prepare a new release the following command must be used.
 To publish a release on Maven Central, use the following steps.
 
 - Build artifacts: `./project/build.sh`
-- Publish storage modules: `./project/deploy.sh <version> <pgp-key>`
-- Publish play module:
+- Publish all modules: `./project/deploy.sh <version> <pgp-key>`
+- Publish only play modules:
 
 ```
 export SCALA_MODULES="play:benji-play"
-./project/deploy.sh <version>-play26 <pgp-key>
-./project/deploy.sh <version>-play27 <pgp-key>
+./project/deploy.sh <version> <pgp-key>
 ```
 
 - Go to https://oss.sonatype.org/#stagingRepositories and login with user allowed to publish on Maven central.
