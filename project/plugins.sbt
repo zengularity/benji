@@ -17,7 +17,9 @@ addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.7.0")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.6.0")
 
-addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.7")
+addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.8")
+
+addSbtPlugin("com.dwijnand" % "sbt-dynver" % "4.0.0")
 
 // For the the highlight extractor
 libraryDependencies ++= Seq(
