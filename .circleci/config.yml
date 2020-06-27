@@ -202,7 +202,15 @@ commands:
           command: |
                     if [ ! "${CIRCLE_BRANCH}" = "master" ]; then
                       echo "Skipped on branch ${CIRCLE_BRANCH}"
-                      exit 0
+                      exit 1
+                    fi
+                    
+                    V=`sbt ';project core ;show version' | tail -n 1 | sed -e 's/^\[info\] //'`
+                    IS_SNAPSHOT=`echo "$V" | grep SNAPSHOT | wc -l`
+                    
+                    if [ $IS_SNAPSHOT -eq 0 ]; then
+                      echo "Skipped for non-snapshot version: $V"
+                      exit 2
                     fi
                     
                     export PUBLISH_REPO_NAME="Sonatype Nexus Repository Manager"
@@ -211,7 +219,7 @@ commands:
                     
                     if [ "x$PUBLISH_USER" = "x" -o "x$PUBLISH_PASS" = "x" ]; then
                       echo "Missing publication credentials"
-                      exit 1
+                      exit 3
                     fi
                     
                     export RELEASE_SUFFIX="<< parameters.release_suffix >>"
