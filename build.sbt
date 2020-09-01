@@ -20,7 +20,7 @@ lazy val core = project.in(file("core")).settings(
       x[ReversedMissingMethodProblem]("com.zengularity.benji.BucketVersioning#VersionedListRequest.withPrefix"))
   },
   libraryDependencies ++= Dependencies.wsStream.value ++ Seq(
-    "commons-codec" % "commons-codec" % "1.14",
+    "commons-codec" % "commons-codec" % "1.15",
     Dependencies.slf4jApi % Provided
   )
 )
