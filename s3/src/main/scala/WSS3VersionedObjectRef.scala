@@ -8,18 +8,12 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
 import akka.util.ByteString
+
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.benji.{
-  ByteRange,
-  Compat,
-  VersionedObjectRef,
-  VersionedObject,
-  Bytes
-}
-import com.zengularity.benji.exception.{ VersionNotFoundException, ObjectNotFoundException }
-
+import com.zengularity.benji.{ ByteRange, Bytes, Compat, VersionedObject, VersionedObjectRef }
+import com.zengularity.benji.exception.{ ObjectNotFoundException, VersionNotFoundException }
 import com.zengularity.benji.ws.Successful
 
 final class WSS3VersionedObjectRef(

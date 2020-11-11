@@ -1,30 +1,18 @@
 package tests.benji
 
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 import akka.util.ByteString
-import akka.stream.scaladsl.Source
+
 import akka.stream.Materializer
+import akka.stream.scaladsl.Source
 
-import org.specs2.specification.core.Fragment
+import com.zengularity.benji.{ BucketVersioning, ObjectRef, ObjectStorage, ObjectVersioning, VersionedObjectRef }
+import com.zengularity.benji.tests.TestUtils.{ bucketAlreadyExists, bucketNotEmpty, bucketNotFound, objectNotFound, versionNotFound }
+
 import org.specs2.concurrent.ExecutionEnv
-
-import com.zengularity.benji.{
-  ObjectStorage,
-  ObjectRef,
-  BucketVersioning,
-  ObjectVersioning,
-  VersionedObjectRef
-}
-
-import com.zengularity.benji.tests.TestUtils.{
-  bucketNotEmpty,
-  bucketNotFound,
-  bucketAlreadyExists,
-  objectNotFound,
-  versionNotFound
-}
+import org.specs2.specification.core.Fragment
 
 trait ErrorCommonSpec extends BenjiMatchers {
   self: org.specs2.mutable.Specification =>
@@ -75,7 +63,10 @@ trait ErrorCommonSpec extends BenjiMatchers {
             storage, rwConsistencyRetry, rwConsistencyDuration)
 
         } and {
-          put(existingObj, "hello".getBytes) must beDone.await(2, 3.seconds)
+          put(
+            existingObj,
+            "hello".getBytes("UTF-8")) must beDone.await(2, 3.seconds)
+
         } and {
           existingObj must existsIn(
             existingBucket, rwConsistencyRetry, rwConsistencyDuration)
@@ -97,7 +88,7 @@ trait ErrorCommonSpec extends BenjiMatchers {
         }
 
         "Uploading an object in a non-existing bucket" in assertAllStagesStopped {
-          put(objOfNonExistingBucket, "hello".getBytes) must throwA(
+          put(objOfNonExistingBucket, "hello".getBytes("UTF-8")) must throwA(
             bucketNotFound(nonExistingBucket)).await(2, 5.seconds)
         }
 

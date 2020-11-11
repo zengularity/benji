@@ -1,10 +1,11 @@
 package tests.benji
 
-import akka.stream.Materializer
-import akka.stream.scaladsl.{ Sink, Source }
+import scala.concurrent.{ ExecutionContext, Future }
+
 import akka.util.ByteString
 
-import scala.concurrent.{ ExecutionContext, Future }
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Sink, Source }
 
 /** Contains additional sources for testing. */
 object StreamUtils {

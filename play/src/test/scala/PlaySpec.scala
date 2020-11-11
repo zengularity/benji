@@ -1,18 +1,12 @@
 package tests.benji.play
 
 import com.google.inject
-
-import play.api.inject.guice.GuiceApplicationBuilder
-
-import play.api.test.Helpers.running
-
 import com.zengularity.benji.ObjectStorage
-
 import com.zengularity.benji.vfs.VFSStorage
-
-import tests.benji.DummyStorage
-
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.test.Helpers.running
 import play.modules.benji.{ BenjiFromContext, NamedStorage, TestUtils }
+import tests.benji.DummyStorage
 
 import org.specs2.specification.core.Fragments
 

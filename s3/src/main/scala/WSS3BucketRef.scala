@@ -4,20 +4,21 @@
 
 package com.zengularity.benji.s3
 
-import scala.xml.Elem
 import scala.collection.immutable.Iterable
+
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.xml.Elem
 
 import akka.NotUsed
+
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-
-import play.api.libs.ws.StandaloneWSResponse
 
 import com.zengularity.benji.{ BucketRef, BucketVersioning, Object, VersionedObject }
 import com.zengularity.benji.exception.{ BucketAlreadyExistsException, BucketNotFoundException }
 import com.zengularity.benji.s3.QueryParameters._
 import com.zengularity.benji.ws.Successful
+import play.api.libs.ws.StandaloneWSResponse
 
 final class WSS3BucketRef private[s3] (
   storage: WSS3,

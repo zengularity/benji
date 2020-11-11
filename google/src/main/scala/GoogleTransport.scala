@@ -4,40 +4,31 @@
 
 package com.zengularity.benji.google
 
+import java.net.URI
+
 import scala.util.{ Failure, Success, Try }
 import scala.util.control.NonFatal
 
 import scala.concurrent.{ ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
 
-import java.net.URI
-
-import play.api.libs.ws.StandaloneWSRequest
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
-
 import akka.NotUsed
-import akka.stream.{ QueueOfferResult, Materializer, OverflowStrategy }
-import akka.stream.scaladsl.{
-  Flow,
-  Keep,
-  Source,
-  SourceQueueWithComplete,
-  Sink
-}
 
-import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
-
-import com.google.auth.http.HttpCredentialsAdapter
-import com.google.auth.oauth2.GoogleCredentials
+import akka.stream.{ Materializer, OverflowStrategy, QueueOfferResult }
+import akka.stream.scaladsl.{ Flow, Keep, Sink, Source, SourceQueueWithComplete }
 
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
-
-import com.google.api.services.storage.{ Storage, model }
-
-import com.zengularity.benji.{ URIProvider, Compat }, Compat.javaConverters._
-
+import com.google.api.services.storage.{ model, Storage }
+import com.google.auth.http.HttpCredentialsAdapter
+import com.google.auth.oauth2.GoogleCredentials
+import com.zengularity.benji.{ Compat, URIProvider }
 import com.zengularity.benji.exception.BenjiUnknownError
+import play.api.libs.ws.StandaloneWSRequest
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
+
+import Compat.javaConverters._
 
 /**
  * Benji transport for Google Cloud Storage

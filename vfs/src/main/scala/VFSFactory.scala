@@ -7,7 +7,6 @@ package com.zengularity.benji.vfs
 import java.net.URI
 
 import com.zengularity.benji.ObjectStorage
-
 import com.zengularity.benji.spi.{ Injector, StorageFactory, StorageScheme }
 
 final class VFSFactory extends StorageFactory {

@@ -4,23 +4,19 @@
 
 package com.zengularity.benji.s3
 
-import java.util.Base64
-
 import java.net.URL
-
-import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneOffset }
-
+import java.time.format.DateTimeFormatter
+import java.util.{ Base64, Locale }
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 import scala.util.{ Failure, Success, Try }
 
+import com.zengularity.benji.Compat.javaConverters._
 import play.api.libs.ws.WSSignatureCalculator
 import play.shaded.ahc.io.netty.handler.codec.http.HttpHeaders
 import play.shaded.ahc.org.asynchttpclient.{ Request, RequestBuilderBase }
-
-import com.zengularity.benji.Compat.javaConverters._
 
 /**
  * Computes the signature (V1/V2) according access and secret keys,
@@ -147,10 +143,11 @@ private[s3] class SignatureCalculatorV1(
    */
   def canonicalizeHeaders(allHeaders: HttpHeaders): String = {
     val amzHeaderNames = allHeaders.names.asScala.filter(
-      _.toLowerCase.startsWith("x-amz-")).toList.sortBy(_.toLowerCase)
+      _.toLowerCase(Locale.US).startsWith("x-amz-")).
+      toList.sortBy(_.toLowerCase(Locale.US))
 
     amzHeaderNames.map { amzHeaderName =>
-      amzHeaderName.toLowerCase + ":" +
+      amzHeaderName.toLowerCase(Locale.US) + ":" +
         allHeaders.getAll(amzHeaderName).asScala.mkString(",") + "\n"
     }.mkString
   }

@@ -6,15 +6,12 @@ import scala.concurrent.duration._
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import play.api.libs.ws.DefaultBodyWritables._
-
-import org.specs2.concurrent.ExecutionEnv
-
 import com.zengularity.benji.google.GoogleObjectRef
-
+import com.zengularity.benji.google.tests.TestUtils
+import play.api.libs.ws.DefaultBodyWritables._
 import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
-import com.zengularity.benji.google.tests.TestUtils
+import org.specs2.concurrent.ExecutionEnv
 
 final class GoogleStorageSpec(implicit ee: ExecutionEnv)
   extends org.specs2.mutable.Specification
@@ -90,7 +87,7 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
 
       file1.exists must beFalse.await(1, 10.seconds) and {
         val put = file1.put[Array[Byte]]
-        val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+        val body = List.fill(1000)("qwerty").mkString(" ").getBytes("UTF-8")
 
         { repeat(20) { body } runWith put }.flatMap(_ => file1.exists).
           aka("file1 exists") must beTrue.await(1, 10.seconds)

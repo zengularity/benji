@@ -7,9 +7,10 @@ package com.zengularity.benji
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
+import akka.util.ByteString
+
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-import akka.util.ByteString
 
 /**
  * A live reference to a versioned object.

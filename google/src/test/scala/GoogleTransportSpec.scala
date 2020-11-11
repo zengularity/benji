@@ -2,14 +2,13 @@ package tests.benji.google
 
 import java.net.{ MalformedURLException, URI }
 
-import org.specs2.mutable.Specification
+import scala.util.Failure
 
-import com.zengularity.benji.google.GoogleTransport
 import com.zengularity.benji.URIProvider
-
+import com.zengularity.benji.google.GoogleTransport
 import com.zengularity.benji.google.tests.TestUtils
 
-import scala.util.Failure
+import org.specs2.mutable.Specification
 
 final class GoogleTransportSpec extends Specification {
   "GoogleTransport" title

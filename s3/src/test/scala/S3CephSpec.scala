@@ -5,13 +5,11 @@ import scala.concurrent.duration._
 
 import akka.stream.scaladsl.Source
 
+import com.zengularity.benji.s3.tests.TestUtils
 import play.api.libs.ws.DefaultBodyWritables._
-
-import org.specs2.concurrent.{ ExecutionEnv => EE }
-
 import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
-import com.zengularity.benji.s3.tests.TestUtils
+import org.specs2.concurrent.{ ExecutionEnv => EE }
 
 final class S3CephSpec extends org.specs2.mutable.Specification
   with StorageCommonSpec with VersioningCommonSpec with S3Spec {

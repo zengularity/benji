@@ -4,11 +4,11 @@ import java.net.URI
 
 import scala.util.Failure
 
-import org.specs2.mutable.Specification
-
 import com.zengularity.benji.URIProvider
 import com.zengularity.benji.s3.{ S3, WSS3 }
 import com.zengularity.benji.s3.tests.TestUtils
+
+import org.specs2.mutable.Specification
 
 class WSS3Spec extends Specification {
   "WSS3" title

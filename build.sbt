@@ -5,6 +5,16 @@ scalaVersion in ThisBuild := "2.12.11"
 crossScalaVersions in ThisBuild := Seq(
   "2.11.12", scalaVersion.value, "2.13.2")
 
+inThisBuild(
+  List(
+    //scalaVersion := "2.13.3",
+    semanticdbEnabled := true,
+    semanticdbVersion := scalafixSemanticdb.revision,
+    scalafixDependencies ++= Seq(
+      "com.github.liancheng" %% "organize-imports" % "0.4.2")
+  )
+)
+
 lazy val core = project.in(file("core")).settings(
   name := "benji-core",
   scalacOptions in (Compile, compile) ++= Seq(

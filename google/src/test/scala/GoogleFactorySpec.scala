@@ -2,15 +2,13 @@ package tests.benji.google
 
 import java.net.URI
 
-import com.zengularity.benji.spi.{ Injector, Registry, StorageScheme }
-
 import com.zengularity.benji.google.{
   GoogleFactory,
   GoogleScheme,
   GoogleStorage
 }
-
 import com.zengularity.benji.google.tests.TestUtils
+import com.zengularity.benji.spi.{ Injector, Registry, StorageScheme }
 
 final class GoogleFactorySpec extends org.specs2.mutable.Specification {
   "Google factory" title

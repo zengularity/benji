@@ -1,20 +1,17 @@
 package tests.benji.vfs
 
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 import akka.stream.Materializer
-
-import org.specs2.specification.AfterAll
 import akka.stream.scaladsl.Source
 
+import com.zengularity.benji.vfs.VFSObjectRef
 import play.api.libs.ws.DefaultBodyWritables._
+import tests.benji.StorageCommonSpec
 
 import org.specs2.concurrent.ExecutionEnv
-
-import com.zengularity.benji.vfs.VFSObjectRef
-
-import tests.benji.StorageCommonSpec
+import org.specs2.specification.AfterAll
 
 final class VFSStorageSpec(implicit ee: ExecutionEnv)
   extends org.specs2.mutable.Specification

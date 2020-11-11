@@ -7,14 +7,14 @@ package com.zengularity.benji.google
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
-import akka.stream.Materializer
-import akka.stream.scaladsl.{ Source, StreamConverters }
 import akka.util.ByteString
 
-import play.api.libs.json.{ JsObject, JsString, Json }
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Source, StreamConverters }
 
 import com.zengularity.benji.{ ByteRange, VersionedObjectRef }
 import com.zengularity.benji.exception.VersionNotFoundException
+import play.api.libs.json.{ JsObject, JsString, Json }
 
 /** A live reference to a versioned object on Google Cloud Storage. */
 final class GoogleVersionedObjectRef(
