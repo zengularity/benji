@@ -1,7 +1,6 @@
 package tests.benji.play
 
 import play.api.{ ApplicationLoader, Configuration, Environment, Mode }
-
 import play.api.inject.guice.GuiceApplicationBuilder
 
 object PlayUtil {

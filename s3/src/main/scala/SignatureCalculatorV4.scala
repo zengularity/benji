@@ -4,20 +4,19 @@
 
 package com.zengularity.benji.s3
 
-import java.time.format.DateTimeFormatter
 import java.time.{ Instant, LocalDateTime, ZoneOffset }
-
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 import org.apache.commons.codec.binary.Hex
 import org.apache.commons.codec.digest.DigestUtils
 
+import com.zengularity.benji.Compat.javaConverters._
 import play.api.libs.ws.WSSignatureCalculator
 import play.shaded.ahc.io.netty.handler.codec.http.HttpHeaders
 import play.shaded.ahc.org.asynchttpclient.{ Request, RequestBuilderBase }
-
-import com.zengularity.benji.Compat.javaConverters._
 
 /**
  * Computes the signature V4 according access and secret keys,
@@ -146,7 +145,7 @@ private[s3] final class SignatureCalculatorV4(
     val headers: HttpHeaders = request.getHeaders
     val it = {
       val hs = headers.entries.asScala.map { entry =>
-        entry.getKey.toLowerCase -> entry.getValue
+        entry.getKey.toLowerCase(Locale.US) -> entry.getValue
       }
 
       if (headers.get("x-amz-date") == null) {

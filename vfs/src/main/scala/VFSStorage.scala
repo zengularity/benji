@@ -8,11 +8,12 @@ import java.time.{ Instant, LocalDateTime, ZoneOffset }
 
 import scala.concurrent.{ ExecutionContext, Future }
 
+import org.apache.commons.vfs2.{ FileName, FileType, FileTypeSelector }
+
 import akka.NotUsed
+
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-
-import org.apache.commons.vfs2.{ FileName, FileType, FileTypeSelector }
 
 import com.zengularity.benji.{ Bucket, ObjectStorage }
 

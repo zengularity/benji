@@ -3,6 +3,7 @@ package tests.benji.vfs
 import scala.util.control.NonFatal
 
 import akka.actor.ActorSystem
+
 import akka.stream.Materializer
 
 import com.zengularity.benji.vfs.{ VFSStorage, VFSTransport }

@@ -4,14 +4,10 @@
 
 package com.zengularity.benji.vfs
 
-import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.control.NonFatal
 import scala.util.{ Failure, Success, Try }
+import scala.util.control.NonFatal
 
-import akka.NotUsed
-import akka.stream.Materializer
-import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
-import akka.util.ByteString
+import scala.concurrent.{ ExecutionContext, Future }
 
 import org.apache.commons.vfs2.{
   FileName,
@@ -19,21 +15,18 @@ import org.apache.commons.vfs2.{
   FileType,
   FileTypeSelector
 }
-import play.api.libs.json.Json
-import play.api.libs.ws.BodyWritable
 
-import com.zengularity.benji.exception.{ ObjectNotFoundException, BucketNotFoundException }
-import com.zengularity.benji.{
-  ByteRange,
-  Bytes,
-  Chunk,
-  Compat,
-  ObjectRef,
-  Streams,
-  ObjectVersioning
-}
+import akka.NotUsed
+import akka.util.ByteString
+
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
 
 import com.github.ghik.silencer.silent
+import com.zengularity.benji.{ ByteRange, Bytes, Chunk, Compat, ObjectRef, ObjectVersioning, Streams }
+import com.zengularity.benji.exception.{ BucketNotFoundException, ObjectNotFoundException }
+import play.api.libs.json.Json
+import play.api.libs.ws.BodyWritable
 
 final class VFSObjectRef private[vfs] (
   storage: VFSStorage,

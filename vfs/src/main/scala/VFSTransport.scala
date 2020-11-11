@@ -9,14 +9,14 @@ import java.nio.file.Files
 
 import scala.util.Try
 
-import org.apache.commons.vfs2.impl.StandardFileSystemManager
-import org.apache.commons.vfs2.provider.temp.TemporaryFileProvider
 import org.apache.commons.vfs2.{
   FileSystemManager,
   FileType,
   FileTypeSelector,
   VFS
 }
+import org.apache.commons.vfs2.impl.StandardFileSystemManager
+import org.apache.commons.vfs2.provider.temp.TemporaryFileProvider
 
 import com.zengularity.benji.URIProvider
 

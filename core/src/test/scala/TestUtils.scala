@@ -1,14 +1,7 @@
 package com.zengularity.benji.tests
 
 import com.zengularity.benji.{ BucketRef, ObjectRef, VersionedObjectRef }
-
-import com.zengularity.benji.exception.{
-  BucketNotFoundException,
-  BucketNotEmptyException,
-  BucketAlreadyExistsException,
-  ObjectNotFoundException,
-  VersionNotFoundException
-}
+import com.zengularity.benji.exception.{ BucketAlreadyExistsException, BucketNotEmptyException, BucketNotFoundException, ObjectNotFoundException, VersionNotFoundException }
 
 object TestUtils {
   def bucketNotEmpty(bucket: BucketRef): BucketNotEmptyException =

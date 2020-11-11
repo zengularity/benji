@@ -9,38 +9,24 @@ import java.time.{ Instant, LocalDateTime, ZoneOffset }
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
-import akka.stream.Materializer
-import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
 import akka.util.ByteString
 
-import play.api.libs.json.{ JsObject, JsString, Json }
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
 
-import play.api.libs.ws.{ BodyWritable, StandaloneWSResponse }
-import play.api.libs.ws.DefaultBodyWritables._
-import play.api.libs.ws.JsonBodyWritables._
-
+import com.github.ghik.silencer.silent
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.services.storage.model.StorageObject
-
+import com.zengularity.benji.{ ByteRange, Bytes, Chunk, Compat, ObjectRef, ObjectVersioning, Streams, VersionedObject, VersionedObjectRef }
 import com.zengularity.benji.exception.{
   BenjiUnknownError,
   ObjectNotFoundException
 }
-
-import com.zengularity.benji.{
-  ByteRange,
-  Bytes,
-  Chunk,
-  Compat,
-  ObjectRef,
-  Streams,
-  ObjectVersioning,
-  VersionedObjectRef,
-  VersionedObject
-}
 import com.zengularity.benji.ws.{ ContentMD5, Ok, Successful }
-
-import com.github.ghik.silencer.silent
+import play.api.libs.json.{ JsObject, JsString, Json }
+import play.api.libs.ws.{ BodyWritable, StandaloneWSResponse }
+import play.api.libs.ws.DefaultBodyWritables._
+import play.api.libs.ws.JsonBodyWritables._
 
 final class GoogleObjectRef private[google] (
   storage: GoogleStorage,

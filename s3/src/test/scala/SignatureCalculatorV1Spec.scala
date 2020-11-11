@@ -1,7 +1,7 @@
 package com.zengularity.benji.s3 // as testing internals
 
-import play.shaded.ahc.org.asynchttpclient.RequestBuilder
 import play.shaded.ahc.io.netty.handler.codec.http.DefaultHttpHeaders
+import play.shaded.ahc.org.asynchttpclient.RequestBuilder
 
 // Sanity tests related to calculating the signature for S3 requests.
 class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {

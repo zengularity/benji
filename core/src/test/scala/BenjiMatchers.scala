@@ -6,14 +6,7 @@ import scala.concurrent.duration._
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 
-import com.zengularity.benji.{
-  Bucket,
-  BucketRef,
-  ObjectRef,
-  ObjectStorage,
-  BucketVersioning,
-  VersionedObjectRef
-}
+import com.zengularity.benji.{ Bucket, BucketRef, BucketVersioning, ObjectRef, ObjectStorage, VersionedObjectRef }
 
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.{ Expectable, Matcher, Matchers }

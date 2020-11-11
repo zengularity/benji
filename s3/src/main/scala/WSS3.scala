@@ -14,19 +14,21 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 
 import akka.NotUsed
+
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-
-import play.api.libs.ws.{ StandaloneWSRequest, StandaloneWSResponse }
-import play.api.libs.ws.ahc.{ AhcWSClientConfig, StandaloneAhcWSClient }
-import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
 import com.zengularity.benji.{
   Bucket,
   Compat,
   ObjectStorage,
   URIProvider
-}, Compat.javaConverters._
+}
+import play.api.libs.ws.{ StandaloneWSRequest, StandaloneWSResponse }
+import play.api.libs.ws.ahc.{ AhcWSClientConfig, StandaloneAhcWSClient }
+import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
+
+import Compat.javaConverters._
 
 /**
  * Implementation of the S3 API for Object Storage using Play's WS library.

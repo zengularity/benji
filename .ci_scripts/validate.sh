@@ -39,7 +39,14 @@ SBT_OPTS="++$SCALA_VERSION"
 # Scalariform check
 echo "[info] Check the source format and backward compatibility"
 
-sbt "$SBT_OPTS" error scalariformFormat test:scalariformFormat > /dev/null
+sbt "$SBT_OPTS" ';error ;scalafixAll' || (
+  cat >> /dev/stdout <<EOF
+[ERROR] Scalafix check failed. To fix, run scalafixAll before pushing.
+EOF
+  false
+)
+
+sbt "$SBT_OPTS" ';error ;scalariformFormat ;test:scalariformFormat' > /dev/null
 git diff --exit-code || (cat >> /dev/stdout <<EOF
 [ERROR] Scalariform check failed, see differences above.
 To fix, format your sources using sbt scalariformFormat test:scalariformFormat before submitting a pull request.

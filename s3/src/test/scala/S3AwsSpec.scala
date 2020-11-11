@@ -2,14 +2,12 @@ package tests.benji.s3
 
 import akka.stream.Materializer
 
+import com.zengularity.benji.s3.tests.TestUtils
 import play.api.libs.ws.DefaultBodyWritables._
+import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 import org.specs2.mutable.Specification
-
-import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
-
-import com.zengularity.benji.s3.tests.TestUtils
 
 final class S3AwsSpec extends Specification with AwsTests {
   "S3 Amazon" title

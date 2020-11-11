@@ -4,15 +4,22 @@
 
 package com.zengularity.benji.s3
 
-import scala.xml.Elem
 import scala.collection.immutable.Iterable
+
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.xml.Elem
 
 import akka.NotUsed
-import akka.stream.Materializer
-import akka.stream.scaladsl.{ Flow, Sink, Source }
 import akka.util.ByteString
 
+import akka.stream.Materializer
+import akka.stream.scaladsl.{ Flow, Sink, Source }
+
+import com.github.ghik.silencer.silent
+import com.zengularity.benji.{ ByteRange, Bytes, Chunk, Compat, ObjectRef, ObjectVersioning, Streams, VersionedObject, VersionedObjectRef }
+import com.zengularity.benji.exception.ObjectNotFoundException
+import com.zengularity.benji.s3.QueryParameters._
+import com.zengularity.benji.ws.{ ContentMD5, Successful }
 import play.api.libs.ws.{
   BodyWritable,
   StandaloneWSRequest,
@@ -20,23 +27,6 @@ import play.api.libs.ws.{
 }
 import play.api.libs.ws.DefaultBodyWritables._
 import play.api.libs.ws.XMLBodyWritables._
-
-import com.zengularity.benji.{
-  ByteRange,
-  Bytes,
-  Chunk,
-  Compat,
-  ObjectRef,
-  Streams,
-  ObjectVersioning,
-  VersionedObject,
-  VersionedObjectRef
-}
-import com.zengularity.benji.s3.QueryParameters._
-import com.zengularity.benji.ws.{ ContentMD5, Successful }
-import com.zengularity.benji.exception.ObjectNotFoundException
-
-import com.github.ghik.silencer.silent
 
 final class WSS3ObjectRef private[s3] (
   private val storage: WSS3,

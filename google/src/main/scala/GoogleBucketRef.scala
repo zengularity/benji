@@ -9,13 +9,12 @@ import java.time.{ Instant, LocalDateTime, ZoneOffset }
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
+
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.google.api.services.storage.model, model.StorageObject
-
-import play.api.libs.json.{ JsBoolean, JsDefined, JsUndefined, Json, JsObject }
-
+import com.github.ghik.silencer.silent
+import com.google.api.services.storage.model
 import com.zengularity.benji.{
   BucketRef,
   BucketVersioning,
@@ -25,13 +24,13 @@ import com.zengularity.benji.{
   VersionedObject,
   VersionedObjectRef
 }
-
 import com.zengularity.benji.exception.{
   BucketAlreadyExistsException,
   BucketNotFoundException
 }
+import play.api.libs.json.{ JsBoolean, JsDefined, JsObject, JsUndefined, Json }
 
-import com.github.ghik.silencer.silent
+import model.StorageObject
 
 final class GoogleBucketRef private[google] (
   storage: GoogleStorage,

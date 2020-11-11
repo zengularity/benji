@@ -18,7 +18,7 @@ class LimitedInputStreamSpec extends org.specs2.mutable.Specification {
   // ---
 
   def read(in: java.io.InputStream): String =
-    scala.io.Source.fromInputStream(in).mkString("")
+    scala.io.Source.fromInputStream(in, "UTF-8").mkString("")
 
   def stream1(limit: Int): LimitedInputStream = stream2(limit)(identity)
 

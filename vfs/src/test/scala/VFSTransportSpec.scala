@@ -2,12 +2,12 @@ package tests.benji.vfs
 
 import java.net.URI
 
-import org.specs2.mutable.Specification
-
-import com.zengularity.benji.vfs.VFSTransport
-import com.zengularity.benji.URIProvider
-
 import scala.util.Failure
+
+import com.zengularity.benji.URIProvider
+import com.zengularity.benji.vfs.VFSTransport
+
+import org.specs2.mutable.Specification
 
 class VFSTransportSpec extends Specification {
   "VFSTransport" title

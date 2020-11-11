@@ -5,8 +5,9 @@
 package com.zengularity.benji
 
 import akka.NotUsed
-import akka.stream.scaladsl.{ Flow, Source }
 import akka.util.{ ByteString, ByteStringBuilder }
+
+import akka.stream.scaladsl.{ Flow, Source }
 
 import play.api.libs.ws.{ BodyWritable, EmptyBody, InMemoryBody, SourceBody }
 

@@ -3,10 +3,11 @@ package com.zengularity.benji.google.tests
 import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
 
-import akka.actor.ActorSystem
-import akka.stream.Materializer
-
 import com.typesafe.config.{ Config, ConfigFactory }
+
+import akka.actor.ActorSystem
+
+import akka.stream.Materializer
 
 import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport, WS }
 

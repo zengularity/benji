@@ -4,7 +4,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
 import akka.util.ByteString
-import akka.stream.scaladsl.{ Source, Sink }
+
+import akka.stream.scaladsl.{ Sink, Source }
 
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.MatchResult

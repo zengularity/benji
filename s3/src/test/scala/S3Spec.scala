@@ -5,14 +5,12 @@ import scala.concurrent.duration._
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import play.api.libs.ws.DefaultBodyWritables._
-
-import org.specs2.specification.core.Fragment
-import org.specs2.concurrent.{ ExecutionEnv => EE }
-
 import com.zengularity.benji.s3.tests.TestUtils
-
+import play.api.libs.ws.DefaultBodyWritables._
 import tests.benji.BenjiMatchers
+
+import org.specs2.concurrent.{ ExecutionEnv => EE }
+import org.specs2.specification.core.Fragment
 
 trait S3Spec extends BenjiMatchers { _: org.specs2.mutable.Specification =>
   import TestUtils.withMatEx
@@ -89,7 +87,7 @@ trait S3Spec extends BenjiMatchers { _: org.specs2.mutable.Specification =>
       val file = bucket.obj(filename)
 
       val put = file.put[Array[Byte]]
-      val body = List.fill(100)("hello").mkString(" ").getBytes
+      val body = List.fill(100)("hello").mkString(" ").getBytes("UTF-8")
       val upload = Source.single(body).runWith(put)
 
       {

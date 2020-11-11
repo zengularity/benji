@@ -1,19 +1,17 @@
 package tests.benji
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
+import com.zengularity.benji.{ ByteRange, ObjectRef, ObjectStorage }
 import play.api.libs.ws.BodyWritable
 
-import org.specs2.specification.core.Fragment
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.MatchResult
-
-import com.zengularity.benji.{ ByteRange, ObjectStorage, ObjectRef }
-
-import scala.concurrent.Future
+import org.specs2.specification.core.Fragment
 
 trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
   self: org.specs2.mutable.Specification =>
@@ -65,7 +63,8 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) =>
         Future.successful(sz + chunk.size)
       }
-      val body = List.fill(1000)("hello world !!!").mkString(" ").getBytes
+      val body = List.fill(1000)("hello world !!!").
+        mkString(" ").getBytes("UTF-8")
 
       {
         filetest must notExistsIn(bucket, 1, 3.seconds)
@@ -140,7 +139,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
         val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) =>
           Future.successful(sz + chunk.size)
         }
-        val body = "hello world".getBytes()
+        val body = "hello world".getBytes("UTF-8")
 
         Source.single(body).runWith(upload) must beTypedEqualTo(
           body.length.toLong).await(2, 5.seconds)
@@ -181,7 +180,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     "Write and delete file" in assertAllStagesStopped {
       val file = defaultBucketRef.obj("removable.txt")
       val put = file.put[Array[Byte]]
-      val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+      val body = List.fill(1000)("qwerty").mkString(" ").getBytes("UTF-8")
 
       {
         file must notExistsIn(defaultBucketRef, 2, 3.seconds).
@@ -216,7 +215,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       file1 must notExistsIn(defaultBucketRef, 1, 3.seconds).
         setMessage("exists #1") and {
           val put = file1.put[Array[Byte]]
-          val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+          val body = List.fill(1000)("qwerty").mkString(" ").getBytes("UTF-8")
 
           repeat(20)(body).runWith(put) must beDone.await(2, 5.seconds).
             setMessage("put file1")
@@ -251,7 +250,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
         src must notExistsIn(defaultBucketRef, 2, 3.seconds).
           setMessage("exists before") and {
             val write = src.put[Array[Byte]]
-            val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+            val body = List.fill(1000)("qwerty").mkString(" ").getBytes("UTF-8")
 
             repeat(20)(body).runWith(write) must beDone.await(2, 3.seconds)
           } and {
@@ -297,7 +296,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       @inline def existingTarget: Future[ObjectRef] = {
         val target = targetObj
         val write = target.put[Array[Byte]]
-        val body = List.fill(1000)("qwerty").mkString(" ").getBytes
+        val body = List.fill(1000)("qwerty").mkString(" ").getBytes("UTF-8")
 
         repeat(20)(body).runWith(write).map(_ => target)
       }
@@ -348,7 +347,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     "Delete on objects successfully ignore when not existing" in {
-      val body = List.fill(10)("qwerty").mkString(" ").getBytes
+      val body = List.fill(10)("qwerty").mkString(" ").getBytes("UTF-8")
       val bucket = defaultBucketRef
       val obj = bucket.obj(s"test-ignore-obj-${random.nextInt().toString}")
       val write = obj.put[Array[Byte]]
@@ -390,8 +389,9 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
         val upload = put(0L) { (sz, chunk) =>
           Future.successful(sz + chunk.size)
         }
-        val body = List.fill(10)("hello world !!!").mkString(" ").getBytes
-        repeat(10)(body) runWith upload
+        val body = List.fill(10)("hello world !!!").mkString(" ")
+
+        repeat(10)(body getBytes "UTF-8") runWith upload
       }
 
       val prefix = "max-test-file"
@@ -441,7 +441,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val bucket = storage.bucket(s"unknownbucket-${random.nextInt().toString}")
       val newObj = bucket.obj("new_object.txt")
       val write = newObj.put[Array[Byte]]
-      val body = List.fill(10)("qwerty").mkString(" ").getBytes
+      val body = List.fill(10)("qwerty").mkString(" ").getBytes("UTF-8")
       def upload = repeat(5)(body).runWith(write)
 
       {

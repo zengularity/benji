@@ -2,24 +2,16 @@ package tests.benji
 
 import java.time.{ Instant, ZoneOffset }
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import akka.stream.Materializer
 
+import com.zengularity.benji.{ BucketRef, BucketVersioning, ObjectStorage, ObjectVersioning, VersionedObject }
 import play.api.libs.ws.BodyWritable
 
-import org.specs2.specification.core.Fragment
 import org.specs2.concurrent.ExecutionEnv
-
-import com.zengularity.benji.{
-  ObjectStorage,
-  BucketVersioning,
-  BucketRef,
-  VersionedObject,
-  ObjectVersioning
-}
-
-import scala.concurrent.Future
+import org.specs2.specification.core.Fragment
 
 // TODO: Remove annotation
 @SuppressWarnings(Array("org.wartremover.warts.TraversableOps"))
@@ -89,7 +81,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
         val upload = put(0L, metadata = metadata) { (sz, chunk) =>
           Future.successful(sz + chunk.size)
         }
-        val body = content.getBytes
+        val body = content.getBytes("UTF-8")
 
         (repeat(1)(body) runWith upload).map(_ == content.length)
       }

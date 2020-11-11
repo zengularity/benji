@@ -8,14 +8,15 @@ import java.time.{ Instant, LocalDateTime, ZoneOffset }
 
 import scala.concurrent.{ ExecutionContext, Future }
 
+import org.apache.commons.vfs2.{ FileName, FileType }
+
 import akka.NotUsed
+
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import org.apache.commons.vfs2.{ FileName, FileType }
-
 import com.zengularity.benji.{ BucketRef, BucketVersioning, Bytes, Object }
-import com.zengularity.benji.exception.{ BucketNotFoundException, BucketAlreadyExistsException, BucketNotEmptyException }
+import com.zengularity.benji.exception.{ BucketAlreadyExistsException, BucketNotEmptyException, BucketNotFoundException }
 
 final class VFSBucketRef private[vfs] (
   storage: VFSStorage,

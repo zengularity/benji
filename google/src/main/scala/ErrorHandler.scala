@@ -7,19 +7,9 @@ package com.zengularity.benji.google
 import scala.concurrent.Future
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
-
-import play.api.libs.json.{ Json, JsDefined, JsUndefined, JsString }
+import com.zengularity.benji.exception.{ BenjiException, BenjiUnknownError, BucketAlreadyExistsException, BucketNotEmptyException, BucketNotFoundException, ObjectNotFoundException, VersionNotFoundException }
+import play.api.libs.json.{ JsDefined, JsString, JsUndefined, Json }
 import play.api.libs.ws.StandaloneWSResponse
-
-import com.zengularity.benji.exception.{
-  BenjiException,
-  BenjiUnknownError,
-  BucketAlreadyExistsException,
-  BucketNotFoundException,
-  ObjectNotFoundException,
-  VersionNotFoundException,
-  BucketNotEmptyException
-}
 
 private[google] object ErrorHandler {
   def ofBucketFromValues(defaultMessage: => String, bucketName: String)(statusCode: Int, message: String): Throwable =

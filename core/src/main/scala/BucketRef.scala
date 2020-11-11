@@ -7,6 +7,7 @@ package com.zengularity.benji
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
+
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
 

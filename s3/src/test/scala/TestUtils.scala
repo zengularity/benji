@@ -1,11 +1,12 @@
 package com.zengularity.benji.s3.tests
 
-import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.duration.Duration
 
 import com.typesafe.config.{ Config, ConfigFactory }
 
 import akka.actor.ActorSystem
+
 import akka.stream.Materializer
 
 import com.zengularity.benji.s3.{ S3, WSS3 }
