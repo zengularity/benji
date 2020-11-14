@@ -78,7 +78,9 @@ object Common extends AutoPlugin {
       _.filterNot { opt => opt.startsWith("-X") || opt.startsWith("-Y") }
     },
     scalacOptions in (Compile, doc) ~= {
-      _.filterNot { opt => opt.startsWith("-X") || opt.startsWith("-Y") }
+      _.filterNot { opt =>
+        opt.startsWith("-X") || opt.startsWith("-Y") || opt.startsWith("-P")
+      }
     },
     scalacOptions in Test ++= Seq("-Yrangepos"),
     unmanagedSourceDirectories in Compile += {

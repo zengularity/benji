@@ -56,7 +56,7 @@ EOF
 )
 
 # MiMa, Tests
-SBT_CMD=";error ;test:compile ;mimaReportBinaryIssues; info"
+SBT_CMD=";error ;test:compile ;doc ;mimaReportBinaryIssues; info"
 
 if [ "x$SBT_TEST_PROJECTS" = "x" ]; then
   SBT_CMD="$SBT_CMD ;testQuick -- stopOnFail"
