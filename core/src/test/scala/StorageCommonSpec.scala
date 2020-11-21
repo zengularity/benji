@@ -51,8 +51,10 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     }
 
     s"List objects of the empty $bucketName bucket" in assertAllStagesStopped {
-      storage.bucket(bucketName).objects.collect[List]().
-        map(_.size) must beTypedEqualTo(0).await(2, 5.seconds)
+      eventually(2, 3.seconds) {
+        storage.bucket(bucketName).objects.collect[List]().
+          map(_.size) must beTypedEqualTo(0).await(0, 3.seconds)
+      }
     }
 
     s"Write file in $bucketName bucket" in assertAllStagesStopped {
@@ -158,7 +160,9 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
         bucket.delete().failed.map(_ => true) must beTrue.await(2, 3.seconds)
       } and {
         // the bucket should not be deleted by non-recursive deletes
-        bucket must existsIn(storage, 2, 5.seconds)
+        bucket.aka("bucket after failed deleted") must existsIn(
+          storage, rwConsistencyRetry, rwConsistencyDuration)
+
       } and {
         // delete non-empty bucket with recursive delete (should work)
         bucket.delete.recursive() must beTypedEqualTo({}).await(2, 3.seconds)
@@ -378,9 +382,9 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     "Get objects with maximum elements" >> {
       lazy val bucket = defaultBucketRef
 
-      "after preparing bucket" in {
+      "after preparing bucket" in eventually(2, 3.seconds) {
         bucket.objects.collect[List]().
-          map(_.size) must beTypedEqualTo(1).await(2, 5.seconds)
+          map(_.size) must beTypedEqualTo(1).await(1, 3.seconds)
       }
 
       def createFile(name: String) = {
