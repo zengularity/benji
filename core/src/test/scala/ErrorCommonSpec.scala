@@ -41,7 +41,8 @@ trait ErrorCommonSpec extends BenjiMatchers {
     def put(obj: ObjectRef, content: Array[Byte], repeat: Int = 1): Future[Unit] = {
       import play.api.libs.ws.DefaultBodyWritables._
 
-      Source.fromIterator(() => Iterator.fill(repeat)(content)).runWith(obj.put[Array[Byte]]).map(_ => {})
+      Source.fromIterator(() => Iterator.fill(repeat)(content)).
+        runWith(obj.put[Array[Byte]]).map(_ => {})
     }
 
     def get(obj: ObjectRef): Future[Array[Byte]] = {
@@ -83,21 +84,31 @@ trait ErrorCommonSpec extends BenjiMatchers {
         }
 
         "Deleting a non-existing bucket" in assertAllStagesStopped {
-          nonExistingBucket.delete() must throwA(
-            bucketNotFound(nonExistingBucket)).await(2, 5.seconds)
+          eventually(2, 3.seconds) {
+            nonExistingBucket.delete() must throwA(
+              bucketNotFound(nonExistingBucket)).await(1, 3.seconds)
+          } and {
+            nonExistingBucket must notExistsIn(
+              storage, rwConsistencyRetry, rwConsistencyDuration)
+          }
         }
 
-        "Uploading an object in a non-existing bucket" in assertAllStagesStopped {
-          put(objOfNonExistingBucket, "hello".getBytes("UTF-8")) must throwA(
-            bucketNotFound(nonExistingBucket)).await(2, 5.seconds)
-        }
+        "Uploading an object in a non-existing bucket" >> {
+          "a simple 'hello'" in assertAllStagesStopped {
+            eventually(2, 3.seconds) {
+              put(objOfNonExistingBucket, "hello".getBytes("UTF-8")).
+                aka("put") must throwA(
+                  bucketNotFound(nonExistingBucket)).await(1, 3.seconds)
+            }
+          }
 
-        "Uploading an object in a non-existing bucket in chunks" in assertAllStagesStopped {
-          val threshold = objOfNonExistingBucket.defaultThreshold.bytes.toInt
-          def data = Array.fill(threshold * 2)('a'.toByte)
+          "using chunks" in assertAllStagesStopped {
+            val threshold = objOfNonExistingBucket.defaultThreshold.bytes.toInt
+            def data = Array.fill(threshold * 2)('a'.toByte)
 
-          put(objOfNonExistingBucket, data, 2) must throwA(
-            bucketNotFound(nonExistingBucket)).await(2, 5.seconds)
+            put(objOfNonExistingBucket, data, 2) must throwA(
+              bucketNotFound(nonExistingBucket)).await(2, 5.seconds)
+          }
         }
       }
 

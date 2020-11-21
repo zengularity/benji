@@ -228,8 +228,9 @@ final class GoogleObjectRef private[google] (
 
         req.execute()
       }.flatMap { _ => f(z, single) }.recoverWith {
-        case t => ErrorHandler.ofBucketToFuture(
-          s"Could not upload $name in $bucket", bucket)(t)
+        case cause =>
+          ErrorHandler.ofBucketToFuture(
+            s"Could not upload $name in $bucket", bucket)(cause)
       })
     }
   }

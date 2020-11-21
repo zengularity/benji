@@ -42,9 +42,19 @@ private[google] object ErrorHandler {
     ofBucketFromResponse[T](defaultMessage, bucket.name)(response)
 
   def ofBucket(defaultMessage: => String, bucketName: String): Throwable => Throwable = {
-    case g: GoogleJsonResponseException => ofBucketFromValues(defaultMessage, bucketName)(g.getStatusCode, g.getDetails.getMessage)
+    case g: GoogleJsonResponseException => {
+      val msg = {
+        if (g.getDetails == null) g.getMessage
+        else g.getDetails.getMessage
+      }
+
+      ofBucketFromValues(defaultMessage, bucketName)(g.getStatusCode, msg)
+    }
+
     case b: BenjiException => b
-    case error => BenjiUnknownError(s"$defaultMessage - ${error.getMessage}", Some(error))
+
+    case error =>
+      BenjiUnknownError(s"$defaultMessage - ${error.getMessage}", Some(error))
   }
 
   def ofBucket(defaultMessage: => String, bucket: GoogleBucketRef): Throwable => Throwable =
