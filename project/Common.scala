@@ -134,7 +134,7 @@ object Common extends AutoPlugin {
 
 object Dependencies {
   object Version {
-    val playWS = sys.env.getOrElse("WS_VERSION", "2.0.8") // upper 2.0.6
+    val playWS = sys.env.getOrElse("WS_VERSION", "2.1.2") // upper 2.0.6
 
     val play: Def.Initialize[String] = Def.setting[String] {
       val lower = {
