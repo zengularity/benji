@@ -22,11 +22,12 @@ import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
 
+import play.api.libs.json.Json
+import play.api.libs.ws.BodyWritable
+
 import com.github.ghik.silencer.silent
 import com.zengularity.benji.{ ByteRange, Bytes, Chunk, Compat, ObjectRef, ObjectVersioning, Streams }
 import com.zengularity.benji.exception.{ BucketNotFoundException, ObjectNotFoundException }
-import play.api.libs.json.Json
-import play.api.libs.ws.BodyWritable
 
 final class VFSObjectRef private[vfs] (
   storage: VFSStorage,

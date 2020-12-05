@@ -2,8 +2,9 @@ package tests.benji.s3
 
 import akka.stream.Materializer
 
-import com.zengularity.benji.s3.tests.TestUtils
 import play.api.libs.ws.DefaultBodyWritables._
+
+import com.zengularity.benji.s3.tests.TestUtils
 import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
 import org.specs2.concurrent.{ ExecutionEnv => EE }

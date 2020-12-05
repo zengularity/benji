@@ -6,8 +6,9 @@ import scala.concurrent.duration._
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.benji.vfs.VFSObjectRef
 import play.api.libs.ws.DefaultBodyWritables._
+
+import com.zengularity.benji.vfs.VFSObjectRef
 import tests.benji.StorageCommonSpec
 
 import org.specs2.concurrent.ExecutionEnv

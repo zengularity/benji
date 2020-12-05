@@ -13,8 +13,11 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.github.ghik.silencer.silent
+import play.api.libs.json.{ JsBoolean, JsDefined, JsObject, JsUndefined, Json }
+
 import com.google.api.services.storage.model
+
+import com.github.ghik.silencer.silent
 import com.zengularity.benji.{
   BucketRef,
   BucketVersioning,
@@ -28,7 +31,6 @@ import com.zengularity.benji.exception.{
   BucketAlreadyExistsException,
   BucketNotFoundException
 }
-import play.api.libs.json.{ JsBoolean, JsDefined, JsObject, JsUndefined, Json }
 
 import model.StorageObject
 
@@ -141,7 +143,7 @@ final class GoogleBucketRef private[google] (
   def versioning: Option[BucketVersioning] = Some(this)
 
   def isVersioned(implicit ec: ExecutionContext): Future[Boolean] = {
-    gt.withWSRequest1("", s"/b/$name?fields=versioning")(_.get).flatMap { response =>
+    gt.withWSRequest1("", s"/b/$name?fields=versioning")(_.get()).flatMap { response =>
       val json = Json.parse(response.body)
 
       json match {

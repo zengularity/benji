@@ -6,8 +6,9 @@ import scala.concurrent.duration._
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.benji.{ ByteRange, ObjectRef, ObjectStorage }
 import play.api.libs.ws.BodyWritable
+
+import com.zengularity.benji.{ ByteRange, ObjectRef, ObjectStorage }
 
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.MatchResult

@@ -13,10 +13,11 @@ import javax.crypto.spec.SecretKeySpec
 
 import scala.util.{ Failure, Success, Try }
 
-import com.zengularity.benji.Compat.javaConverters._
 import play.api.libs.ws.WSSignatureCalculator
 import play.shaded.ahc.io.netty.handler.codec.http.HttpHeaders
 import play.shaded.ahc.org.asynchttpclient.{ Request, RequestBuilderBase }
+
+import com.zengularity.benji.Compat.javaConverters._
 
 /**
  * Computes the signature (V1/V2) according access and secret keys,

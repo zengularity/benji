@@ -4,8 +4,9 @@
 
 package com.zengularity.benji.s3
 
-import com.zengularity.benji.exception.{ BenjiUnknownError, BucketAlreadyExistsException, BucketNotEmptyException, BucketNotFoundException, ObjectNotFoundException, VersionNotFoundException }
 import play.api.libs.ws.StandaloneWSResponse
+
+import com.zengularity.benji.exception.{ BenjiUnknownError, BucketAlreadyExistsException, BucketNotEmptyException, BucketNotFoundException, ObjectNotFoundException, VersionNotFoundException }
 
 private[s3] object ErrorHandler {
   def ofBucket(defaultMessage: => String, bucketName: String)(response: StandaloneWSResponse): Throwable = {

@@ -12,9 +12,10 @@ import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Source, StreamConverters }
 
+import play.api.libs.json.{ JsObject, JsString, Json }
+
 import com.zengularity.benji.{ ByteRange, VersionedObjectRef }
 import com.zengularity.benji.exception.VersionNotFoundException
-import play.api.libs.json.{ JsObject, JsString, Json }
 
 /** A live reference to a versioned object on Google Cloud Storage. */
 final class GoogleVersionedObjectRef(

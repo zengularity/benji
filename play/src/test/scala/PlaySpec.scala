@@ -1,11 +1,13 @@
 package tests.benji.play
 
-import com.google.inject
-import com.zengularity.benji.ObjectStorage
-import com.zengularity.benji.vfs.VFSStorage
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers.running
 import play.modules.benji.{ BenjiFromContext, NamedStorage, TestUtils }
+
+import com.google.inject
+
+import com.zengularity.benji.ObjectStorage
+import com.zengularity.benji.vfs.VFSStorage
 import tests.benji.DummyStorage
 
 import org.specs2.specification.core.Fragments
@@ -19,7 +21,7 @@ final class PlaySpec extends org.specs2.mutable.Specification {
 
   "ObjectStorage" should {
     "not be resolved if the module is not enabled" in {
-      val appBuilder = new GuiceApplicationBuilder().build
+      val appBuilder = new GuiceApplicationBuilder().build()
 
       appBuilder.injector.instanceOf[ObjectStorage].
         aka("resolution") must throwA[inject.ConfigurationException]
@@ -143,7 +145,7 @@ final class PlaySpec extends org.specs2.mutable.Specification {
 
     new GuiceApplicationBuilder().
       configure("play.modules.enabled" -> (modules :+
-        "play.modules.benji.BenjiModule")).build
+        "play.modules.benji.BenjiModule")).build()
   }
 }
 
