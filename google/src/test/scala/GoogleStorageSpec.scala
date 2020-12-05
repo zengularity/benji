@@ -6,9 +6,10 @@ import scala.concurrent.duration._
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
+import play.api.libs.ws.DefaultBodyWritables._
+
 import com.zengularity.benji.google.GoogleObjectRef
 import com.zengularity.benji.google.tests.TestUtils
-import play.api.libs.ws.DefaultBodyWritables._
 import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
 import org.specs2.concurrent.ExecutionEnv

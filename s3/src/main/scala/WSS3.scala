@@ -18,15 +18,16 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
+import play.api.libs.ws.{ StandaloneWSRequest, StandaloneWSResponse }
+import play.api.libs.ws.ahc.{ AhcWSClientConfig, StandaloneAhcWSClient }
+import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
+
 import com.zengularity.benji.{
   Bucket,
   Compat,
   ObjectStorage,
   URIProvider
 }
-import play.api.libs.ws.{ StandaloneWSRequest, StandaloneWSResponse }
-import play.api.libs.ws.ahc.{ AhcWSClientConfig, StandaloneAhcWSClient }
-import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
 import Compat.javaConverters._
 

@@ -7,8 +7,9 @@ import scala.concurrent.duration._
 
 import akka.stream.Materializer
 
-import com.zengularity.benji.{ BucketRef, BucketVersioning, ObjectStorage, ObjectVersioning, VersionedObject }
 import play.api.libs.ws.BodyWritable
+
+import com.zengularity.benji.{ BucketRef, BucketVersioning, ObjectStorage, ObjectVersioning, VersionedObject }
 
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.core.Fragment

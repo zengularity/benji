@@ -5,8 +5,9 @@ import scala.concurrent.duration._
 
 import akka.stream.scaladsl.Source
 
-import com.zengularity.benji.s3.tests.TestUtils
 import play.api.libs.ws.DefaultBodyWritables._
+
+import com.zengularity.benji.s3.tests.TestUtils
 import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
 import org.specs2.concurrent.{ ExecutionEnv => EE }

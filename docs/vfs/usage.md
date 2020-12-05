@@ -31,7 +31,7 @@ def sample1(implicit m: Materializer): Future[Unit] = {
     vfsTransport: VFSTransport => 
       lazy val vfs = VFSStorage(vfsTransport)
 
-      val buckets: Future[List[Bucket]] = vfs.buckets.collect[List]
+      val buckets: Future[List[Bucket]] = vfs.buckets.collect[List]()
 
       buckets.flatMap {
         _.headOption.fold(Future.successful(println("No found"))) { firstBucket =>

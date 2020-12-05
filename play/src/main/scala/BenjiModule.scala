@@ -13,11 +13,12 @@ import scala.collection.immutable.Set
 
 import akka.stream.Materializer
 
-import com.zengularity.benji.ObjectStorage
-import com.zengularity.benji.spi.{ Injector, StorageFactory }
 import play.api._
 import play.api.inject.{ Binding, BindingKey, Module }
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
+
+import com.zengularity.benji.ObjectStorage
+import com.zengularity.benji.spi.{ Injector, StorageFactory }
 
 /**
  * Benji module.

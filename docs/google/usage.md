@@ -47,7 +47,7 @@ def sample1(implicit m: Materializer): Future[Unit] = {
   def gt: GoogleTransport = GoogleTransport(credential, projectId, appName)
   val gcs = GoogleStorage(gt)
 
-  val buckets: Future[List[Bucket]] = gcs.buckets.collect[List]
+  val buckets: Future[List[Bucket]] = gcs.buckets.collect[List]()
 
   buckets.flatMap {
     _.headOption.fold(Future.successful(println("No found"))) { firstBucket =>

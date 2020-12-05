@@ -56,7 +56,7 @@ import com.zengularity.benji.s3.WSS3
 import com.zengularity.benji.google.GoogleStorage
 
 def listBuckets(s3: WSS3)(implicit m: Materializer): Future[List[Bucket]] =
-  s3.buckets.collect[List]
+  s3.buckets.collect[List]()
 
 def enumerateBucket(gcs: GoogleStorage)(implicit m: Materializer): Source[Bucket, NotUsed] = gcs.buckets()
 ```
@@ -96,7 +96,7 @@ import akka.stream.scaladsl.Source
 import com.zengularity.benji.{ BucketRef, Object }
 import com.zengularity.benji.s3.WSS3BucketRef
 
-def objectSet(bucket: WSS3BucketRef)(implicit m: Materializer): Future[Set[Object]] = bucket.objects.collect[Set]
+def objectSet(bucket: WSS3BucketRef)(implicit m: Materializer): Future[Set[Object]] = bucket.objects.collect[Set]()
 
 def enumerateObjects(bucket: BucketRef)(implicit m: Materializer): Source[Object, NotUsed] = bucket.objects()
 ```

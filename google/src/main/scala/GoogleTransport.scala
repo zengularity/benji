@@ -17,16 +17,18 @@ import akka.NotUsed
 import akka.stream.{ Materializer, OverflowStrategy, QueueOfferResult }
 import akka.stream.scaladsl.{ Flow, Keep, Sink, Source, SourceQueueWithComplete }
 
+import play.api.libs.ws.StandaloneWSRequest
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
+
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.services.storage.{ model, Storage }
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.GoogleCredentials
+
 import com.zengularity.benji.{ Compat, URIProvider }
 import com.zengularity.benji.exception.BenjiUnknownError
-import play.api.libs.ws.StandaloneWSRequest
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
-import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
 import Compat.javaConverters._
 
@@ -108,7 +110,7 @@ final class GoogleTransport(
    * @param url the full URL to be requested
    */
   private[google] def withWSRequest2[T](url: String)(f: StandaloneWSRequest => Future[T])(implicit ec: ExecutionContext): Future[T] = {
-    accessToken.flatMap { token =>
+    accessToken().flatMap { token =>
       logger.trace(s"Prepare WS request: $url")
 
       def req = ws.url(url).addHttpHeaders("Authorization" -> s"Bearer $token").

@@ -6,9 +6,10 @@ package com.zengularity.benji.s3
 
 import java.net.URI
 
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+
 import com.zengularity.benji.ObjectStorage
 import com.zengularity.benji.spi.{ Injector, StorageFactory, StorageScheme }
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 /**
  * This factory is using `javax.inject`
