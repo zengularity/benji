@@ -100,7 +100,7 @@ lazy val google = project.in(file("google")).settings(
   libraryDependencies ++= Seq(
     Dependencies.playWSJson,
     Dependencies.playAhcWS,
-    "com.google.auth" % "google-auth-library-oauth2-http" % "0.22.2",
+    "com.google.auth" % "google-auth-library-oauth2-http" % "0.23.0",
     "com.google.apis" % "google-api-services-storage" % "v1-rev20201112-1.31.0"
   )
 ).dependsOn(core % "test->test;compile->compile")
