@@ -200,8 +200,6 @@ final class WSS3ObjectRef private[s3] (
       }
 
       flowChunks.prefixAndTail(1).flatMapMerge[A, NotUsed](1, {
-        case (Nil, _) => Source.empty[A]
-
         case (head, tail) => head.toList match {
           case (last @ Chunk.Last(_)) :: _ => // if first is last, single chunk
             Source.single(last).via(putSimple(Option(w.contentType), amzHeaders, z, f))
@@ -213,6 +211,8 @@ final class WSS3ObjectRef private[s3] (
 
             source.via(putMulti(Option(w.contentType), z, f))
           }
+
+          case _ => Source.empty[A]
         }
       }).toMat(Sink.head[A]) { (_, mat) => mat }
     }

@@ -3,7 +3,7 @@ organization in ThisBuild := "com.zengularity"
 scalaVersion in ThisBuild := "2.12.11"
 
 crossScalaVersions in ThisBuild := Seq(
-  "2.11.12", scalaVersion.value, "2.13.2")
+  "2.11.12", scalaVersion.value, "2.13.5")
 
 inThisBuild(
   List(
@@ -149,7 +149,7 @@ lazy val play = project.in(file("play")).settings(
   },
   libraryDependencies ++= {
     val playAhcWS = {
-      if (scalaVersion.value startsWith "2.13.") {
+      if (scalaBinaryVersion.value startsWith "2.13") {
         Seq(
           Dependencies.playAhcWS.
             exclude("org.scala-lang.modules", "scala-java8-compat_2.13"),
