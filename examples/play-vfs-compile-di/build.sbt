@@ -1,6 +1,6 @@
 name := "benji-vfs-play-demo"
 
-scalaVersion := "2.12.11"
+scalaVersion := "2.12.13"
 
 scalacOptions ++= Seq(
   "-encoding", "UTF-8",

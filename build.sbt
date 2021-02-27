@@ -1,6 +1,6 @@
 organization in ThisBuild := "com.zengularity"
 
-scalaVersion in ThisBuild := "2.12.11"
+scalaVersion in ThisBuild := "2.12.13"
 
 crossScalaVersions in ThisBuild := Seq(
   "2.11.12", scalaVersion.value, "2.13.2")

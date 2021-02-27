@@ -1,6 +1,6 @@
 name := "benji-s3-play-demo"
 
-scalaVersion := "2.12.11"
+scalaVersion := "2.12.13"
 
 crossScalaVersions in ThisBuild := Seq(
   "2.11.12", scalaVersion.value)
