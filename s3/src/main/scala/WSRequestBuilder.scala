@@ -12,6 +12,8 @@ import play.api.libs.ws.{
   WSSignatureCalculator
 }
 
+import com.github.ghik.silencer.silent
+
 private[s3] sealed trait WSRequestBuilder extends ((StandaloneWSClient, Option[String], Option[String], Option[String]) => StandaloneWSRequest) {
 
   /**
@@ -123,9 +125,10 @@ private[s3] object URLInformation {
 private[s3] final class PathStyleWSRequestBuilder private[s3] (
   calculator: WSSignatureCalculator, s3Url: URL) extends WSRequestBuilder {
 
+  @silent(".*match\\ may\\ not\\ be\\ exhaustive.*")
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {
-    val url = new StringBuilder()
     val URLInformation(scheme, host) = s3Url
+    val url = new StringBuilder()
 
     url.append(scheme).append("://").append(host).append('/')
 
@@ -158,9 +161,10 @@ private[s3] final class PathStyleWSRequestBuilder private[s3] (
 private[s3] final class VirtualHostWSRequestBuilder private[s3] (
   calculator: WSSignatureCalculator, s3Url: URL) extends WSRequestBuilder {
 
+  @silent(".*match\\ may\\ not\\ be\\ exhaustive.*")
   def apply(ws: StandaloneWSClient, bucketName: Option[String], objectName: Option[String], query: Option[String]): StandaloneWSRequest = {
-    val url = new StringBuilder()
     val URLInformation(scheme, host) = s3Url
+    val url = new StringBuilder()
 
     url.append(scheme).append("://")
 

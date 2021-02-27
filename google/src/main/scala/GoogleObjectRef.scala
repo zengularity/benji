@@ -154,8 +154,6 @@ final class GoogleObjectRef private[google] (
       def flowChunks = Streams.chunker[E].via(Streams.consumeAtMost(threshold))
 
       flowChunks.prefixAndTail(1).flatMapMerge[A, NotUsed](1, {
-        case (Nil, _) => Source.empty[A]
-
         case (head, tail) => head.toList match {
           case (last @ Chunk.Last(_)) :: _ => // if first is last, single chunk
             Source.single(last).via(putSimple(Option(w.contentType), metadata, z, f))
@@ -166,6 +164,9 @@ final class GoogleObjectRef private[google] (
 
             source.via(putMulti(first, Option(w.contentType), z, f))
           }
+
+          case _ =>
+            Source.empty[A]
         }
       }).toMat(Sink.head[A]) { (_, mat) => mat }
     }
