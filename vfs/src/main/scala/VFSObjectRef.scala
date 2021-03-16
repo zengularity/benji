@@ -159,9 +159,7 @@ final class VFSObjectRef private[vfs] (
 
       @SuppressWarnings(Array("org.wartremover.warts.Throw"))
       def in = Future {
-        lazy val f = file
-
-        val st = f.getContent.getInputStream
+        val st = file.getContent.getInputStream
 
         range.fold[java.io.InputStream](st) { r =>
           if (st.skip(r.start) != r.start) {
