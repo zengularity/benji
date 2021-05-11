@@ -1,8 +1,8 @@
-organization in ThisBuild := "com.zengularity"
+ThisBuild / organization := "com.zengularity"
 
-scalaVersion in ThisBuild := "2.12.13"
+ThisBuild / scalaVersion := "2.12.13"
 
-crossScalaVersions in ThisBuild := Seq(
+ThisBuild / crossScalaVersions := Seq(
   "2.11.12", scalaVersion.value, "2.13.5")
 
 inThisBuild(
@@ -17,7 +17,7 @@ inThisBuild(
 
 lazy val core = project.in(file("core")).settings(
   name := "benji-core",
-  scalacOptions in (Compile, compile) ++= Seq(
+  Compile / compile / scalacOptions ++= Seq(
     // Silencer
     "-P:silencer:globalFilters=constructor\\ deprecatedName\\ in\\ class\\ deprecatedName\\ is\\ deprecated",
     "-language:higherKinds"
@@ -129,7 +129,7 @@ lazy val vfs = project.in(file("vfs")).settings(
 lazy val play = project.in(file("play")).settings(
   name := "benji-play",
   version := {
-    val ver = (version in ThisBuild).value
+    val ver = (ThisBuild / version).value
     val playMajor = playVer.value.split("\\.").take(2).mkString
 
     if (ver endsWith "-SNAPSHOT") {
@@ -163,13 +163,13 @@ lazy val play = project.in(file("play")).settings(
       "com.typesafe.play" %% "play" % playVer.value % Provided,
       playTest.value)
   },
-  unmanagedSourceDirectories in Test += {
+  Test / unmanagedSourceDirectories += {
     val v = playVer.value.split("\\.").take(2).mkString(".")
 
     baseDirectory.value / "src" / "test" / s"play-$v"
   },
-  sources in (Compile, doc) := {
-    val compiled = (sources in Compile).value
+  Compile / doc / sources := {
+    val compiled = (Compile / sources).value
 
     compiled.filter { _.getName endsWith "NamedStorage.java" }
   }
@@ -190,10 +190,10 @@ lazy val benji = (project in file(".")).
           Option.empty
         }
       },
-      excludeFilter in doc := "play",
-      scalacOptions in (Compile, doc) ++= List(
+      doc / excludeFilter := "play",
+      Compile / doc / scalacOptions ++= List(
         "-skip-packages", "highlightextractor"),
-      unidocAllSources in (ScalaUnidoc, unidoc) ~= {
+      ScalaUnidoc / unidoc / unidocAllSources ~= {
         _.map(_.filterNot { f =>
           val name = f.getName
 
