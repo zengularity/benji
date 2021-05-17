@@ -3,7 +3,7 @@ ThisBuild / organization := "com.zengularity"
 ThisBuild / scalaVersion := "2.12.13"
 
 ThisBuild / crossScalaVersions := Seq(
-  "2.11.12", scalaVersion.value, "2.13.5")
+  "2.11.12", scalaVersion.value, "2.13.6")
 
 inThisBuild(
   List(
