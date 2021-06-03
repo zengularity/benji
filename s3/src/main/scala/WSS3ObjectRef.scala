@@ -439,22 +439,29 @@ final class WSS3ObjectRef private[s3] (
 
     def list(token: Option[String])(andThen: String => Source[VersionedObject, NotUsed], whenEmpty: Option[Throwable])(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
       val parse: Elem => Iterable[VersionedObject] = { xml =>
-        {
+        ({
           if (includeDeleteMarkers) {
             (xml \ "Version").map(Xml.versionDecoder) ++ (xml \ "DeleteMarker").map(Xml.deleteMarkerDecoder)
           } else {
             (xml \ "Version").map(Xml.versionDecoder)
           }
-        }.filter(_.name == name)
+        }).filter(_.name == name)
       }
 
       val query: Option[String] => Option[String] = { token =>
-        buildQuery(versionParam, prefixParam(ref.name), maxParam(maybeMax), tokenParam(token))
+        buildQuery(
+          versionParam,
+          prefixParam(ref.name),
+          maxParam(maybeMax),
+          tokenParam(token))
       }
 
-      val errorHandler = ErrorHandler.ofObject(s"Could not list versions of object $name in bucket $bucket", ref)(_)
+      val errorHandler = ErrorHandler.ofObject(
+        s"Could not list versions of object $name in bucket $bucket", ref)(_)
 
-      WSS3BucketRef.list[VersionedObject](ref.storage, ref.bucket, token, errorHandler)(query, parse, _.name, andThen, whenEmpty)
+      WSS3BucketRef.list[VersionedObject](
+        ref.storage, ref.bucket, token, errorHandler)(
+          query, parse, _.name, andThen, whenEmpty)
     }
   }
 }
