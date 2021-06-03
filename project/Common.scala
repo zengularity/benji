@@ -39,14 +39,14 @@ object Common extends AutoPlugin {
         Seq.empty
       }
     },
-    scalacOptions in (Compile, compile) ++= {
+    Compile / compile / scalacOptions ++= {
       if (scalaBinaryVersion.value != "2.13") {
         Seq("-Xmax-classfile-name", "128")
       } else {
         Seq.empty
       }
     },
-    scalacOptions in (Test, compile) ++= {
+    Test / compile / scalacOptions ++= {
       if (scalaBinaryVersion.value != "2.13") {
         Seq("-Xmax-classfile-name", "128")
       } else {
@@ -69,30 +69,30 @@ object Common extends AutoPlugin {
           "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
           "com.typesafe.akka" %% "akka-slf4j" % akkaVer.value,
           "ch.qos.logback" % "logback-classic" % "1.2.3").map(_ % Test),
-    javacOptions in (Compile, compile) ++= Seq(
+    Compile / compile / javacOptions ++= Seq(
       "-source", "1.8", "-target", "1.8"),
-    scalacOptions in (Compile, console) ~= {
+    Compile / console / scalacOptions ~= {
       _.filterNot { opt => opt.startsWith("-X") || opt.startsWith("-Y") }
     },
-    scalacOptions in (Test, console) ~= {
+    Test / console / scalacOptions ~= {
       _.filterNot { opt => opt.startsWith("-X") || opt.startsWith("-Y") }
     },
-    scalacOptions in (Compile, doc) ~= {
+    Compile / doc / scalacOptions ~= {
       _.filterNot { opt =>
         opt.startsWith("-X") || opt.startsWith("-Y") || opt.startsWith("-P")
       }
     },
-    scalacOptions in Test ++= Seq("-Yrangepos"),
-    unmanagedSourceDirectories in Compile += {
-      val base = (sourceDirectory in Compile).value
+    Test / scalacOptions ++= Seq("-Yrangepos"),
+    Compile / unmanagedSourceDirectories += {
+      val base = (Compile / sourceDirectory).value
 
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n >= 13 => base / "scala-2.13+"
         case _ => base / "scala-2.13-"
       }
     },
-    fork in Test := true,
-    mimaFailOnNoPrevious in ThisBuild := false,
+    Test / fork := true,
+    ThisBuild / mimaFailOnNoPrevious := false,
     mimaPreviousArtifacts := Set( /* organization.value %% name.value % previousRelease */ ),
     autoAPIMappings := true,
     apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")("scala-library").value) ++ Wart.settings ++ Publish.settings
@@ -101,7 +101,7 @@ object Common extends AutoPlugin {
 
   def mappings(org: String, location: String, revision: String => String = identity)(names: String*) = Def.task[Map[File, URL]] {
     (for {
-      entry: Attributed[File] <- (fullClasspath in Compile).value
+      entry: Attributed[File] <- (Compile / fullClasspath).value
       module: ModuleID <- entry.get(moduleID.key)
       if module.organization == org
       if names.exists(module.name.startsWith)

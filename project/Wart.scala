@@ -39,7 +39,7 @@ object Wart {
 
       (_: Seq[String]).filterNot(filter)
     },
-    scalacOptions in Test ~= {
+    Test / scalacOptions ~= {
       // Wart doesn't properly handle specs2 variance
       val anyFilter = wartFilter("Any")
       val anyValFilter = wartFilter("AnyVal")
@@ -54,13 +54,13 @@ object Wart {
 
       (_: Seq[String]).filterNot(filter)
     },
-    scalacOptions in (Compile, console) ~= {
+    Compile / console / scalacOptions ~= {
       _.filterNot(_.contains("wartremover"))
     },
-    scalacOptions in (Compile, doc) ~= {
+    Compile / doc / scalacOptions ~= {
       _.filterNot(_ startsWith "-P:wartremover")
     },
-    scalacOptions in (Test, console) ~= {
+    Test / console / scalacOptions ~= {
       _.filterNot(_.contains("wartremover"))
     })
 }
