@@ -153,7 +153,7 @@ lazy val play = project.in(file("play")).settings(
         Seq(
           Dependencies.playAhcWS.
             exclude("org.scala-lang.modules", "scala-java8-compat_2.13"),
-          "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.0")
+          "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.1")
       } else {
         Seq(Dependencies.playAhcWS)
       }
