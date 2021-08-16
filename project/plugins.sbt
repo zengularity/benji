@@ -7,7 +7,7 @@ addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.10.0-RC1")
 
 addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.8.3")
 
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.29")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.30")
 
 addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.4.3")
 
