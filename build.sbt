@@ -40,7 +40,7 @@ val scalaXmlVer = Def.setting[String] {
 
   if (sv == "2.11") "1.0.5"
   else if (sv == "2.13") "1.2.0"
-  else "1.0.6"
+  else "1.3.0"
 }
 
 import Dependencies.Version.{ play => playVer, playJson => playJsonVer }
