@@ -153,7 +153,7 @@ object Dependencies {
     val playJson: Def.Initialize[String] = Def.setting[String] {
       val lower = {
         if (scalaBinaryVersion.value == "2.13") "2.7.4"
-        else "2.6.13"
+        else "2.6.14"
       }
 
       sys.env.getOrElse("PLAY_JSON_VERSION", lower)
