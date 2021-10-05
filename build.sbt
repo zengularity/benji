@@ -38,7 +38,7 @@ lazy val core = project.in(file("core")).settings(
 val scalaXmlVer = Def.setting[String] {
   val sv = scalaBinaryVersion.value
 
-  if (sv == "2.11") "1.0.5"
+  if (sv == "2.11") "1.0.6"
   else if (sv == "2.13") "1.2.0"
   else "1.0.6"
 }
