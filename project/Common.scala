@@ -138,7 +138,7 @@ object Dependencies {
 
     val play: Def.Initialize[String] = Def.setting[String] {
       val lower = {
-        if (scalaBinaryVersion.value == "2.13") "2.7.3"
+        if (scalaBinaryVersion.value == "2.13") "2.7.9"
         else "2.6.25"
       }
 
