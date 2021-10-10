@@ -147,7 +147,7 @@ object Dependencies {
 
     val akka = Def.setting[String] {
       if (play.value startsWith "2.8.") "2.6.1"
-      else "2.5.25"
+      else "2.5.32"
     }
 
     val playJson: Def.Initialize[String] = Def.setting[String] {
