@@ -1,6 +1,6 @@
 # Pull Request Checklist
 
-* [ ] Have you read through the [contributor guidelines](../CONTRIBUTING.md)?
+* [ ] Have you read through the [contributor guidelines](https://github.com/zengularity/benji/blob/master/CONTRIBUTING.md#contributor-guidelines)?
 * [ ] Have you updated the documentation?
 * [ ] Have you added tests for any changed functionality?
 

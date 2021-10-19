@@ -60,7 +60,7 @@ class SignatureCalculatorV4Spec extends org.specs2.mutable.Specification {
 
     "compute canonical headers" >> {
       "for request #1" in {
-        calculator.canonicalHeaders(req1, "20150830T123600Z") must_=== ("content-type:application/x-www-form-urlencoded; charset=utf-8\nhost:my-bucket.s3.amazonaws.com\nmy-header1:a b c\nmy-header2:\"a b c\"\nx-amz-date:20150830T123600Z\n" -> "content-type;host;my-header1;my-header2;x-amz-date")
+        calculator.canonicalHeaders(req1, "20150830T123600Z", "UNSIGNED-PAYLOAD") must_=== ("content-type:application/x-www-form-urlencoded; charset=utf-8\nhost:my-bucket.s3.amazonaws.com\nmy-header1:a b c\nmy-header2:\"a b c\"\nx-amz-content-sha256:UNSIGNED-PAYLOAD\nx-amz-date:20150830T123600Z\n" -> "content-type;host;my-header1;my-header2;x-amz-content-sha256;x-amz-date")
       }
 
       "with request style header" in {
@@ -72,12 +72,13 @@ class SignatureCalculatorV4Spec extends org.specs2.mutable.Specification {
           addHeader("x-amz-date", "20180329T203920Z").
           build()
 
-        calculator.canonicalHeaders(req, "20180329T203920Z") must_=== (
+        calculator.canonicalHeaders(req, "20180329T203920Z", "UNSIGNED-PAYLOAD") must_=== (
           """content-type:text/plain; charset=UTF-8
 host:my-bucket.s3.amazonaws.com
+x-amz-content-sha256:UNSIGNED-PAYLOAD
 x-amz-date:20180329T203920Z
 x-request-style:virtualhost
-""" -> "content-type;host;x-amz-date;x-request-style")
+""" -> "content-type;host;x-amz-content-sha256;x-amz-date;x-request-style")
 
       }
     }
@@ -96,7 +97,7 @@ x-request-style:virtualhost
 
       calculator.canonicalRequest(
         req3, "20150830T123600Z", "UNSIGNED-PAYLOAD") must beTypedEqualTo(
-        canonicalRequest1 -> "content-type;host;x-amz-date")
+        canonicalRequest1 -> "content-type;host;x-amz-content-sha256;x-amz-date")
     }
   }
 
@@ -114,7 +115,7 @@ x-request-style:virtualhost
         credentialScope) must_=== """AWS4-HMAC-SHA256
 20150830T123600Z
 20150830/us-east-1/iam/aws4_request
-2714b15fec5795e21b0fa0c48f6944f639224b42fd8e71d16f57ed58265f9c7d"""
+b243baaf68a974acdc3a4273f5cdab2f6118c28b0f54623242c108eb45309a35"""
     }
   }
 
@@ -149,9 +150,10 @@ x-request-style:virtualhost
 Action=ListUsers&Version=2010-05-08
 content-type:application/x-www-form-urlencoded; charset=utf-8
 host:iam.amazonaws.com
+x-amz-content-sha256:UNSIGNED-PAYLOAD
 x-amz-date:20150830T123600Z
 
-content-type;host;x-amz-date
+content-type;host;x-amz-content-sha256;x-amz-date
 UNSIGNED-PAYLOAD"""
 
   private val credentialScope = "20150830/us-east-1/iam/aws4_request"
