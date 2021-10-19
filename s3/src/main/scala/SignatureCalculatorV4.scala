@@ -112,7 +112,7 @@ private[s3] final class SignatureCalculatorV4(
     request: Request,
     awsDate: String,
     hashedPayload: String): (String, String) = {
-    val (canoHeaders, signedHeaders) = canonicalHeaders(request, awsDate)
+    val (canoHeaders, signedHeaders) = canonicalHeaders(request, awsDate, hashedPayload)
 
     s"${request.getMethod}\n${canonicalUri(request)}\n${canonicalQueryString(request)}\n${canoHeaders}\n${signedHeaders}\n${hashedPayload}" -> signedHeaders
   }
@@ -142,17 +142,23 @@ private[s3] final class SignatureCalculatorV4(
   /**
    * Returns the canonical headers, along with the name of the signed headers.
    */
-  def canonicalHeaders(request: Request, awsDate: String): (String, String) = {
+  def canonicalHeaders(request: Request, awsDate: String, hashedPayload: String): (String, String) = {
     val headers: HttpHeaders = request.getHeaders
     val it = {
       val hs = headers.entries.asScala.map { entry =>
         entry.getKey.toLowerCase(Locale.US) -> entry.getValue
       }
 
-      if (headers.get("x-amz-date") == null) {
+      val withEnsuredDateHeader = if (headers.get("x-amz-date") == null) {
         (("x-amz-date" -> awsDate) +: hs)
       } else {
         hs
+      }
+
+      if (headers.get("x-amz-content-sha256") == null) {
+        (("x-amz-content-sha256" -> hashedPayload) +: withEnsuredDateHeader)
+      } else {
+        withEnsuredDateHeader
       }
     }
 
