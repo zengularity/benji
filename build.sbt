@@ -146,22 +146,10 @@ lazy val play = project.in(file("play")).settings(
       Set.empty[ModuleID]
     }
   },
-  libraryDependencies ++= {
-    val playAhcWS = {
-      if (scalaBinaryVersion.value startsWith "2.13") {
-        Seq(
-          Dependencies.playAhcWS.
-            exclude("org.scala-lang.modules", "scala-java8-compat_2.13"),
-          "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.1")
-      } else {
-        Seq(Dependencies.playAhcWS)
-      }
-    }
-
-    playAhcWS ++ Seq(
-      "com.typesafe.play" %% "play" % playVer.value % Provided,
-      playTest.value)
-  },
+  libraryDependencies ++= Seq(
+    Dependencies.playAhcWS,
+    "com.typesafe.play" %% "play" % playVer.value % Provided,
+    playTest.value),
   Test / unmanagedSourceDirectories += {
     val v = playVer.value.split("\\.").take(2).mkString(".")
 
