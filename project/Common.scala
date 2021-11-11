@@ -68,7 +68,7 @@ object Common extends AutoPlugin {
         "org.specs2" %% _ % "4.10.6" % Test) ++ Seq(
           "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
           "com.typesafe.akka" %% "akka-slf4j" % akkaVer.value,
-          "ch.qos.logback" % "logback-classic" % "1.2.6").map(_ % Test),
+          "ch.qos.logback" % "logback-classic" % "1.2.7").map(_ % Test),
     Compile / compile / javacOptions ++= Seq(
       "-source", "1.8", "-target", "1.8"),
     Compile / console / scalacOptions ~= {
