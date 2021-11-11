@@ -37,7 +37,7 @@ commands:
         default: "openjdk8"
       scala_version:
         type: string
-        default: "2.13.6"
+        default: "2.13.7"
       ws_version:
         type: string
         default: ""
@@ -121,7 +121,7 @@ commands:
         default: "openjdk8"
       scala_version:
         type: string
-        default: "2.13.6"
+        default: "2.13.7"
       ws_version:
         type: string
         default: ""
@@ -276,7 +276,7 @@ jobs:
       - test_suite:
           java_version: openjdk9
           modules: core vfs play
-          scala_version: 2.13.6
+          scala_version: 2.13.7
           ws_version: 2.1.2
           play_version: 2.8.0
           play_json_version: 2.8.1
@@ -320,7 +320,7 @@ jobs:
       - test_suite:
           modules: s3 google
           java_version: openjdk9
-          scala_version: 2.13.6
+          scala_version: 2.13.7
           ws_version: 2.1.2
           play_version: 2.8.0
           play_json_version: 2.8.1
@@ -361,14 +361,14 @@ jobs:
           play_version: 2.7.4
           play_json_version: 2.9.1
           ws_version: 2.0.6
-          scala_versions: 2.13.6
+          scala_versions: 2.13.7
 
       - publish_snapshots:
           release_suffix: play28
           play_version: 2.8.0
           play_json_version: 2.8.1
           ws_version: 2.1.2
-          scala_versions: 2.13.6
+          scala_versions: 2.13.7
       # TODO: play29
 
       - save_cache:
