@@ -58,7 +58,10 @@ object Common extends AutoPlugin {
           "-Wmacros:after",
           "-Wunused")
       } else {
-        Seq("-Wunused:all", "-language:implicitConversions")
+        Seq(
+          "-Wunused:all",
+          "-language:implicitConversions",
+          "-Wconf:cat=deprecation&msg=.*fromFuture.*:s")
       }
     },
     Compile / console / scalacOptions ~= {

@@ -203,7 +203,7 @@ final class GoogleBucketRef private[google] (
           case Some(items) =>
             Source.fromIterator[VersionedObject] { () =>
               val collection = collectionAsScalaIterable(items)
-              collection.iterator.map { obj: StorageObject =>
+              collection.iterator.map { (obj: StorageObject) =>
                 VersionedObject(
                   obj.getName,
                   Bytes(obj.getSize.longValue),

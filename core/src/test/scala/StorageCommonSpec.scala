@@ -49,7 +49,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       } and {
         bucket must existsIn(storage, rwConsistencyRetry, rwConsistencyDuration)
       }
-    }
+    } tag "wip"
 
     s"List objects of the empty $bucketName bucket" in assertAllStagesStopped {
       eventually(2, 3.seconds) {
@@ -245,7 +245,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
           file2 must notExistsIn(defaultBucketRef, 2, 3.seconds).
             setMessage("file2 must no longer exist")
         }
-    }
+    } tag "wip"
 
     "Write and move file" >> {
       def moveSpec[R](target: ObjectRef, preventOverwrite: Boolean = true)(onMove: (ObjectRef, ObjectRef, Future[Unit]) => MatchResult[R]) = {

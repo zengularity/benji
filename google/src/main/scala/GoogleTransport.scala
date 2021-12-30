@@ -256,7 +256,7 @@ object GoogleTransport {
    * }}}
    */
   def apply(credential: GoogleCredentials, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: StandaloneAhcWSClient): GoogleTransport = {
-    val build = { creds: GoogleCredentials =>
+    val build = { (creds: GoogleCredentials) =>
       new Storage.Builder(http, json, new HttpCredentialsAdapter(creds)).
         setApplicationName(application).build()
     }

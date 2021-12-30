@@ -423,7 +423,7 @@ final class GoogleObjectRef private[google] (
           case Some(items) =>
             val collection = items.asScala.filter(_.getName == name)
             val source = Source.fromIterator[VersionedObject] { () =>
-              collection.iterator.map { obj: StorageObject =>
+              collection.iterator.map { (obj: StorageObject) =>
                 VersionedObject(
                   obj.getName,
                   Bytes(obj.getSize.longValue),

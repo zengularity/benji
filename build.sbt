@@ -116,8 +116,8 @@ lazy val google = project.in(file("google")).settings(
     }
   },
   libraryDependencies ++= Seq(
-    Dependencies.playWSJson,
-    Dependencies.playAhcWS,
+    Dependencies.playWSJson.exclude("com.typesafe.akka", "*"),
+    Dependencies.playAhcWS.exclude("com.typesafe.akka", "*"),
     "com.google.auth" % "google-auth-library-oauth2-http" % "1.7.0",
     "com.google.apis" % "google-api-services-storage" % "v1-rev20210127-1.31.0"
   )

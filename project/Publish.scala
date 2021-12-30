@@ -24,8 +24,8 @@ object Publish {
         Set.empty[ModuleID]
       }
     },
-    Compile / packageBin / mappings ~= apiFilter,
-    Compile / packageSrc / mappings ~= apiFilter,
+    Compile / packageBin / mappings ~= coreFilter,
+    Compile / packageSrc / mappings ~= coreFilter,
     licenses := Seq("Apache-2.0" ->
       url("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     pomIncludeRepository := { _ => false },
