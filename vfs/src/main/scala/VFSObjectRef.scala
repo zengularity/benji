@@ -152,7 +152,7 @@ final class VFSObjectRef private[vfs] (
 
   // ---
 
-  private final class VFSGetRequest private[vfs] () extends GetRequest {
+  private[vfs] final class VFSGetRequest() extends GetRequest {
     @silent(".*fromFuture.*")
     def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
@@ -186,7 +186,7 @@ final class VFSObjectRef private[vfs] (
     }
   }
 
-  private final class RESTPutRequest[E, A] private[vfs] ()
+  private[vfs] final class RESTPutRequest[E, A]()
     extends ref.PutRequest[E, A] {
 
     @silent(".*fromFuture.*")

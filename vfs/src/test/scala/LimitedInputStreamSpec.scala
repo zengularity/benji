@@ -3,7 +3,7 @@ package com.zengularity.benji.vfs
 import java.io.ByteArrayInputStream
 
 class LimitedInputStreamSpec extends org.specs2.mutable.Specification {
-  "LimitedInputStream" title
+  "LimitedInputStream".title
 
   "Input stream" should {
     "provide only the expected 5 bytes" in {

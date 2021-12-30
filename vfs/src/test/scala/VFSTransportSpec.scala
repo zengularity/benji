@@ -10,7 +10,7 @@ import com.zengularity.benji.vfs.VFSTransport
 import org.specs2.mutable.Specification
 
 class VFSTransportSpec extends Specification {
-  "VFSTransport" title
+  "VFSTransport".title
 
   "Factory using URs" should {
     "return Failure when the provider fail" in {

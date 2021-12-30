@@ -7,7 +7,7 @@ import com.zengularity.benji.vfs.{ VFSFactory, VFSStorage }
 import tests.benji.DummyInjector
 
 final class VFSFactorySpec extends org.specs2.mutable.Specification {
-  "VFS factory" title
+  "VFS factory".title
 
   "VFS storage" should {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])

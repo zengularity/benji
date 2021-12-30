@@ -21,7 +21,7 @@ final class VFSStorageSpec(implicit ee: ExecutionEnv)
   import tests.benji.StreamUtils._
   import TestUtils.vfs
 
-  "VFS Cloud Storage" title
+  "VFS Cloud Storage".title
 
   sequential
 
