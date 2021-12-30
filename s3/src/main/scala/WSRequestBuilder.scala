@@ -33,10 +33,16 @@ private[s3] object WSRequestBuilder {
    * @param hostHeader the hostname for the `Host` header of the request HTTP
    * @param style the request style (actually `"path"` or `"virtualhost"`)
    */
-  private[s3] def build(ws: StandaloneWSClient, calculator: WSSignatureCalculator, url: String, hostHeader: String, style: String): StandaloneWSRequest =
-    ws.url(url).addHttpHeaders(
+  private[s3] def build(ws: StandaloneWSClient, calculator: WSSignatureCalculator, url: String, hostHeader: String, style: String): StandaloneWSRequest = {
+    val _ = Tuple2("Host", hostHeader)
+    /* TODO
+.addHttpHeaders(
       "Host" -> hostHeader,
-      "X-Request-Style" -> style).sign(calculator)
+      "X-Request-Style" -> style)
+     */
+
+    ws.url(url).sign(calculator) // TODO
+  }
 
   private[s3] def appendName(
     url: StringBuilder,

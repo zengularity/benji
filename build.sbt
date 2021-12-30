@@ -71,9 +71,10 @@ lazy val playTest = Def.setting {
 lazy val s3 = project.in(file("s3")).settings(
   name := "benji-s3",
   libraryDependencies ++= Seq(
-    Dependencies.playWSXml,
-    Dependencies.playAhcWS,
-    "org.scala-lang.modules" %% "scala-xml" % scalaXmlVer.value % Provided),
+    Dependencies.playWSXml.exclude("com.typesafe.akka", "*"),
+    Dependencies.playAhcWS.exclude("com.typesafe.akka", "*"),
+    ("org.scala-lang.modules" %% "scala-xml" % scalaXmlVer.value).
+      cross(CrossVersion.for3Use2_13) % Provided),
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
     val pkg = "com.zengularity.benji.s3"
