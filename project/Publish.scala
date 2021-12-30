@@ -24,6 +24,8 @@ object Publish {
         Set.empty[ModuleID]
       }
     },
+    Compile / packageBin / mappings ~= apiFilter,
+    Compile / packageSrc / mappings ~= apiFilter,
     licenses := Seq("Apache-2.0" ->
       url("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     pomIncludeRepository := { _ => false },
@@ -49,4 +51,10 @@ object Publish {
     credentials += Credentials(repoName, env("PUBLISH_REPO_ID"),
       env("PUBLISH_USER"), env("PUBLISH_PASS")))
 
+  private lazy val coreFilter: Seq[(File, String)] => Seq[(File, String)] = {
+    (_: Seq[(File, String)]).filter {
+      case (file, name) =>
+        name.indexOf("com/github/ghik/silencer") == -1
+    }
+  }
 }

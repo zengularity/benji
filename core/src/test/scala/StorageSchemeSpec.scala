@@ -11,7 +11,7 @@ import com.zengularity.benji.spi.{
 }
 
 final class StorageSchemeSpec extends org.specs2.mutable.Specification {
-  "Scheme aware factory" title
+  "Scheme aware factory".title
 
   "Dummy storage" should {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])

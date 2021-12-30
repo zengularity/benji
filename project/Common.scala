@@ -11,64 +11,95 @@ object Common extends AutoPlugin {
 
   override def projectSettings = Seq(
     scalacOptions ++= Seq(
-      "-encoding", "UTF-8",
-      "-target:jvm-1.8",
+      "-encoding",
+      "UTF-8",
       "-unchecked",
       "-deprecation",
       "-feature",
-      "-Xfatal-warnings",
-      "-Xlint",
-      "-g:vars"),
+      "-Xfatal-warnings"),
     scalacOptions ++= {
-      val ver = scalaBinaryVersion.value
-
-      if (ver == "2.12") {
+      if (scalaBinaryVersion.value startsWith "2.") {
         Seq(
+          "-target:jvm-1.8",
+          "-Xlint",
+          "-g:vars")
+      } else Seq()
+    },
+    scalacOptions ++= {
+      val sv = scalaBinaryVersion.value
+
+      if (sv == "2.12") {
+        Seq(
+          "-Xmax-classfile-name",
+          "128",
           "-Ywarn-numeric-widen",
-          "-Ywarn-infer-any",
           "-Ywarn-dead-code",
+          "-Ywarn-value-discard",
+          "-Ywarn-infer-any",
           "-Ywarn-unused",
           "-Ywarn-unused-import",
-          "-Ywarn-value-discard",
-          "-Yno-adapted-args",
-          "-Ywarn-inaccessible",
-          "-Ywarn-nullary-override",
-          "-Ywarn-nullary-unit",
-          "-Ywarn-extra-implicit")
+          "-Ywarn-macros:after")
+      } else if (sv == "2.11") {
+        Seq(
+          "-Xmax-classfile-name",
+          "128",
+          "-Yopt:_",
+          "-Ydead-code",
+          "-Yclosure-elim",
+          "-Yconst-opt")
+      } else if (sv == "2.13") {
+        Seq(
+          "-explaintypes",
+          "-Werror",
+          "-Wnumeric-widen",
+          "-Wdead-code",
+          "-Wvalue-discard",
+          "-Wextra-implicit",
+          "-Wmacros:after",
+          "-Wunused")
       } else {
-        Seq.empty
+        Seq("-Wunused:all", "-language:implicitConversions")
       }
     },
-    Compile / compile / scalacOptions ++= {
-      if (scalaBinaryVersion.value != "2.13") {
-        Seq("-Xmax-classfile-name", "128")
-      } else {
-        Seq.empty
+    Compile / console / scalacOptions ~= {
+      _.filterNot(o =>
+        o.startsWith("-X") || o.startsWith("-Y") || o.startsWith("-P:silencer"))
+    },
+    Compile / doc / scalacOptions ~= {
+      _.filterNot { opt =>
+        opt.startsWith("-X") || opt.startsWith("-Y") || opt.startsWith("-P")
       }
     },
-    Test / compile / scalacOptions ++= {
-      if (scalaBinaryVersion.value != "2.13") {
-        Seq("-Xmax-classfile-name", "128")
+    Test / scalacOptions ~= {
+      _.filterNot(_ == "-Xfatal-warnings")
+    },
+    Test / scalacOptions ++= {
+      if (scalaBinaryVersion.value startsWith "2.") {
+        Seq("-Yrangepos")
       } else {
         Seq.empty
       }
     },
     resolvers += Resolver.sonatypeRepo("staging" /* releases */ ),
     libraryDependencies ++= {
-      val silencerVer = "1.7.8"
+      if (!scalaBinaryVersion.value.startsWith("3")) {
+        val silencerVersion = "1.7.8"
 
-      Seq(
-        compilerPlugin(("com.github.ghik" %% "silencer-plugin" % silencerVer).
-          cross(CrossVersion.full)),
-        ("com.github.ghik" %% "silencer-lib" % silencerVer % Provided).
-          cross(CrossVersion.full))
+        Seq(
+          compilerPlugin(
+            ("com.github.ghik" %% "silencer-plugin" % silencerVersion)
+              .cross(CrossVersion.full)),
+          ("com.github.ghik" %% "silencer-lib" % silencerVersion % Provided)
+            .cross(CrossVersion.full))
+      } else Seq.empty
     },
     libraryDependencies ++= Dependencies.wsStream.value ++ Seq(
-      "specs2-core", "specs2-junit").map(
-        "org.specs2" %% _ % "4.10.6" % Test) ++ Seq(
-          "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
-          "com.typesafe.akka" %% "akka-slf4j" % akkaVer.value,
-          "ch.qos.logback" % "logback-classic" % "1.2.11").map(_ % Test),
+      "specs2-core", "specs2-junit").map(d => {
+        ("org.specs2" %% d % "4.10.6").cross(CrossVersion.for3Use2_13) % Test
+      }) ++ Seq(
+        "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
+        "com.typesafe.akka" %% "akka-slf4j" % akkaVer.value,
+        "ch.qos.logback" % "logback-classic" % "1.2.11").map(_ % Test),
     Compile / compile / javacOptions ++= Seq(
       "-source", "1.8", "-target", "1.8"),
     Compile / console / scalacOptions ~= {
@@ -87,8 +118,8 @@ object Common extends AutoPlugin {
       val base = (Compile / sourceDirectory).value
 
       CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n >= 13 => base / "scala-2.13+"
-        case _ => base / "scala-2.13-"
+        case Some((2, n)) if n < 13 => base / "scala-2.13-"
+        case _ => base / "scala-2.13+"
       }
     },
     Test / fork := true,
@@ -137,8 +168,9 @@ object Dependencies {
     val playWS = sys.env.getOrElse("WS_VERSION", "2.0.8") // upper 2.0.6
 
     val play: Def.Initialize[String] = Def.setting[String] {
+      val v = scalaBinaryVersion.value
       val lower = {
-        if (scalaBinaryVersion.value == "2.13") "2.8.8"
+        if (v == "3" || v == "2.13") "2.8.8"
         else "2.6.25"
       }
 
@@ -146,13 +178,16 @@ object Dependencies {
     }
 
     val akka = Def.setting[String] {
-      if (play.value startsWith "2.8.") "2.6.1"
+      if (scalaBinaryVersion.value startsWith "3") "2.6.19"
+      else if (play.value startsWith "2.8.") "2.6.1"
       else "2.5.32"
     }
 
     val playJson: Def.Initialize[String] = Def.setting[String] {
+      val v = scalaBinaryVersion.value
       val lower = {
-        if (scalaBinaryVersion.value == "2.13") "2.7.4"
+        if (v startsWith "3") "2.10.0-RC5"
+        else if (v == "2.13") "2.7.4"
         else "2.6.14"
       }
 
@@ -167,13 +202,14 @@ object Dependencies {
   }
 
   val playWS = ("com.typesafe.play" %% "play-ws-standalone" % Version.playWS).
+    cross(CrossVersion.for3Use2_13).
     exclude("org.scala-lang.modules", "*")
 
-  val playAhcWS = ("com.typesafe.play" %% "play-ahc-ws-standalone" % Version.playWS).exclude("org.scala-lang.modules", "*")
+  val playAhcWS = ("com.typesafe.play" %% "play-ahc-ws-standalone" % Version.playWS).cross(CrossVersion.for3Use2_13).exclude("org.scala-lang.modules", "*")
 
-  val playWSJson = ("com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS).exclude("org.scala-lang.modules", "*")
+  val playWSJson = ("com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS).cross(CrossVersion.for3Use2_13).exclude("org.scala-lang.modules", "*")
 
-  val playWSXml = "com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS
+  val playWSXml = ("com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS).cross(CrossVersion.for3Use2_13)
 
   val slf4jApi = "org.slf4j" % "slf4j-api" % "1.7.36"
 }

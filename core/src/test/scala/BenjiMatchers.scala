@@ -83,7 +83,7 @@ trait BenjiMatchers { self: Matchers =>
 
     beTypedEqualTo({}).
       awaitFor(duration).
-      eventually(tries, duration) ^^ { bucket: BucketRef =>
+      eventually(tries, duration) ^^ { (bucket: BucketRef) =>
         bucket.create()
       }
   }
@@ -91,7 +91,7 @@ trait BenjiMatchers { self: Matchers =>
   def supportCheckedCreation(implicit ee: ExecutionEnv): Matcher[BucketRef] = {
     implicit val ec: ExecutionContext = ee.executionContext
 
-    beTypedEqualTo[Unit]({}).await(1, 5.seconds) ^^ { bucket: BucketRef =>
+    beTypedEqualTo[Unit]({}).await(1, 5.seconds) ^^ { (bucket: BucketRef) =>
       bucket.create(failsIfExists = true)
     }
   }
@@ -190,7 +190,7 @@ trait BenjiMatchers { self: Matchers =>
 
     existsOrNot[BucketRef](
       exists = _.exists,
-      contains = { ref: BucketRef =>
+      contains = { (ref: BucketRef) =>
         storage.buckets().filter(_.name == ref.name).
           runWith(Sink.headOption[Bucket]).map(_.isDefined)
       },
@@ -211,7 +211,7 @@ trait BenjiMatchers { self: Matchers =>
 
     existsOrNot[ObjectRef](
       exists = _.exists,
-      contains = { ref: ObjectRef =>
+      contains = { (ref: ObjectRef) =>
         bucket.objects().filter(_.name == ref.name).
           runWith(Sink.headOption[Object]).map(_.isDefined)
       },
@@ -232,7 +232,7 @@ trait BenjiMatchers { self: Matchers =>
 
     existsOrNot[VersionedObjectRef](
       exists = _.exists,
-      contains = { ref: VersionedObjectRef =>
+      contains = { (ref: VersionedObjectRef) =>
         bucket.versionedObjects().filter { v =>
           v.name == ref.name && v.versionId == ref.versionId
         }.runWith(Sink.headOption[Object]).map(_.isDefined)

@@ -3,7 +3,11 @@ ThisBuild / organization := "com.zengularity"
 ThisBuild / scalaVersion := "2.12.15"
 
 ThisBuild / crossScalaVersions := Seq(
-  "2.11.12", scalaVersion.value, "2.13.8")
+  "2.11.12",
+  scalaVersion.value,
+  "2.13.8",
+  "3.1.3-RC2"
+)
 
 inThisBuild(
   List(
@@ -17,11 +21,16 @@ inThisBuild(
 
 lazy val core = project.in(file("core")).settings(
   name := "benji-core",
-  Compile / compile / scalacOptions ++= Seq(
-    // Silencer
-    "-P:silencer:globalFilters=constructor\\ deprecatedName\\ in\\ class\\ deprecatedName\\ is\\ deprecated",
-    "-language:higherKinds"
-  ),
+  Compile / compile / scalacOptions ++= {
+    if (scalaBinaryVersion.value startsWith "3") {
+      Seq("-language:higherKinds")
+    } else {
+      Seq(
+        // Silencer
+        "-P:silencer:globalFilters=constructor\\ deprecatedName\\ in\\ class\\ deprecatedName\\ is\\ deprecated",
+        "-language:higherKinds")
+    }
+  },
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
 
@@ -38,14 +47,24 @@ lazy val core = project.in(file("core")).settings(
 val scalaXmlVer = Def.setting[String] {
   val sv = scalaBinaryVersion.value
 
-  if (sv == "2.13") "1.3.0"
+  if (sv startsWith "3") "2.0.1"
+  else if (sv == "2.13") "1.3.0"
   else "1.0.6"
 }
 
 import Dependencies.Version.{ play => playVer, playJson => playJsonVer }
 
 lazy val playTest = Def.setting {
-  ("com.typesafe.play" %% "play-test" % playVer.value % Test).
+  val ver = {
+    if (scalaBinaryVersion.value startsWith "3") {
+      "2.8.11"
+    } else {
+      playVer.value
+    }
+  }
+
+  (("com.typesafe.play" %% "play-test" % ver).
+    cross(CrossVersion.for3Use2_13) % Test).
     exclude("com.typesafe.akka", "*")
 }
 

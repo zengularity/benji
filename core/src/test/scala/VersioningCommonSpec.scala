@@ -123,7 +123,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
                     ZoneOffset.UTC) must beBetween(before, after)
 
                 } and {
-                  firstVer.versionId must not(beEmpty)
+                  firstVer.versionId must not(beEmpty[String])
                 } and {
                   // future usage of firstVersion will be when firstVersion is no more the latest
                   firstVersion = firstVer.copy(isLatest = false)
@@ -269,7 +269,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
                     ZoneOffset.UTC) must beBetween(before, after)
 
                 } and {
-                  ver.versionId must not(beEmpty)
+                  ver.versionId must not(beEmpty[String])
                 } and {
                   createObject(bucket, objectName, "hello world",
                     Map("foov2" -> "barv2")) must beTrue.await(2, 5.seconds)
@@ -347,7 +347,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           vbucket.versionedObjects.
             collect[List]() must beLike[List[VersionedObject]] {
-              case v :: Nil => v.versionId must not(beEmpty) and {
+              case v :: Nil => v.versionId must not(beEmpty[String]) and {
                 bucket.obj(v.name).
                   versioning must beSome[ObjectVersioning].which {
                     _.version(v.versionId) must_=== vbucket.obj(
@@ -405,7 +405,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
                       ZoneOffset.UTC) must beBetween(before, after)
 
                   } and {
-                    v1.versionId must not(beEmpty)
+                    v1.versionId must not(beEmpty[String])
                   } and {
                     v1.isLatest must beFalse
                   } and {
@@ -420,7 +420,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec { self: or
                       ZoneOffset.UTC) must beBetween(before, after)
 
                   } and {
-                    v2.versionId must not(beEmpty)
+                    v2.versionId must not(beEmpty[String])
                   } and {
                     v2.isLatest must beTrue
                   }

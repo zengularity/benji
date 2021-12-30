@@ -5,6 +5,7 @@ import scala.concurrent.duration.FiniteDuration
 
 import akka.util.ByteString
 
+import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
 
 import org.specs2.concurrent.ExecutionEnv
@@ -14,16 +15,16 @@ import org.specs2.matcher.MatchResult
 final class StreamSpec(implicit ee: ExecutionEnv)
   extends org.specs2.mutable.Specification {
 
-  "Streams" title
+  "Streams".title
 
   private val timeout =
     FiniteDuration(5L, java.util.concurrent.TimeUnit.SECONDS)
 
-  private implicit lazy val system =
+  private implicit lazy val system: akka.actor.ActorSystem =
     akka.actor.ActorSystem("benji-core-tests")
 
   @com.github.ghik.silencer.silent
-  private implicit def materializer =
+  private implicit def materializer: Materializer =
     akka.stream.ActorMaterializer.create(system)
 
   // import akka.stream.contrib.TestKit.assertAllStagesStopped
