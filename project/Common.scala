@@ -55,7 +55,7 @@ object Common extends AutoPlugin {
     },
     resolvers += Resolver.sonatypeRepo("staging" /* releases */ ),
     libraryDependencies ++= {
-      val silencerVer = "1.7.7"
+      val silencerVer = "1.7.8"
 
       Seq(
         compilerPlugin(("com.github.ghik" %% "silencer-plugin" % silencerVer).
