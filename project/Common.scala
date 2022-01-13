@@ -175,5 +175,5 @@ object Dependencies {
 
   val playWSXml = "com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS
 
-  val slf4jApi = "org.slf4j" % "slf4j-api" % "1.7.32"
+  val slf4jApi = "org.slf4j" % "slf4j-api" % "1.7.33"
 }
