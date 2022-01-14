@@ -63,9 +63,10 @@ lazy val playTest = Def.setting {
     }
   }
 
-  (("com.typesafe.play" %% "play-test" % ver).
-    cross(CrossVersion.for3Use2_13) % Test).
-    exclude("com.typesafe.akka", "*")
+  ("com.typesafe.play" %% "play-test" % ver).
+    cross(CrossVersion.for3Use2_13).
+    exclude("com.typesafe.akka", "*").
+    exclude("com.typesafe.play", "*") % Test
 }
 
 lazy val s3 = project.in(file("s3")).settings(
@@ -117,8 +118,8 @@ lazy val google = project.in(file("google")).settings(
     }
   },
   libraryDependencies ++= Seq(
-    Dependencies.playWSJson.exclude("com.typesafe.akka", "*"),
-    Dependencies.playAhcWS.exclude("com.typesafe.akka", "*"),
+    Dependencies.playWSJson, //.exclude("com.typesafe.akka", "*"),
+    Dependencies.playAhcWS, //.exclude("com.typesafe.akka", "*"),
     "com.google.auth" % "google-auth-library-oauth2-http" % "1.7.0",
     "com.google.apis" % "google-api-services-storage" % "v1-rev20210127-1.31.0"
   )
@@ -168,7 +169,10 @@ lazy val play = project.in(file("play")).settings(
   },
   libraryDependencies ++= Seq(
     Dependencies.playAhcWS,
-    "com.typesafe.play" %% "play" % playVer.value % Provided,
+    ("com.typesafe.play" %% "play" % playVer.value).
+      cross(CrossVersion.for3Use2_13).
+      exclude("com.typesafe.akka", "*").
+      exclude("com.typesafe.play", "*") % Provided,
     playTest.value),
   Test / unmanagedSourceDirectories += {
     val v = playVer.value.split("\\.").take(2).mkString(".")

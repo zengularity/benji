@@ -387,7 +387,7 @@ jobs:
           play_version: 2.8.11
           play_json_version: 2.8.1
           ws_version: 2.8.11
-          scala_versions: 2.13.7
+          scala_versions: 2.13.8
 
       - save_cache:
           paths:

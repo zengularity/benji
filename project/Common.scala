@@ -173,7 +173,7 @@ object Dependencies {
     val play: Def.Initialize[String] = Def.setting[String] {
       val v = scalaBinaryVersion.value
       val lower = {
-        if (v == "3" || v == "2.13") "2.8.8"
+        if (v == "3" || v == "2.13") "2.8.13"
         else "2.6.25"
       }
 
@@ -198,19 +198,31 @@ object Dependencies {
     }
   }
 
+  val playWS = ("com.typesafe.play" %% "play-ws-standalone" % Version.playWS).
+    cross(CrossVersion.for3Use2_13).
+    exclude("org.scala-lang.modules", "*").
+    exclude("com.typesafe.akka", "*").
+    exclude("com.typesafe.play", "*")
+
   lazy val wsStream = Def.setting[Seq[ModuleID]] {
     Seq(
-      (playWS % Provided).exclude("com.typesafe.akka", "*"),
+      playWS % Provided,
       "com.typesafe.akka" %% "akka-stream" % Version.akka.value % Provided)
   }
 
-  val playWS = ("com.typesafe.play" %% "play-ws-standalone" % Version.playWS).
+  val playAhcWS = (
+    "com.typesafe.play" %% "play-ahc-ws-standalone" % Version.playWS).
     cross(CrossVersion.for3Use2_13).
-    exclude("org.scala-lang.modules", "*")
+    exclude("org.scala-lang.modules", "*").
+    exclude("com.typesafe.akka", "*").
+    exclude("com.typesafe.play", "*")
 
-  val playAhcWS = ("com.typesafe.play" %% "play-ahc-ws-standalone" % Version.playWS).cross(CrossVersion.for3Use2_13).exclude("org.scala-lang.modules", "*")
-
-  val playWSJson = ("com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS).cross(CrossVersion.for3Use2_13).exclude("org.scala-lang.modules", "*")
+  val playWSJson = (
+    "com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS).
+    cross(CrossVersion.for3Use2_13).
+    exclude("org.scala-lang.modules", "*").
+    exclude("com.typesafe.akka", "*").
+    exclude("com.typesafe.play", "*")
 
   val playWSXml = ("com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS).cross(CrossVersion.for3Use2_13)
 
