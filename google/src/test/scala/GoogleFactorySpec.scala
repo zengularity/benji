@@ -33,7 +33,8 @@ final class GoogleFactorySpec extends org.specs2.mutable.Specification {
 
       s"not be resolved from ${uri.toString}" in {
         factory(WSInjector, uri) must throwA[Exception](
-          "Expected URI with scheme.*")
+          "Expected URI with scheme.*"
+        )
       }
     }
   }
@@ -63,7 +64,7 @@ final class GoogleFactorySpec extends org.specs2.mutable.Specification {
     @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
     def instanceOf[T](cls: Class[T]): T = cls match {
       case WS => StandaloneAhcWSClient().asInstanceOf[T]
-      case _ => ???
+      case _  => ???
     }
   }
 }

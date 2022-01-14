@@ -17,6 +17,7 @@ import akka.stream.scaladsl.{ Sink, Source }
  * @define bucketNameParam the name of the bucket
  */
 trait ObjectStorage { self =>
+
   /** Storage logger */
   private[benji] val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
 
@@ -31,6 +32,7 @@ trait ObjectStorage { self =>
    * A request to list the buckets.
    */
   trait BucketsRequest {
+
     /**
      * Lists of all objects within the bucket.
      */
@@ -39,12 +41,18 @@ trait ObjectStorage { self =>
     /**
      * Collects the bucket objects.
      */
-    def collect[M[_]]()(implicit m: Materializer, @deprecatedName(Symbol("builder")) factory: Compat.Factory[M, Bucket]): Future[M[Bucket]] = {
+    def collect[M[_]](
+      )(implicit
+        m: Materializer,
+        @deprecatedName(Symbol("builder")) factory: Compat.Factory[M, Bucket]
+      ): Future[M[Bucket]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      apply() runWith Sink.fold(Compat.newBuilder[M, Bucket](factory)) {
-        _ += (_: Bucket)
-      }.mapMaterializedValue(_.map(_.result()))
+      apply() runWith Sink
+        .fold(Compat.newBuilder[M, Bucket](factory)) {
+          _ += (_: Bucket)
+        }
+        .mapMaterializedValue(_.map(_.result()))
     }
   }
 

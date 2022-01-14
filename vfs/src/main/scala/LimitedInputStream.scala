@@ -10,9 +10,10 @@ import java.io.{ BufferedInputStream, InputStream }
  * @param limit the maximum number of bytes that can be read
  */
 private[vfs] class LimitedInputStream(
-  underlying: InputStream,
-  limit: Int,
-  bufferSize: Int = 8192) extends BufferedInputStream(underlying, bufferSize) {
+    underlying: InputStream,
+    limit: Int,
+    bufferSize: Int = 8192)
+    extends BufferedInputStream(underlying, bufferSize) {
 
   @SuppressWarnings(Array("org.wartremover.warts.Var"))
   private var index = 0
@@ -32,7 +33,8 @@ private[vfs] class LimitedInputStream(
       else len
     }
 
-    if (n <= 0) -1 else {
+    if (n <= 0) -1
+    else {
       val r = super.read(b, off, n)
 
       index = index + r

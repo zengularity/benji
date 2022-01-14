@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream
 import java.util
 
 private[google] object UriUtils {
+
   /*
     source: https://github.com/playframework/playframework/blob/master/framework/src/play/src/main/scala/play/utils/UriEncoding.scala
    */
@@ -15,13 +16,13 @@ private[google] object UriUtils {
     val in = s.getBytes(inputCharset)
     val out = new ByteArrayOutputStream()
     for (b <- in) {
-      val allowed = segmentChars.get(b & 0xFF)
+      val allowed = segmentChars.get(b & 0xff)
       if (allowed) {
         out.write(b.toInt)
       } else {
         out.write('%')
-        out.write(upperHex((b >> 4) & 0xF))
-        out.write(upperHex(b & 0xF))
+        out.write(upperHex((b >> 4) & 0xf))
+        out.write(upperHex(b & 0xf))
       }
     }
     out.toString("US-ASCII")
@@ -41,7 +42,10 @@ private[google] object UriUtils {
   private def pchar: Seq[Char] = {
     // RFC 3986, 2.3. Unreserved Characters
     // unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
-    val alphaDigit = for ((min, max) <- Seq(('a', 'z'), ('A', 'Z'), ('0', '9')); c <- min to max) yield c
+    val alphaDigit =
+      for (
+        (min, max) <- Seq(('a', 'z'), ('A', 'Z'), ('0', '9')); c <- min to max
+      ) yield c
     val unreserved = alphaDigit ++ Seq('-', '.', '_', '~')
 
     // RFC 3986, 2.2. Reserved Characters

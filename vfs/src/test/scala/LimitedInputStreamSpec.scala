@@ -22,7 +22,10 @@ class LimitedInputStreamSpec extends org.specs2.mutable.Specification {
 
   def stream1(limit: Int): LimitedInputStream = stream2(limit)(identity)
 
-  def stream2(limit: Int)(f: ByteArrayInputStream => ByteArrayInputStream): LimitedInputStream = {
+  def stream2(
+      limit: Int
+    )(f: ByteArrayInputStream => ByteArrayInputStream
+    ): LimitedInputStream = {
     def sub = f(new ByteArrayInputStream("Hello World !!!".getBytes("UTF-8")))
     new LimitedInputStream(sub, limit)
   }

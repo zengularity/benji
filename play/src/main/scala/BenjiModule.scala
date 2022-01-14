@@ -25,13 +25,19 @@ import com.zengularity.benji.spi.{ Injector, StorageFactory }
  */
 @Singleton
 final class BenjiModule extends Module {
+
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
-  def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] =
+  def bindings(
+      environment: Environment,
+      configuration: Configuration
+    ): Seq[Binding[_]] =
     bind[Injector].toProvider[PlayInjectorProvider] +:
       bind[StandaloneAhcWSClient].toProvider[WSProvider] +:
       apiBindings(BenjiModule.parseConfiguration(configuration)).toSeq
 
-  private def apiBindings(info: Set[(String, URI)]): Set[Binding[ObjectStorage]] = info.flatMap {
+  private def apiBindings(
+      info: Set[(String, URI)]
+    ): Set[Binding[ObjectStorage]] = info.flatMap {
     case (name, uri) =>
       val provider: Provider[ObjectStorage] = {
         @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
@@ -41,8 +47,7 @@ final class BenjiModule extends Module {
       }
 
       val annot: NamedStorage = new NamedStorageImpl(name)
-      val bs = List(BenjiModule.key(name).
-        qualifiedWith(annot).to(provider))
+      val bs = List(BenjiModule.key(name).qualifiedWith(annot).to(provider))
 
       if (name == "default") {
         bind[ObjectStorage].to(provider) :: bs
@@ -59,10 +64,14 @@ private[benji] object BenjiModule {
     BindingKey(classOf[ObjectStorage]).qualifiedWith(new NamedStorageImpl(name))
 
   object ValidUri {
-    @SuppressWarnings(Array(
-      "org.wartremover.warts.AsInstanceOf",
-      "org.wartremover.warts.IsInstanceOf",
-      "org.wartremover.warts.ToString"))
+
+    @SuppressWarnings(
+      Array(
+        "org.wartremover.warts.AsInstanceOf",
+        "org.wartremover.warts.IsInstanceOf",
+        "org.wartremover.warts.ToString"
+      )
+    )
     def unapply(value: com.typesafe.config.ConfigValue): Option[URI] =
       if (!value.unwrapped.isInstanceOf[String]) None
       else {
@@ -107,7 +116,9 @@ private[benji] object BenjiModule {
           }
 
           case ("default.uri", invalid) =>
-            logger.warn(s"Invalid setting for 'benji.default.uri': ${invalid.toString}")
+            logger.warn(
+              s"Invalid setting for 'benji.default.uri': ${invalid.toString}"
+            )
 
           case (key, ValidUri(uri)) if key.endsWith(".uri") => {
             parsed += key.dropRight(4) -> uri
@@ -137,18 +148,23 @@ private[benji] object BenjiModule {
     registry.factoryClass(configUri.getScheme) match {
       case Some(cls) => Try(new BenjiProvider(cls, configUri))
 
-      case _ => Failure[BenjiProvider](new IllegalArgumentException(
-        s"Unsupported storage URI: ${configUri.toString}"))
+      case _ =>
+        Failure[BenjiProvider](
+          new IllegalArgumentException(
+            s"Unsupported storage URI: ${configUri.toString}"
+          )
+        )
     }
 }
 
 private[benji] final class BenjiProvider(
-  factoryClass: Class[_ <: StorageFactory],
-  uri: URI) extends Provider[ObjectStorage] {
+    factoryClass: Class[_ <: StorageFactory],
+    uri: URI)
+    extends Provider[ObjectStorage] {
 
-  @SuppressWarnings(Array(
-    "org.wartremover.warts.Var",
-    "org.wartremover.warts.Null"))
+  @SuppressWarnings(
+    Array("org.wartremover.warts.Var", "org.wartremover.warts.Null")
+  )
   @Inject var benjiInjector: Injector = _
 
   lazy val get: ObjectStorage = {
@@ -159,9 +175,10 @@ private[benji] final class BenjiProvider(
 }
 
 private[benji] final class PlayInjectorProvider extends Provider[Injector] {
-  @SuppressWarnings(Array(
-    "org.wartremover.warts.Null",
-    "org.wartremover.warts.Var"))
+
+  @SuppressWarnings(
+    Array("org.wartremover.warts.Null", "org.wartremover.warts.Var")
+  )
   @Inject var injector: play.api.inject.Injector = _
 
   lazy val get: Injector = new PlayInjector(injector)
@@ -169,12 +186,16 @@ private[benji] final class PlayInjectorProvider extends Provider[Injector] {
 
 /** Utility to bind Benji injector abstraction with Play implementation. */
 final class PlayInjector(
-  underlying: play.api.inject.Injector) extends Injector {
+    underlying: play.api.inject.Injector)
+    extends Injector {
   def instanceOf[T](cls: Class[T]): T = underlying.instanceOf[T](cls)
 }
 
 private[benji] final class WSProvider extends Provider[StandaloneAhcWSClient] {
-  @SuppressWarnings(Array("org.wartremover.warts.Null", "org.wartremover.warts.Var"))
+
+  @SuppressWarnings(
+    Array("org.wartremover.warts.Null", "org.wartremover.warts.Var")
+  )
   @Inject var materializer: Materializer = _
 
   lazy val get: StandaloneAhcWSClient = {

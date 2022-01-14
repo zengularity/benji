@@ -12,8 +12,8 @@ final class VFSFactorySpec extends org.specs2.mutable.Specification {
   "VFS storage" should {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
     lazy val scheme = loader.iterator.next()
-    lazy val service = scheme.factoryClass.
-      getDeclaredConstructor().newInstance()
+    lazy val service =
+      scheme.factoryClass.getDeclaredConstructor().newInstance()
 
     {
       val uri = new URI("vfs:tmp:///")
@@ -30,7 +30,8 @@ final class VFSFactorySpec extends org.specs2.mutable.Specification {
 
       s"not be resolved from ${uri.toString}" in {
         service(DummyInjector, uri) must throwA[Exception](
-          "Expected URI with scheme.*")
+          "Expected URI with scheme.*"
+        )
       }
     }
   }

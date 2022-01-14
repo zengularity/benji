@@ -23,8 +23,9 @@ final class PlaySpec extends org.specs2.mutable.Specification {
     "not be resolved if the module is not enabled" in {
       val appBuilder = new GuiceApplicationBuilder().build()
 
-      appBuilder.injector.instanceOf[ObjectStorage].
-        aka("resolution") must throwA[inject.ConfigurationException]
+      appBuilder.injector
+        .instanceOf[ObjectStorage]
+        .aka("resolution") must throwA[inject.ConfigurationException]
     }
 
     "be resolved" >> {
@@ -42,10 +43,9 @@ final class PlaySpec extends org.specs2.mutable.Specification {
         val names = Seq("default", "bar", "lorem", "ipsum")
 
         names.map { name =>
-          configuredAppBuilder.injector.instanceOf[ObjectStorage](
-            TestUtils.bindingKey(name))
-        } must contain[ObjectStorage](
-          beAnInstanceOf[VFSStorage]).forall
+          configuredAppBuilder.injector
+            .instanceOf[ObjectStorage](TestUtils.bindingKey(name))
+        } must contain[ObjectStorage](beAnInstanceOf[VFSStorage]).forall
       }
     }
 
@@ -54,8 +54,10 @@ final class PlaySpec extends org.specs2.mutable.Specification {
         System.setProperty("config.resource", "test1.conf")
 
         running(configure _) { app =>
-          app.injector.instanceOf[InjectDefault].storage.
-            aka("storage") must beAnInstanceOf[VFSStorage]
+          app.injector
+            .instanceOf[InjectDefault]
+            .storage
+            .aka("storage") must beAnInstanceOf[VFSStorage]
         }
       }
 
@@ -63,8 +65,10 @@ final class PlaySpec extends org.specs2.mutable.Specification {
         System.setProperty("config.resource", "test1.conf")
 
         running(configure _) { app =>
-          app.injector.instanceOf[InjectDefaultNamed].storage.
-            aka("storage") must beAnInstanceOf[VFSStorage]
+          app.injector
+            .instanceOf[InjectDefaultNamed]
+            .storage
+            .aka("storage") must beAnInstanceOf[VFSStorage]
         }
       }
 
@@ -72,8 +76,10 @@ final class PlaySpec extends org.specs2.mutable.Specification {
         System.setProperty("config.resource", "test2.conf")
 
         running() {
-          _.injector.instanceOf[InjectFooNamed].storage.
-            aka("storage") must beAnInstanceOf[DummyStorage]
+          _.injector
+            .instanceOf[InjectFooNamed]
+            .storage
+            .aka("storage") must beAnInstanceOf[DummyStorage]
         }
       }
 
@@ -81,9 +87,12 @@ final class PlaySpec extends org.specs2.mutable.Specification {
         System.setProperty("config.resource", "test3.conf")
 
         running(configure _) {
-          _.injector.instanceOf[InjectMultiple].storages.
-            aka("storages") must contain[ObjectStorage](
-              beAnInstanceOf[VFSStorage]).forall
+          _.injector
+            .instanceOf[InjectMultiple]
+            .storages
+            .aka("storages") must contain[ObjectStorage](
+            beAnInstanceOf[VFSStorage]
+          ).forall
         }
       }
     }
@@ -113,12 +122,15 @@ final class PlaySpec extends org.specs2.mutable.Specification {
       }
 
       "successfully from composite configuration" >> {
-        Fragments.foreach(Seq[(String, () => ObjectStorage)](
-          "<default>" -> (() => benji()),
-          "default" -> (() => benji("default")),
-          "bar" -> (() => benji("bar")),
-          "lorem" -> (() => benji("lorem")),
-          "ipsum" -> (() => benji("ipsum")))) {
+        Fragments.foreach(
+          Seq[(String, () => ObjectStorage)](
+            "<default>" -> (() => benji()),
+            "default" -> (() => benji("default")),
+            "bar" -> (() => benji("bar")),
+            "lorem" -> (() => benji("lorem")),
+            "ipsum" -> (() => benji("ipsum"))
+          )
+        ) {
           case (label, storage) =>
             s"for $label" in {
               System.setProperty("config.resource", "test3.conf")
@@ -140,12 +152,16 @@ final class PlaySpec extends org.specs2.mutable.Specification {
   private def configuredAppBuilder = {
     val env = play.api.Environment.simple(mode = play.api.Mode.Test)
     val config = play.api.Configuration.load(env)
-    val modules = config.getOptional[Seq[String]]("play.modules.enabled").
-      getOrElse(Seq.empty[String])
+    val modules = config
+      .getOptional[Seq[String]]("play.modules.enabled")
+      .getOrElse(Seq.empty[String])
 
-    new GuiceApplicationBuilder().
-      configure("play.modules.enabled" -> (modules :+
-        "play.modules.benji.BenjiModule")).build()
+    new GuiceApplicationBuilder()
+      .configure(
+        "play.modules.enabled" -> (modules :+
+          "play.modules.benji.BenjiModule")
+      )
+      .build()
   }
 }
 
@@ -154,17 +170,18 @@ import javax.inject.Inject
 class InjectDefault @Inject() (val storage: ObjectStorage)
 
 class InjectDefaultNamed @Inject() (
-  @NamedStorage("default") val storage: ObjectStorage)
+    @NamedStorage("default") val storage: ObjectStorage)
 
 class InjectFooNamed @Inject() (
-  @NamedStorage("foo") val storage: ObjectStorage)
+    @NamedStorage("foo") val storage: ObjectStorage)
 
 class InjectMultiple @Inject() (
-  val defaultStorage: ObjectStorage,
-  @NamedStorage("default") val namedDefault: ObjectStorage,
-  @NamedStorage("bar") val bar: ObjectStorage,
-  @NamedStorage("lorem") val lorem: ObjectStorage,
-  @NamedStorage("ipsum") val ipsum: ObjectStorage) {
+    val defaultStorage: ObjectStorage,
+    @NamedStorage("default") val namedDefault: ObjectStorage,
+    @NamedStorage("bar") val bar: ObjectStorage,
+    @NamedStorage("lorem") val lorem: ObjectStorage,
+    @NamedStorage("ipsum") val ipsum: ObjectStorage) {
+
   @inline def storages: Vector[ObjectStorage] =
     Vector(defaultStorage, namedDefault, bar, lorem, ipsum)
 }

@@ -30,11 +30,12 @@ import com.zengularity.benji.Compat.javaConverters._
  * @see https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html
  */
 private[s3] final class SignatureCalculatorV4(
-  accessKey: String,
-  secretKey: String,
-  awsRegion: String,
-  awsService: String = "s3") extends WSSignatureCalculator
-  with play.shaded.ahc.org.asynchttpclient.SignatureCalculator {
+    accessKey: String,
+    secretKey: String,
+    awsRegion: String,
+    awsService: String = "s3")
+    extends WSSignatureCalculator
+    with play.shaded.ahc.org.asynchttpclient.SignatureCalculator {
 
   val logger = org.slf4j.LoggerFactory.getLogger("com.zengularity.s3")
 
@@ -44,15 +45,20 @@ private[s3] final class SignatureCalculatorV4(
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
    */
-  override def calculateAndAddSignature(request: Request, requestBuilder: RequestBuilderBase[_]): Unit = {
+  override def calculateAndAddSignature(
+      request: Request,
+      requestBuilder: RequestBuilderBase[_]
+    ): Unit = {
     @inline def header(name: String): Option[String] =
       Option(request.getHeaders.get(name))
 
-    val awsDate = header("x-amz-date").
-      orElse(header("Date").map { rfcDate =>
-        LocalDateTime.parse(
-          rfcDate, RFC1123_DATE_TIME_FORMATTER).format(ISO_8601_FORMATTER)
-      }).getOrElse(ISO_8601_FORMATTER format Instant.now())
+    val awsDate = header("x-amz-date")
+      .orElse(header("Date").map { rfcDate =>
+        LocalDateTime
+          .parse(rfcDate, RFC1123_DATE_TIME_FORMATTER)
+          .format(ISO_8601_FORMATTER)
+      })
+      .getOrElse(ISO_8601_FORMATTER format Instant.now())
 
     val cscope = credentialScope(awsDate)
 
@@ -109,12 +115,16 @@ private[s3] final class SignatureCalculatorV4(
   // See https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
 
   def canonicalRequest(
-    request: Request,
-    awsDate: String,
-    hashedPayload: String): (String, String) = {
-    val (canoHeaders, signedHeaders) = canonicalHeaders(request, awsDate, hashedPayload)
+      request: Request,
+      awsDate: String,
+      hashedPayload: String
+    ): (String, String) = {
+    val (canoHeaders, signedHeaders) =
+      canonicalHeaders(request, awsDate, hashedPayload)
 
-    s"${request.getMethod}\n${canonicalUri(request)}\n${canonicalQueryString(request)}\n${canoHeaders}\n${signedHeaders}\n${hashedPayload}" -> signedHeaders
+    s"${request.getMethod}\n${canonicalUri(request)}\n${canonicalQueryString(
+      request
+    )}\n${canoHeaders}\n${signedHeaders}\n${hashedPayload}" -> signedHeaders
   }
 
   @inline def canonicalUri(request: Request): String = {
@@ -128,21 +138,28 @@ private[s3] final class SignatureCalculatorV4(
   }
 
   @inline def canonicalQueryString(request: Request): String =
-    request.getQueryParams.asScala.sortBy(_.getName).map { param =>
-      val value = param.getValue
+    request.getQueryParams.asScala
+      .sortBy(_.getName)
+      .map { param =>
+        val value = param.getValue
 
-      if (value == null) {
-        s"${param.getName}="
-      } else {
-        val v = value.replaceAll("\\+", "%20") // See QueryParameters
-        s"${param.getName}=$v"
+        if (value == null) {
+          s"${param.getName}="
+        } else {
+          val v = value.replaceAll("\\+", "%20") // See QueryParameters
+          s"${param.getName}=$v"
+        }
       }
-    }.mkString("&")
+      .mkString("&")
 
   /**
    * Returns the canonical headers, along with the name of the signed headers.
    */
-  def canonicalHeaders(request: Request, awsDate: String, hashedPayload: String): (String, String) = {
+  def canonicalHeaders(
+      request: Request,
+      awsDate: String,
+      hashedPayload: String
+    ): (String, String) = {
     val headers: HttpHeaders = request.getHeaders
     val it = {
       val hs = headers.entries.asScala.map { entry =>
@@ -163,14 +180,17 @@ private[s3] final class SignatureCalculatorV4(
     }
 
     val signed = List.newBuilder[String]
-    val canonical = it.sortBy(_._1).map {
-      case (name, v) =>
-        val value = v.trim.replaceAll("\\s+", " ")
+    val canonical = it
+      .sortBy(_._1)
+      .map {
+        case (name, v) =>
+          val value = v.trim.replaceAll("\\s+", " ")
 
-        signed += name
+          signed += name
 
-        s"${name}:${value}"
-    }.mkString("\n")
+          s"${name}:${value}"
+      }
+      .mkString("\n")
 
     s"${canonical}\n" -> signed.result().mkString(";")
   }
@@ -178,7 +198,12 @@ private[s3] final class SignatureCalculatorV4(
   // String-to-sign
   // See: https://docs.aws.amazon.com/general/latest/gr/sigv4-create-string-to-sign.html
 
-  def stringToSign(canoRequest: String, awsDate: String, credentialScope: String): String = s"AWS4-HMAC-SHA256\n${awsDate}\n${credentialScope}\n${DigestUtils sha256Hex canoRequest}"
+  def stringToSign(
+      canoRequest: String,
+      awsDate: String,
+      credentialScope: String
+    ): String =
+    s"AWS4-HMAC-SHA256\n${awsDate}\n${credentialScope}\n${DigestUtils sha256Hex canoRequest}"
 
   @inline def credentialScope(awsDate: String): String =
     s"${awsDate take 8}/${awsRegion}/${awsService}/aws4_request"
@@ -213,9 +238,11 @@ private[s3] final class SignatureCalculatorV4(
   // See: https://docs.aws.amazon.com/general/latest/gr/sigv4-add-signature-to-request.html
 
   def authorizationHeader(
-    credentialScope: String,
-    signedHeaders: String,
-    signature: String): String = s"AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}"
+      credentialScope: String,
+      signedHeaders: String,
+      signature: String
+    ): String =
+    s"AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}"
 
   // ---
 
@@ -224,11 +251,15 @@ private[s3] final class SignatureCalculatorV4(
    * will be applied on the current date time to set a new header value.
    */
   private lazy val RFC1123_DATE_TIME_FORMATTER =
-    DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z").
-      withLocale(java.util.Locale.US).withZone(ZoneOffset.UTC)
+    DateTimeFormatter
+      .ofPattern("EEE, dd MMM yyyy HH:mm:ss Z")
+      .withLocale(java.util.Locale.US)
+      .withZone(ZoneOffset.UTC)
 
   private lazy val ISO_8601_FORMATTER =
-    DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").
-      withLocale(java.util.Locale.US).withZone(ZoneOffset.UTC)
+    DateTimeFormatter
+      .ofPattern("yyyyMMdd'T'HHmmss'Z'")
+      .withLocale(java.util.Locale.US)
+      .withZone(ZoneOffset.UTC)
 
 }

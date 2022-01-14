@@ -31,7 +31,13 @@ object TestUtils {
   implicit lazy val ws: play.api.libs.ws.ahc.StandaloneAhcWSClient =
     WS.client()(materializer)
 
-  def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
+  def withMatEx[T](
+      f: org.specs2.concurrent.ExecutionEnv => T
+    )(implicit
+      m: Materializer
+    ): T = f(
+    org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext)
+  )
 
   lazy val configUri: String = {
     val projectId = config.getString("google.storage.projectId")
@@ -53,10 +59,14 @@ object TestUtils {
     implicit def m: Materializer = materializer
     implicit def ec: ExecutionContext = m.executionContext
 
-    def storageCleanup(st: ObjectStorage) = st.buckets.collect[List]().flatMap(bs =>
-      Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
-        st.bucket(b.name).delete.recursive()
-      })).map(_ => {})
+    def storageCleanup(st: ObjectStorage) = st.buckets
+      .collect[List]()
+      .flatMap(bs =>
+        Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
+          st.bucket(b.name).delete.recursive()
+        })
+      )
+      .map(_ => {})
 
     try {
       Await.result(storageCleanup(google), Duration("30s"))
@@ -66,7 +76,8 @@ object TestUtils {
 
     system.terminate()
 
-    try { ws.close() } catch {
+    try { ws.close() }
+    catch {
       case e: Throwable => logger.warn("fails to close WS", e)
     }
   }

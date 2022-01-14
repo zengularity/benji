@@ -16,13 +16,11 @@ object Common extends AutoPlugin {
       "-unchecked",
       "-deprecation",
       "-feature",
-      "-Xfatal-warnings"),
+      "-Xfatal-warnings"
+    ),
     scalacOptions ++= {
       if (scalaBinaryVersion.value startsWith "2.") {
-        Seq(
-          "-target:jvm-1.8",
-          "-Xlint",
-          "-g:vars")
+        Seq("-target:jvm-1.8", "-Xlint", "-g:vars")
       } else Seq()
     },
     scalacOptions ++= {
@@ -38,7 +36,8 @@ object Common extends AutoPlugin {
           "-Ywarn-infer-any",
           "-Ywarn-unused",
           "-Ywarn-unused-import",
-          "-Ywarn-macros:after")
+          "-Ywarn-macros:after"
+        )
       } else if (sv == "2.11") {
         Seq(
           "-Xmax-classfile-name",
@@ -46,7 +45,8 @@ object Common extends AutoPlugin {
           "-Yopt:_",
           "-Ydead-code",
           "-Yclosure-elim",
-          "-Yconst-opt")
+          "-Yconst-opt"
+        )
       } else if (sv == "2.13") {
         Seq(
           "-explaintypes",
@@ -56,17 +56,20 @@ object Common extends AutoPlugin {
           "-Wvalue-discard",
           "-Wextra-implicit",
           "-Wmacros:after",
-          "-Wunused")
+          "-Wunused"
+        )
       } else {
         Seq(
           "-Wunused:all",
           "-language:implicitConversions",
-          "-Wconf:cat=deprecation&msg=.*fromFuture.*:s")
+          "-Wconf:cat=deprecation&msg=.*fromFuture.*:s"
+        )
       }
     },
     Compile / console / scalacOptions ~= {
       _.filterNot(o =>
-        o.startsWith("-X") || o.startsWith("-Y") || o.startsWith("-P:silencer"))
+        o.startsWith("-X") || o.startsWith("-Y") || o.startsWith("-P:silencer")
+      )
     },
     Compile / doc / scalacOptions ~= {
       _.filterNot { opt =>
@@ -91,49 +94,56 @@ object Common extends AutoPlugin {
         Seq(
           compilerPlugin(
             ("com.github.ghik" %% "silencer-plugin" % silencerVersion)
-              .cross(CrossVersion.full)),
+              .cross(CrossVersion.full)
+          ),
           ("com.github.ghik" %% "silencer-lib" % silencerVersion % Provided)
-            .cross(CrossVersion.full))
+            .cross(CrossVersion.full)
+        )
       } else Seq.empty
     },
     libraryDependencies ++= Dependencies.wsStream.value ++ Seq(
-      "specs2-core", "specs2-junit").map(d => {
-        ("org.specs2" %% d % "4.10.6").cross(CrossVersion.for3Use2_13) % Test
-      }) ++ Seq(
-        "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
-        "com.typesafe.akka" %% "akka-slf4j" % akkaVer.value,
-        "ch.qos.logback" % "logback-classic" % "1.2.11").map(_ % Test),
+      "specs2-core",
+      "specs2-junit"
+    ).map(d => {
+      ("org.specs2" %% d % "4.10.6").cross(CrossVersion.for3Use2_13) % Test
+    }) ++ Seq(
+      "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
+      "com.typesafe.akka" %% "akka-slf4j" % akkaVer.value,
+      "ch.qos.logback" % "logback-classic" % "1.2.10"
+    ).map(_ % Test),
     Compile / compile / javacOptions ++= Seq(
-      "-source", "1.8", "-target", "1.8"),
-    Compile / console / scalacOptions ~= {
-      _.filterNot { opt => opt.startsWith("-X") || opt.startsWith("-Y") }
-    },
-    Test / console / scalacOptions ~= {
-      _.filterNot { opt => opt.startsWith("-X") || opt.startsWith("-Y") }
-    },
-    Compile / doc / scalacOptions ~= {
-      _.filterNot { opt =>
-        opt.startsWith("-X") || opt.startsWith("-Y") || opt.startsWith("-P")
-      }
-    },
-    Test / scalacOptions ++= Seq("-Yrangepos"),
+      "-source",
+      "1.8",
+      "-target",
+      "1.8"
+    ),
     Compile / unmanagedSourceDirectories += {
       val base = (Compile / sourceDirectory).value
 
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n < 13 => base / "scala-2.13-"
-        case _ => base / "scala-2.13+"
+        case _                      => base / "scala-2.13+"
       }
     },
     Test / fork := true,
     ThisBuild / mimaFailOnNoPrevious := false,
-    mimaPreviousArtifacts := Set( /* organization.value %% name.value % previousRelease */ ),
+    mimaPreviousArtifacts := Set(
+      /* organization.value %% name.value % previousRelease */
+    ),
     autoAPIMappings := true,
-    apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")("scala-library").value) ++ Wart.settings ++ Publish.settings
+    apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")(
+      "scala-library"
+    ).value
+  ) ++ Wart.settings ++ Publish.settings
 
   // ---
 
-  def mappings(org: String, location: String, revision: String => String = identity)(names: String*) = Def.task[Map[File, URL]] {
+  def mappings(
+      org: String,
+      location: String,
+      revision: String => String = identity
+    )(names: String*
+    ) = Def.task[Map[File, URL]] {
     (for {
       entry: Attributed[File] <- (Compile / fullClasspath).value
       module: ModuleID <- entry.get(moduleID.key)
@@ -144,16 +154,20 @@ object Common extends AutoPlugin {
   }
 
   import scala.xml.{ Elem => XmlElem, Node => XmlNode }
-  def transformPomDependencies(tx: XmlElem => Option[XmlNode]): XmlNode => XmlNode = { node: XmlNode =>
+
+  def transformPomDependencies(
+      tx: XmlElem => Option[XmlNode]
+    ): XmlNode => XmlNode = { node: XmlNode =>
     import scala.xml.{ NodeSeq, XML }
     import scala.xml.transform.{ RewriteRule, RuleTransformer }
 
     val tr = new RuleTransformer(new RewriteRule {
       override def transform(node: XmlNode): NodeSeq = node match {
-        case e: XmlElem if e.label == "dependency" => tx(e) match {
-          case Some(n) => n
-          case _ => NodeSeq.Empty
-        }
+        case e: XmlElem if e.label == "dependency" =>
+          tx(e) match {
+            case Some(n) => n
+            case _       => NodeSeq.Empty
+          }
 
         case _ => node
       }
@@ -161,12 +175,13 @@ object Common extends AutoPlugin {
 
     tr.transform(node).headOption match {
       case Some(transformed) => transformed
-      case _ => sys.error("Fails to transform the POM")
+      case _                 => sys.error("Fails to transform the POM")
     }
   }
 }
 
 object Dependencies {
+
   object Version {
     val playWS = sys.env.getOrElse("WS_VERSION", "2.0.8") // upper 2.0.6
 
@@ -198,33 +213,36 @@ object Dependencies {
     }
   }
 
-  val playWS = ("com.typesafe.play" %% "play-ws-standalone" % Version.playWS).
-    cross(CrossVersion.for3Use2_13).
-    exclude("org.scala-lang.modules", "*").
-    exclude("com.typesafe.akka", "*").
-    exclude("com.typesafe.play", "*")
+  val playWS = ("com.typesafe.play" %% "play-ws-standalone" % Version.playWS)
+    .cross(CrossVersion.for3Use2_13)
+    .exclude("org.scala-lang.modules", "*")
+    .exclude("com.typesafe.akka", "*")
+    .exclude("com.typesafe.play", "*")
 
   lazy val wsStream = Def.setting[Seq[ModuleID]] {
     Seq(
       playWS % Provided,
-      "com.typesafe.akka" %% "akka-stream" % Version.akka.value % Provided)
+      "com.typesafe.akka" %% "akka-stream" % Version.akka.value % Provided
+    )
   }
 
-  val playAhcWS = (
-    "com.typesafe.play" %% "play-ahc-ws-standalone" % Version.playWS).
-    cross(CrossVersion.for3Use2_13).
-    exclude("org.scala-lang.modules", "*").
-    exclude("com.typesafe.akka", "*").
-    exclude("com.typesafe.play", "*")
+  val playAhcWS =
+    ("com.typesafe.play" %% "play-ahc-ws-standalone" % Version.playWS)
+      .cross(CrossVersion.for3Use2_13)
+      .exclude("org.scala-lang.modules", "*")
+      .exclude("com.typesafe.akka", "*")
+      .exclude("com.typesafe.play", "*")
 
-  val playWSJson = (
-    "com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS).
-    cross(CrossVersion.for3Use2_13).
-    exclude("org.scala-lang.modules", "*").
-    exclude("com.typesafe.akka", "*").
-    exclude("com.typesafe.play", "*")
+  val playWSJson =
+    ("com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS)
+      .cross(CrossVersion.for3Use2_13)
+      .exclude("org.scala-lang.modules", "*")
+      .exclude("com.typesafe.akka", "*")
+      .exclude("com.typesafe.play", "*")
 
-  val playWSXml = ("com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS).cross(CrossVersion.for3Use2_13)
+  val playWSXml =
+    ("com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS)
+      .cross(CrossVersion.for3Use2_13)
 
   val slf4jApi = "org.slf4j" % "slf4j-api" % "1.7.36"
 }

@@ -18,7 +18,9 @@ class WSS3Spec extends Specification {
   "Factory using URI" should {
     "succeed" >> {
       "when given a proper uri as String" in {
-        S3("s3:http://accessKey:secretKey@host/?style=path") must beSuccessfulTry
+        S3(
+          "s3:http://accessKey:secretKey@host/?style=path"
+        ) must beSuccessfulTry
       }
 
       "when given a proper uri as URI" in {
@@ -34,19 +36,21 @@ class WSS3Spec extends Specification {
       }
 
       "when given a proper uri with virtual domain style and region" in {
-        val uri = "s3:http://accessKey:secretKey@domain.host/?style=virtualHost&awsRegion=foo"
+        val uri =
+          "s3:http://accessKey:secretKey@domain.host/?style=virtualHost&awsRegion=foo"
 
         S3(uri) must beSuccessfulTry
       }
 
       "with request timeout in URI" in {
-        val uri = new URI(
-          "s3:http://foo:bar@host/?style=path&requestTimeout=12")
+        val uri =
+          new URI("s3:http://foo:bar@host/?style=path&requestTimeout=12")
 
         S3(uri) must beSuccessfulTry[WSS3].like {
-          case storage => storage.requestTimeout must beSome[Long].which {
-            _ aka "request timeout" must_=== 12L
-          }
+          case storage =>
+            storage.requestTimeout must beSome[Long].which {
+              _ aka "request timeout" must_=== 12L
+            }
         }
       }
     }
@@ -68,7 +72,8 @@ class WSS3Spec extends Specification {
       }
 
       "without scheme prefix" in {
-        S3("http://accessKey:secretKey@host/?style=path") must beFailedTry.withThrowable[IllegalArgumentException]
+        S3("http://accessKey:secretKey@host/?style=path") must beFailedTry
+          .withThrowable[IllegalArgumentException]
       }
 
       "when given a uri with an incorrect style" in {
@@ -78,7 +83,8 @@ class WSS3Spec extends Specification {
       }
 
       "when region is given without virtualhost style" in {
-        val uri = "s3:http://accessKey:secretKey@domain.host/?style=path&awsRegion=foo"
+        val uri =
+          "s3:http://accessKey:secretKey@domain.host/?style=path&awsRegion=foo"
 
         S3(uri) must beFailedTry.withThrowable[IllegalArgumentException]
       }
@@ -90,11 +96,12 @@ class WSS3Spec extends Specification {
       }
 
       "with invalid request timeout in URI" in {
-        val uri = new URI(
-          "s3:http://foo:bar@host/?style=path&requestTimeout=AB")
+        val uri =
+          new URI("s3:http://foo:bar@host/?style=path&requestTimeout=AB")
 
         S3(uri) must beFailedTry[WSS3].withThrowable[IllegalArgumentException](
-          "Invalid request timeout parameter in URI: AB")
+          "Invalid request timeout parameter in URI: AB"
+        )
       }
     }
   }

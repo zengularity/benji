@@ -15,8 +15,9 @@ import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 import org.specs2.concurrent.ExecutionEnv
 
 final class GoogleStorageSpec(implicit ee: ExecutionEnv)
-  extends org.specs2.mutable.Specification
-  with StorageCommonSpec with VersioningCommonSpec {
+    extends org.specs2.mutable.Specification
+    with StorageCommonSpec
+    with VersioningCommonSpec {
 
   import TestUtils.google
   import tests.benji.StreamUtils._
@@ -37,8 +38,8 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
     lazy val gbucket = google.bucket(bucketName)
 
     s"Create another bucket $bucketName" in {
-      gbucket.create(failsIfExists = true) must beTypedEqualTo({}).
-        await(0, 5.seconds)
+      gbucket.create(failsIfExists = true) must beTypedEqualTo({})
+        .await(0, 5.seconds)
     }
 
     val objName = "testfile.txt"
@@ -56,20 +57,23 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
       }
 
       def body = fileStart.getBytes("UTF-8") ++ Array.fill(
-        GoogleObjectRef.defaultThreshold.bytes.toInt - 3)(
-          nextByte) ++ "XXX".getBytes("UTF-8")
+        GoogleObjectRef.defaultThreshold.bytes.toInt - 3
+      )(nextByte) ++ "XXX".getBytes("UTF-8")
 
       type PutReq = filetest.RESTPutRequest[Array[Byte], Unit]
 
       filetest.put[Array[Byte], Unit] must beLike[PutReq] {
         case req =>
-          val upload = req({}, metadata = Map("foo" -> "bar"))(
-            (_, _) => Future.successful({}))
+          val upload = req({}, metadata = Map("foo" -> "bar"))((_, _) =>
+            Future.successful({})
+          )
 
-          (repeat(partCount - 1)(body).++(Source.single(
-            body.drop(10) ++ "ZZZ".getBytes("UTF-8"))) runWith upload).
-            flatMap { _ => filetest.exists } must beTrue.
-            await(1, 10.seconds)
+          (repeat(partCount - 1)(body).++(
+            Source.single(body.drop(10) ++ "ZZZ".getBytes("UTF-8"))
+          ) runWith upload).flatMap { _ => filetest.exists } must beTrue.await(
+            1,
+            10.seconds
+          )
       }
     }
 
@@ -90,11 +94,14 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
         val put = file1.put[Array[Byte]]
         val body = List.fill(1000)("qwerty").mkString(" ").getBytes("UTF-8")
 
-        { repeat(20) { body } runWith put }.flatMap(_ => file1.exists).
-          aka("file1 exists") must beTrue.await(1, 10.seconds)
+        { repeat(20) { body } runWith put }
+          .flatMap(_ => file1.exists)
+          .aka("file1 exists") must beTrue.await(1, 10.seconds)
       } and {
-        file1.copyTo(file2).flatMap(_ => file2.exists) must beTrue.
-          await(1, 10.seconds)
+        file1.copyTo(file2).flatMap(_ => file2.exists) must beTrue.await(
+          1,
+          10.seconds
+        )
       } and {
         (for {
           _ <- Future.sequence(Seq(file1.delete(), file2.delete()))
@@ -106,13 +113,16 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
 
     "Use correct toString format" >> {
       "on bucket" in {
-        google.bucket("bucketName").
-          toString must_== "GoogleBucketRef(bucketName)"
+        google
+          .bucket("bucketName")
+          .toString must_== "GoogleBucketRef(bucketName)"
       }
 
       "on object" in {
-        google.bucket("bucketName").obj("objectName").
-          toString must_== "GoogleObjectRef(bucketName, objectName)"
+        google
+          .bucket("bucketName")
+          .obj("objectName")
+          .toString must_== "GoogleObjectRef(bucketName, objectName)"
       }
     }
   }

@@ -10,6 +10,7 @@ import com.zengularity.benji.ObjectStorage
 
 /** Benji components contract */
 trait BenjiComponents {
+
   /** The instance name (default: `default`) */
   def name: String
 
@@ -48,6 +49,7 @@ trait BenjiComponents {
  * }}}
  */
 trait BenjiComponentsWithInjector extends BenjiComponents {
+
   /** The injector used to resolve the storage dependencies */
   def benjiInjector: com.zengularity.benji.spi.Injector
 

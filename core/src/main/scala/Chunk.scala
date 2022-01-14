@@ -8,6 +8,7 @@ import akka.util.ByteString
 
 /** Chunk data and state representation. */
 sealed trait Chunk {
+
   /** The binary data */
   def data: ByteString
 
@@ -19,6 +20,7 @@ sealed trait Chunk {
 }
 
 object Chunk {
+
   /** Returns a non-empty chunk (not in final position). */
   def apply(data: ByteString): Chunk = new NonEmpty(data)
 
@@ -31,15 +33,16 @@ object Chunk {
 
     override def equals(that: Any): Boolean = that match {
       case NonEmpty(other) => data.equals(other)
-      case _ => false
+      case _               => false
     }
   }
 
   /** Companion and extractors. */
   object NonEmpty {
+
     def unapply(that: Any): Option[ByteString] = that match {
       case c: NonEmpty => Some(c.data)
-      case _ => None
+      case _           => None
     }
   }
 
@@ -49,15 +52,16 @@ object Chunk {
 
     override def equals(that: Any): Boolean = that match {
       case Last(bytes) => data.equals(bytes)
-      case _ => false
+      case _           => false
     }
   }
 
   /** Companion and extractors. */
   object Last {
+
     def unapply(that: Any): Option[ByteString] = that match {
       case last: Last => Some(last.data)
-      case _ => None
+      case _          => None
     }
   }
 }

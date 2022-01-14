@@ -23,7 +23,11 @@ import com.zengularity.benji.URIProvider
 /**
  * @param fsManager the VFS manager
  */
-final class VFSTransport(val fsManager: FileSystemManager, _close: () => Unit = () => ()) extends java.io.Closeable {
+final class VFSTransport(
+    val fsManager: FileSystemManager,
+    _close: () => Unit = () => ())
+    extends java.io.Closeable {
+
   def close(): Unit = {
     _close()
   }
@@ -50,7 +54,8 @@ object VFSTransport {
    * implicit def vfsTransport = VFSTransport(fsManager)
    * }}}
    */
-  def apply(fsManager: FileSystemManager = VFS.getManager()): VFSTransport = new VFSTransport(fsManager)
+  def apply(fsManager: FileSystemManager = VFS.getManager()): VFSTransport =
+    new VFSTransport(fsManager)
 
   /**
    * Tries to create a VFSTransport from an URI using the following format:
@@ -74,7 +79,11 @@ object VFSTransport {
    * @return Success if the VFSTransport was properly created, otherwise Failure
    */
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  def apply[T](config: T)(implicit provider: URIProvider[T]): Try[VFSTransport] =
+  def apply[T](
+      config: T
+    )(implicit
+      provider: URIProvider[T]
+    ): Try[VFSTransport] =
     provider(config).flatMap { builtUri =>
       if (builtUri == null) {
         throw new IllegalArgumentException("URI provider returned a null URI")
@@ -83,7 +92,9 @@ object VFSTransport {
       // URI object fails to parse properly with scheme like "vfs:http"
       // So we check for "vfs" scheme and then recreate an URI without it
       if (builtUri.getScheme != "vfs") {
-        throw new IllegalArgumentException("Expected URI with scheme containing \"vfs:\"")
+        throw new IllegalArgumentException(
+          "Expected URI with scheme containing \"vfs:\""
+        )
       }
 
       val uri = new URI(builtUri.getSchemeSpecificPart)
@@ -97,7 +108,9 @@ object VFSTransport {
         val scheme = uri.getScheme
 
         if (!mngr.hasProvider(scheme)) {
-          throw new IllegalArgumentException(s"Unsupported VFS scheme : $scheme")
+          throw new IllegalArgumentException(
+            s"Unsupported VFS scheme : $scheme"
+          )
         }
 
         mngr.setBaseFile(mngr.resolveFile(uri))

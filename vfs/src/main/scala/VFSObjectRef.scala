@@ -26,13 +26,25 @@ import play.api.libs.json.Json
 import play.api.libs.ws.BodyWritable
 
 import com.github.ghik.silencer.silent
-import com.zengularity.benji.{ ByteRange, Bytes, Chunk, Compat, ObjectRef, ObjectVersioning, Streams }
-import com.zengularity.benji.exception.{ BucketNotFoundException, ObjectNotFoundException }
+import com.zengularity.benji.{
+  ByteRange,
+  Bytes,
+  Chunk,
+  Compat,
+  ObjectRef,
+  ObjectVersioning,
+  Streams
+}
+import com.zengularity.benji.exception.{
+  BucketNotFoundException,
+  ObjectNotFoundException
+}
 
 final class VFSObjectRef private[vfs] (
-  storage: VFSStorage,
-  val bucket: String,
-  val name: String) extends ObjectRef { ref =>
+    storage: VFSStorage,
+    val bucket: String,
+    val name: String)
+    extends ObjectRef { ref =>
 
   private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
   val defaultThreshold = VFSObjectRef.defaultThreshold
@@ -42,7 +54,10 @@ final class VFSObjectRef private[vfs] (
   def exists(implicit ec: ExecutionContext): Future[Boolean] =
     Future(file.exists)
 
-  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = {
+  def headers(
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Map[String, Seq[String]]] = {
     Future {
       metadataFile.exists()
     }.flatMap { exists =>
@@ -70,14 +85,17 @@ final class VFSObjectRef private[vfs] (
             Future.successful(Map.empty[String, Seq[String]])
 
           case false =>
-            Future.failed[Map[String, Seq[String]]](
-              ObjectNotFoundException(ref))
+            Future
+              .failed[Map[String, Seq[String]]](ObjectNotFoundException(ref))
         }
       }
     }
   }
 
-  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]] = headers()
+  def metadata(
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Map[String, Seq[String]]] = headers()
 
   val get: GetRequest = new VFSGetRequest()
 
@@ -85,24 +103,36 @@ final class VFSObjectRef private[vfs] (
 
   def delete: DeleteRequest = VFSDeleteRequest()
 
-  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext): Future[Unit] = {
-    def target = transport.fsManager.resolveFile(
-      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
+  def moveTo(
+      targetBucketName: String,
+      targetObjectName: String,
+      preventOverwrite: Boolean
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Unit] = {
+    def target = transport.fsManager
+      .resolveFile(s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
 
     def targetMetadata = transport.fsManager.resolveFile(
-      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName.metadata")
+      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName.metadata"
+    )
 
     lazy val targetObj = storage.bucket(targetBucketName).obj(targetObjectName)
 
     for {
       _ <- {
         if (!preventOverwrite) Future.successful({})
-        else targetObj.exists.flatMap {
-          case true => Future.failed[Unit](new IllegalStateException(
-            s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"))
+        else
+          targetObj.exists.flatMap {
+            case true =>
+              Future.failed[Unit](
+                new IllegalStateException(
+                  s"Could not move $bucket/$name: target $targetBucketName/$targetObjectName already exists"
+                )
+              )
 
-          case _ => Future.successful({})
-        }
+            case _ => Future.successful({})
+          }
       }
       _ <- Future {
         file.moveTo(target)
@@ -114,12 +144,18 @@ final class VFSObjectRef private[vfs] (
 
   private val copySelector = new FileTypeSelector(FileType.FILE)
 
-  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit] = {
-    def target = transport.fsManager.resolveFile(
-      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
+  def copyTo(
+      targetBucketName: String,
+      targetObjectName: String
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Unit] = {
+    def target = transport.fsManager
+      .resolveFile(s"$targetBucketName${FileName.SEPARATOR}$targetObjectName")
 
     def targetMetadata = transport.fsManager.resolveFile(
-      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName.metadata")
+      s"$targetBucketName${FileName.SEPARATOR}$targetObjectName.metadata"
+    )
 
     Future {
       target.copyFrom(file, copySelector)
@@ -133,7 +169,9 @@ final class VFSObjectRef private[vfs] (
     transport.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name")
 
   @inline private def metadataFile =
-    transport.fsManager.resolveFile(s"$bucket${FileName.SEPARATOR}$name.metadata")
+    transport.fsManager.resolveFile(
+      s"$bucket${FileName.SEPARATOR}$name.metadata"
+    )
 
   def versioning: Option[ObjectVersioning] = None
 
@@ -153,8 +191,13 @@ final class VFSObjectRef private[vfs] (
   // ---
 
   private[vfs] final class VFSGetRequest() extends GetRequest {
+
     @silent(".*fromFuture.*")
-    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed] = {
+    def apply(
+        range: Option[ByteRange] = None
+      )(implicit
+        m: Materializer
+      ): Source[ByteString, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       @SuppressWarnings(Array("org.wartremover.warts.Throw"))
@@ -164,7 +207,8 @@ final class VFSObjectRef private[vfs] (
         range.fold[java.io.InputStream](st) { r =>
           if (st.skip(r.start) != r.start) {
             throw new IllegalStateException(
-              s"fails to position at offset: ${r.start.toString}")
+              s"fails to position at offset: ${r.start.toString}"
+            )
 
           } else {
             val sz = (r.end - r.start + 1).toInt
@@ -174,23 +218,35 @@ final class VFSObjectRef private[vfs] (
         }
       }
 
-      Source.fromFuture(in.map(s => StreamConverters.fromInputStream(() => s)).
-        recoverWith {
-          case reason: FileNotFoundException =>
-            logger.info(s"Could not get the contents of the object $name in the bucket $bucket: ${reason.toString}")
+      Source
+        .fromFuture(
+          in.map(s => StreamConverters.fromInputStream(() => s)).recoverWith {
+            case reason: FileNotFoundException =>
+              logger.info(s"Could not get the contents of the object $name in the bucket $bucket: ${reason.toString}")
 
-            Future.failed[Source[ByteString, NotUsed]](
-              ObjectNotFoundException(ref))
+              Future.failed[Source[ByteString, NotUsed]](
+                ObjectNotFoundException(ref)
+              )
 
-        }).flatMapMerge(1, identity)
+          }
+        )
+        .flatMapMerge(1, identity)
     }
   }
 
-  private[vfs] final class RESTPutRequest[E, A]()
-    extends ref.PutRequest[E, A] {
+  private[vfs] final class RESTPutRequest[E, A]() extends ref.PutRequest[E, A] {
 
     @silent(".*fromFuture.*")
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = {
+    def apply(
+        z: => A,
+        threshold: Bytes = defaultThreshold,
+        size: Option[Long] = None,
+        metadata: Map[String, String]
+      )(f: (A, Chunk) => Future[A]
+      )(implicit
+        m: Materializer,
+        w: BodyWritable[E]
+      ): Sink[E, Future[A]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       def writeMetadata(): Try[Unit] = {
@@ -211,7 +267,11 @@ final class VFSObjectRef private[vfs] (
             try {
               out.close()
             } catch {
-              case NonFatal(err) => logger.warn(s"Fails to close outputstream, ${err.getMessage}", err)
+              case NonFatal(err) =>
+                logger.warn(
+                  s"Fails to close outputstream, ${err.getMessage}",
+                  err
+                )
             }
           }
         }
@@ -221,27 +281,36 @@ final class VFSObjectRef private[vfs] (
         lazy val of = file
         lazy val st = of.getContent.getOutputStream
 
-        @SuppressWarnings(Array("org.wartremover.warts.Var" /* local, volatile*/ ))
+        @SuppressWarnings(
+          Array("org.wartremover.warts.Var" /* local, volatile*/ )
+        )
         @volatile var closed = false
 
-        Streams.chunker[E].via(Streams.consumeAtMost(threshold)).via(
-          Flow.apply[Chunk].foldAsync[A](z) { (a, chunk) =>
+        Streams
+          .chunker[E]
+          .via(Streams.consumeAtMost(threshold))
+          .via(Flow.apply[Chunk].foldAsync[A](z) { (a, chunk) =>
             Future[Chunk] {
               st.write(chunk.data.toArray)
               st.flush()
 
               chunk
             }.flatMap(f(a, _))
-          }).map { a =>
+          })
+          .map { a =>
             of.close()
             closed = true
             a
-          }.recoverWithRetries(3, {
-            case reason if !closed =>
-              of.close()
-              Source.failed[A](reason)
+          }
+          .recoverWithRetries(
+            3,
+            {
+              case reason if !closed =>
+                of.close()
+                Source.failed[A](reason)
 
-          })
+            }
+          )
       }
 
       val flow = Flow[E].flatMapConcat { entry =>
@@ -260,7 +329,9 @@ final class VFSObjectRef private[vfs] (
     }
   }
 
-  private case class VFSDeleteRequest(ignoreExists: Boolean = false) extends DeleteRequest {
+  private case class VFSDeleteRequest(ignoreExists: Boolean = false)
+      extends DeleteRequest {
+
     def apply()(implicit ec: ExecutionContext): Future[Unit] = {
       Future {
         metadataFile.delete()
@@ -279,6 +350,7 @@ final class VFSObjectRef private[vfs] (
 }
 
 object VFSObjectRef {
+
   /** The default threshold */
   def defaultThreshold: Bytes = Bytes(8192L)
 }

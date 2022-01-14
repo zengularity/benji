@@ -33,8 +33,10 @@ import play.api.libs.ws.ahc.StandaloneAhcWSClient
  * @param name the name of the Benji configuration to be used
  */
 abstract class BenjiFromContext(
-  context: ApplicationLoader.Context,
-  val name: String) extends BuiltInComponentsFromContext(context) with BenjiComponentsWithInjector {
+    context: ApplicationLoader.Context,
+    val name: String)
+    extends BuiltInComponentsFromContext(context)
+    with BenjiComponentsWithInjector {
 
   /**
    * Initializes Benji components from context using the default configuration.
@@ -60,6 +62,7 @@ abstract class BenjiFromContext(
     }
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  lazy val parsedUri: URI = parsed.getOrElse(throw configuration.globalError(
-    s"Missing Benji configuration for '$name'"))
+  lazy val parsedUri: URI = parsed.getOrElse(
+    throw configuration.globalError(s"Missing Benji configuration for '$name'")
+  )
 }

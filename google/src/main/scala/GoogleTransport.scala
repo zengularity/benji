@@ -15,7 +15,13 @@ import scala.concurrent.duration._
 import akka.NotUsed
 
 import akka.stream.{ Materializer, OverflowStrategy, QueueOfferResult }
-import akka.stream.scaladsl.{ Flow, Keep, Sink, Source, SourceQueueWithComplete }
+import akka.stream.scaladsl.{
+  Flow,
+  Keep,
+  Sink,
+  Source,
+  SourceQueueWithComplete
+}
 
 import play.api.libs.ws.StandaloneWSRequest
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
@@ -46,14 +52,14 @@ import Compat.javaConverters._
  * @param disableGZip if true, disables the GZip compression for upload and download (default: false)
  */
 final class GoogleTransport(
-  credential: => GoogleCredentials,
-  val projectId: String,
-  builder: GoogleCredentials => Storage,
-  ws: StandaloneAhcWSClient,
-  baseRestUrl: String,
-  servicePath: String,
-  val requestTimeout: Option[Long] = None,
-  val disableGZip: Boolean = false) {
+    credential: => GoogleCredentials,
+    val projectId: String,
+    builder: GoogleCredentials => Storage,
+    ws: StandaloneAhcWSClient,
+    baseRestUrl: String,
+    servicePath: String,
+    val requestTimeout: Option[Long] = None,
+    val disableGZip: Boolean = false) {
 
   private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
 
@@ -71,50 +77,74 @@ final class GoogleTransport(
   private[google] def withProjectId(id: String) =
     new GoogleTransport(cred, id, builder, ws, servicePath, baseRestUrl)
 
-  private[google] def accessToken()(implicit ec: ExecutionContext): Future[String] = {
+  private[google] def accessToken(
+    )(implicit
+      ec: ExecutionContext
+    ): Future[String] = {
     val accessTok = cred.getAccessToken()
 
-    if (accessTok != null && {
-      // TODO: Use requestTimeout?
-      val expiration = Option(accessTok.getExpirationTime).map(_.getTime)
+    if (
+      accessTok != null && {
+        // TODO: Use requestTimeout?
+        val expiration = Option(accessTok.getExpirationTime).map(_.getTime)
 
-      expiration.forall(_ > (System.currentTimeMillis() + 2000L /*2s*/ ))
-    }) {
+        expiration.forall(_ > (System.currentTimeMillis() + 2000L /*2s*/ ))
+      }
+    ) {
       logger.trace("Google Access Token acquired")
       Future.successful(accessTok.getTokenValue)
-    } else Future {
-      cred.refresh()
+    } else
+      Future {
+        cred.refresh()
 
-      Option(cred.getAccessToken().getTokenValue)
-    }.flatMap {
-      case Some(token) => {
-        logger.trace(s"Google Access Token refreshed: $token")
-        Future.successful(token)
+        Option(cred.getAccessToken().getTokenValue)
+      }.flatMap {
+        case Some(token) => {
+          logger.trace(s"Google Access Token refreshed: $token")
+          Future.successful(token)
+        }
+
+        case _ =>
+          Future.failed[String](
+            new scala.RuntimeException(s"fails to get access token: $projectId")
+          )
+
       }
-
-      case _ => Future.failed[String](new scala.RuntimeException(
-        s"fails to get access token: $projectId"))
-
-    }
   }
 
   /**
    * @param service the service name (e.g. `upload`)
    * @param path a path (after the base REST URL)
    */
-  private[google] def withWSRequest1[T](service: String, path: String)(f: StandaloneWSRequest => Future[T])(implicit ec: ExecutionContext): Future[T] = withWSRequest2(s"$baseRestUrl$service/$servicePath$path") { req =>
-    f(req.addHttpHeaders("Content-Type" -> "application/json; charset=UTF-8"))
-  }
+  private[google] def withWSRequest1[T](
+      service: String,
+      path: String
+    )(f: StandaloneWSRequest => Future[T]
+    )(implicit
+      ec: ExecutionContext
+    ): Future[T] =
+    withWSRequest2(s"$baseRestUrl$service/$servicePath$path") { req =>
+      f(req.addHttpHeaders("Content-Type" -> "application/json; charset=UTF-8"))
+    }
 
   /**
    * @param url the full URL to be requested
    */
-  private[google] def withWSRequest2[T](url: String)(f: StandaloneWSRequest => Future[T])(implicit ec: ExecutionContext): Future[T] = {
+  private[google] def withWSRequest2[T](
+      url: String
+    )(f: StandaloneWSRequest => Future[T]
+    )(implicit
+      ec: ExecutionContext
+    ): Future[T] = {
     accessToken().flatMap { token =>
       logger.trace(s"Prepare WS request: $url")
 
-      def req = ws.url(url).addHttpHeaders("Authorization" -> s"Bearer $token").
-        withFollowRedirects(false) // https://github.com/AsyncHttpClient/async-http-client/issues/1628
+      def req = ws
+        .url(url)
+        .addHttpHeaders("Authorization" -> s"Bearer $token")
+        .withFollowRedirects(
+          false
+        ) // https://github.com/AsyncHttpClient/async-http-client/issues/1628
 
       f(requestTimeout.fold(req) { t =>
         req.withRequestTimeout(t.milliseconds)
@@ -128,8 +158,16 @@ final class GoogleTransport(
    * @param timeout the request timeout
    */
   def withRequestTimeout(requestTimeout: Long): GoogleTransport =
-    new GoogleTransport(credential, projectId, builder, ws,
-      baseRestUrl, servicePath, Some(requestTimeout), disableGZip)
+    new GoogleTransport(
+      credential,
+      projectId,
+      builder,
+      ws,
+      baseRestUrl,
+      servicePath,
+      Some(requestTimeout),
+      disableGZip
+    )
 
   /**
    * Returns a transport managing the specified compression on the requests.
@@ -137,8 +175,16 @@ final class GoogleTransport(
    * @param disableGZip disable or not the GZip compression
    */
   def withDisableGZip(disableGZip: Boolean): GoogleTransport =
-    new GoogleTransport(credential, projectId, builder, ws,
-      baseRestUrl, servicePath, requestTimeout, disableGZip)
+    new GoogleTransport(
+      credential,
+      projectId,
+      builder,
+      ws,
+      baseRestUrl,
+      servicePath,
+      requestTimeout,
+      disableGZip
+    )
 
   // Bucket operations
   import GoogleTransport.{ BucketOp, CreateBucket, DeleteBucket }
@@ -151,53 +197,65 @@ final class GoogleTransport(
     @volatile var errors = 0L // successive errors
 
     def execute(op: BucketOp)(f: => Unit): Source[Unit, NotUsed] =
-      Source.single[Unit](try {
-        f
+      Source
+        .single[Unit](try {
+          f
 
-        op.result.success({})
+          op.result.success({})
 
-        errors = 0L // reset internal error counter
-      } catch {
-        case NonFatal(cause) =>
-          op.result.failure(cause)
-          errors += 1L
-      }).initialDelay(250.milliseconds * errors)
+          errors = 0L // reset internal error counter
+        } catch {
+          case NonFatal(cause) =>
+            op.result.failure(cause)
+            errors += 1L
+        })
+        .initialDelay(250.milliseconds * errors)
 
-    Flow[BucketOp].throttle(
-      elements = 1,
-      per = 2.seconds, // hardcoded Google rate limit
-      maximumBurst = 0,
-      mode = akka.stream.ThrottleMode.Shaping).flatMapConcat {
-      case c @ CreateBucket(name) => execute(c) {
-        val nb = new model.Bucket()
-        nb.setName(name)
+    Flow[BucketOp]
+      .throttle(
+        elements = 1,
+        per = 2.seconds, // hardcoded Google rate limit
+        maximumBurst = 0,
+        mode = akka.stream.ThrottleMode.Shaping
+      )
+      .flatMapConcat {
+        case c @ CreateBucket(name) =>
+          execute(c) {
+            val nb = new model.Bucket()
+            nb.setName(name)
 
-        client.buckets().insert(projectId, nb).execute()
+            client.buckets().insert(projectId, nb).execute()
 
-        ()
+            ()
+          }
+
+        case d @ DeleteBucket(name) =>
+          execute(d) {
+            client.buckets().delete(name).execute()
+
+            ()
+          }
       }
-
-      case d @ DeleteBucket(name) => execute(d) {
-        client.buckets().delete(name).execute()
-
-        ()
-      }
-    }
   }
 
   private[google] type Q = SourceQueueWithComplete[BucketOp]
+
   private[google] val queue: Q = {
     import GoogleTransport.adminMaterializer
 
-    Source.queue[BucketOp](1024, OverflowStrategy.backpressure).
-      viaMat(bucketOpFlow)(Keep.left[Q, NotUsed]).
-      to(Sink.ignore).run()
+    Source
+      .queue[BucketOp](1024, OverflowStrategy.backpressure)
+      .viaMat(bucketOpFlow)(Keep.left[Q, NotUsed])
+      .to(Sink.ignore)
+      .run()
 
   }
 
-  private[google] def executeBucketOp(op: BucketOp)(
-    implicit
-    ec: ExecutionContext): Future[Unit] = {
+  private[google] def executeBucketOp(
+      op: BucketOp
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Unit] = {
     logger.debug(s"Enqueue bucket operation: ${op.show}")
 
     queue.offer(op).flatMap {
@@ -205,12 +263,18 @@ final class GoogleTransport(
         Future.failed[Unit](cause)
 
       case QueueOfferResult.Dropped =>
-        Future.failed[Unit](new BenjiUnknownError(
-          s"Fails to enqueue bucket operation: ${op.show}"))
+        Future.failed[Unit](
+          new BenjiUnknownError(
+            s"Fails to enqueue bucket operation: ${op.show}"
+          )
+        )
 
       case QueueOfferResult.QueueClosed =>
-        Future.failed[Unit](new BenjiUnknownError(
-          s"Bucket operation queue already closed: ${op.show}"))
+        Future.failed[Unit](
+          new BenjiUnknownError(
+            s"Bucket operation queue already closed: ${op.show}"
+          )
+        )
 
       case _ =>
         op.result.future
@@ -255,18 +319,37 @@ object GoogleTransport {
    *   application = "appId")
    * }}}
    */
-  def apply(credential: GoogleCredentials, projectId: String, application: String, http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(), json: JsonFactory = new JacksonFactory(), baseRestUrl: String = Storage.DEFAULT_ROOT_URL, servicePath: String = Storage.DEFAULT_SERVICE_PATH)(implicit ws: StandaloneAhcWSClient): GoogleTransport = {
+  def apply(
+      credential: GoogleCredentials,
+      projectId: String,
+      application: String,
+      http: HttpTransport = GoogleNetHttpTransport.newTrustedTransport(),
+      json: JsonFactory = new JacksonFactory(),
+      baseRestUrl: String = Storage.DEFAULT_ROOT_URL,
+      servicePath: String = Storage.DEFAULT_SERVICE_PATH
+    )(implicit
+      ws: StandaloneAhcWSClient
+    ): GoogleTransport = {
     val build = { (creds: GoogleCredentials) =>
-      new Storage.Builder(http, json, new HttpCredentialsAdapter(creds)).
-        setApplicationName(application).build()
+      new Storage.Builder(http, json, new HttpCredentialsAdapter(creds))
+        .setApplicationName(application)
+        .build()
     }
 
-    new GoogleTransport({
-      if (!credential.createScopedRequired) credential else {
-        val scopes = StorageScopes.all()
-        credential.createScoped(scopes)
-      }
-    }, projectId, build, ws, stripSlash(baseRestUrl), stripSlash(servicePath))
+    new GoogleTransport(
+      {
+        if (!credential.createScopedRequired) credential
+        else {
+          val scopes = StorageScopes.all()
+          credential.createScoped(scopes)
+        }
+      },
+      projectId,
+      build,
+      ws,
+      stripSlash(baseRestUrl),
+      stripSlash(servicePath)
+    )
   }
 
   /**
@@ -291,14 +374,26 @@ object GoogleTransport {
    * @tparam T the config type to be consumed by the provider typeclass
    * @return Success if the GoogleTransport was properly created, otherwise Failure
    */
-  def apply[T](config: T)(implicit provider: URIProvider[T], ws: StandaloneAhcWSClient): Try[GoogleTransport] = {
-    def optParam(ps: Map[String, Seq[String]], key: String): Try[Option[String]] = ps.get(key) match {
+  def apply[T](
+      config: T
+    )(implicit
+      provider: URIProvider[T],
+      ws: StandaloneAhcWSClient
+    ): Try[GoogleTransport] = {
+    def optParam(
+        ps: Map[String, Seq[String]],
+        key: String
+      ): Try[Option[String]] = ps.get(key) match {
       case Some(Seq(s)) => Success(Some(s))
 
       case Some(Seq()) => Success(Option.empty[String])
 
-      case Some(_) => Failure[Option[String]](new IllegalArgumentException(
-        s"""Expected exactly one value for "$key" parameter"""))
+      case Some(_) =>
+        Failure[Option[String]](
+          new IllegalArgumentException(
+            s"""Expected exactly one value for "$key" parameter"""
+          )
+        )
 
       case _ => Success(Option.empty[String])
     }
@@ -307,18 +402,26 @@ object GoogleTransport {
       optParam(ps, key).flatMap {
         case Some(required) => Success(required)
 
-        case _ => Failure[String](new IllegalArgumentException(
-          s"Missing parameter in URI: $key"))
+        case _ =>
+          Failure[String](
+            new IllegalArgumentException(s"Missing parameter in URI: $key")
+          )
       }
 
     provider(config).flatMap { builtUri =>
       if (builtUri == null) {
-        Failure[GoogleTransport](new IllegalArgumentException("URI provider returned a null URI"))
+        Failure[GoogleTransport](
+          new IllegalArgumentException("URI provider returned a null URI")
+        )
       } else if (builtUri.getScheme != "google") {
         // URI object fails to parse properly with scheme like "google:http"
         // So we check for "google" scheme and then recreate an URI without it
 
-        Failure[GoogleTransport](new IllegalArgumentException("Expected URI with scheme containing \"google:\""))
+        Failure[GoogleTransport](
+          new IllegalArgumentException(
+            "Expected URI with scheme containing \"google:\""
+          )
+        )
       } else {
         val uri = new URI(builtUri.getSchemeSpecificPart)
         val scheme = uri.getScheme
@@ -340,9 +443,12 @@ object GoogleTransport {
           reqTimeout <- optParam(params, "requestTimeout").flatMap {
             case Some(LongVal(l)) => Success(Some(l))
 
-            case Some(v) => Failure[Option[Long]](
-              new IllegalArgumentException(
-                s"Invalid 'requestTimeout' parameter: $v"))
+            case Some(v) =>
+              Failure[Option[Long]](
+                new IllegalArgumentException(
+                  s"Invalid 'requestTimeout' parameter: $v"
+                )
+              )
 
             case _ => Success(Option.empty[Long])
           }
@@ -350,9 +456,12 @@ object GoogleTransport {
           disableGz <- optParam(params, "disableGZip").flatMap {
             case Some(BoolVal(b)) => Success(Some(b))
 
-            case Some(v) => Failure[Option[Boolean]](
-              new IllegalArgumentException(
-                s"Invalid 'disableGZip' parameter: $v"))
+            case Some(v) =>
+              Failure[Option[Boolean]](
+                new IllegalArgumentException(
+                  s"Invalid 'disableGZip' parameter: $v"
+                )
+              )
 
             case _ => Success(Option.empty[Boolean])
           }
@@ -365,16 +474,19 @@ object GoogleTransport {
   }
 
   private def parseQuery(uri: URI): Map[String, Seq[String]] =
-    Compat.mapValues(new QueryStringDecoder(uri.toString).
-      parameters.asScala.toMap)(_.asScala.toSeq)
+    Compat.mapValues(
+      new QueryStringDecoder(uri.toString).parameters.asScala.toMap
+    )(_.asScala.toSeq)
 
   private object BoolVal {
-    def unapply(value: String): Option[Boolean] = try {
-      def bool = value.toBoolean
-      Some(bool)
-    } catch {
-      case NonFatal(_) => Option.empty[Boolean]
-    }
+
+    def unapply(value: String): Option[Boolean] =
+      try {
+        def bool = value.toBoolean
+        Some(bool)
+      } catch {
+        case NonFatal(_) => Option.empty[Boolean]
+      }
   }
 
   // ---

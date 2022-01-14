@@ -27,7 +27,13 @@ object TestUtils {
   lazy val materializer: Materializer =
     akka.stream.ActorMaterializer.create(system)
 
-  def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
+  def withMatEx[T](
+      f: org.specs2.concurrent.ExecutionEnv => T
+    )(implicit
+      m: Materializer
+    ): T = f(
+    org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext)
+  )
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   lazy val vfsTransport: VFSTransport = VFSTransport.temporary("benji").get

@@ -4,6 +4,7 @@ import play.api.{ ApplicationLoader, Environment, Mode }
 import play.api.inject.guice.GuiceApplicationBuilder
 
 object PlayUtil {
+
   def context: ApplicationLoader.Context = {
     val env = Environment.simple(mode = Mode.Test)
 
@@ -15,5 +16,6 @@ object PlayUtil {
       new play.api.i18n.I18nModule(),
       new play.api.mvc.CookiesModule(),
       new play.api.inject.BuiltinModule(),
-      new play.modules.benji.BenjiModule())
+      new play.modules.benji.BenjiModule()
+    )
 }

@@ -44,19 +44,24 @@ private[benji] object Streams {
       w.transform(_) match {
         case SourceBody(source) => source.mapMaterializedValue(_ => NotUsed)
         case InMemoryBody(byteString) => Source.single(byteString)
-        case EmptyBody => Source.empty[ByteString]
+        case EmptyBody                => Source.empty[ByteString]
       }
     }
   }
 
   // Internal stages
 
-  import akka.stream.stage.{ GraphStage, GraphStageLogic, InHandler, OutHandler }
+  import akka.stream.stage.{
+    GraphStage,
+    GraphStageLogic,
+    InHandler,
+    OutHandler
+  }
   import akka.stream.{ Attributes, FlowShape, Inlet, Outlet }
   import akka.util.ByteString
 
   private class ChunkOfAtMost(limit: Int)
-    extends GraphStage[FlowShape[ByteString, Chunk]] {
+      extends GraphStage[FlowShape[ByteString, Chunk]] {
 
     override val toString = "ChunkOfAtMost"
     val in = Inlet[ByteString](s"${toString}.in")
@@ -108,9 +113,10 @@ private[benji] object Streams {
           if (rem.nonEmpty) { // Emit the remaining/last chunk(s)
             if (rem.size <= limit) {
               emit(out, Chunk.last(rem))
-            } else rem.splitAt(limit) match {
-              case (a, b) => emitMultiple(out, List(Chunk(a), Chunk.last(b)))
-            }
+            } else
+              rem.splitAt(limit) match {
+                case (a, b) => emitMultiple(out, List(Chunk(a), Chunk.last(b)))
+              }
           }
 
           completeStage()
@@ -119,7 +125,7 @@ private[benji] object Streams {
         def onPull(): Unit = {
           downstreamWaiting = true
 
-          if ( /*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
+          if (/*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
         }
 
         setHandlers(in, out, this)
@@ -129,7 +135,7 @@ private[benji] object Streams {
   }
 
   private class ChunkOfAtLeast(limit: Int)
-    extends GraphStage[FlowShape[ByteString, Chunk]] {
+      extends GraphStage[FlowShape[ByteString, Chunk]] {
 
     override val toString = "ChunkOfAtLeast"
     val in = Inlet[ByteString](s"${toString}.in")
@@ -184,7 +190,7 @@ private[benji] object Streams {
         def onPull(): Unit = {
           downstreamWaiting = true
 
-          if ( /*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
+          if (/*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
         }
 
         setHandlers(in, out, this)

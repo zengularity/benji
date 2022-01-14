@@ -5,9 +5,8 @@ findbugsReportPath := Some(target.value / "findbugs.html")
 
 findbugsExcludeFilters := {
   val loadXML = scala.xml.XML.loadFile(_: File)
-  val commonFilters = loadXML(
-    baseDirectory.value / "project" / (
-      "findbugs-exclude-filters.xml"))
+  val commonFilters =
+    loadXML(baseDirectory.value / "project" / ("findbugs-exclude-filters.xml"))
 
   val filters = {
     val f = baseDirectory.value / "findbugs-exclude-filters.xml"
@@ -15,6 +14,6 @@ findbugsExcludeFilters := {
   }
 
   Some(
-    <FindBugsFilter>${ commonFilters.child }${ filters }</FindBugsFilter>
+    <FindBugsFilter>${commonFilters.child}${filters}</FindBugsFilter>
   )
 }

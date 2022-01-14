@@ -15,8 +15,9 @@ import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AfterAll
 
 final class VFSStorageSpec(implicit ee: ExecutionEnv)
-  extends org.specs2.mutable.Specification
-  with StorageCommonSpec with AfterAll {
+    extends org.specs2.mutable.Specification
+    with StorageCommonSpec
+    with AfterAll {
 
   import tests.benji.StreamUtils._
   import TestUtils.vfs
@@ -46,18 +47,22 @@ final class VFSStorageSpec(implicit ee: ExecutionEnv)
       }
 
       def body = fileStart.getBytes("UTF-8") ++ Array.fill(
-        VFSObjectRef.defaultThreshold.bytes.toInt - 3)(nextByte) ++ "XXX".getBytes("UTF-8")
+        VFSObjectRef.defaultThreshold.bytes.toInt - 3
+      )(nextByte) ++ "XXX".getBytes("UTF-8")
 
-      filetest.put[Array[Byte], Unit].
-        aka("request") must beLike[filetest.PutRequest[Array[Byte], Unit]] {
-          case req =>
-            val upload = req({})((_, _) => Future.successful({}))
+      filetest
+        .put[Array[Byte], Unit]
+        .aka("request") must beLike[filetest.PutRequest[Array[Byte], Unit]] {
+        case req =>
+          val upload = req({})((_, _) => Future.successful({}))
 
-            (repeat(partCount - 1)(body).++(Source.single(
-              body.drop(10) ++ "ZZZ".getBytes("UTF-8"))) runWith upload).
-              flatMap { _ => filetest.exists } must beTrue.
-              await(1, 10.seconds)
-        }
+          (repeat(partCount - 1)(body).++(
+            Source.single(body.drop(10) ++ "ZZZ".getBytes("UTF-8"))
+          ) runWith upload).flatMap { _ => filetest.exists } must beTrue.await(
+            1,
+            10.seconds
+          )
+      }
     }
 
     "Use correct toString format on bucket" in {
@@ -65,7 +70,10 @@ final class VFSStorageSpec(implicit ee: ExecutionEnv)
     }
 
     "Use correct toString format on object" in {
-      vfs.bucket("bucketName").obj("objectName").toString must_== "VFSObjectRef(bucketName, objectName)"
+      vfs
+        .bucket("bucketName")
+        .obj("objectName")
+        .toString must_== "VFSObjectRef(bucketName, objectName)"
     }
   }
 

@@ -13,8 +13,10 @@ abstract class BenjiException extends IOException
 
 /** An unknown error */
 case class BenjiUnknownError(
-  message: String,
-  throwable: Option[Throwable] = None) extends BenjiException {
+    message: String,
+    throwable: Option[Throwable] = None)
+    extends BenjiException {
+
   override def getMessage: String =
     throwable.map(t => s"$message - ${t.getMessage}").getOrElse(message)
 }
@@ -28,6 +30,7 @@ case class BucketNotEmptyException(bucketName: String) extends BenjiException {
 }
 
 object BucketNotEmptyException {
+
   private[benji] def apply(bucket: BucketRef): BucketNotEmptyException =
     BucketNotEmptyException(bucket.name)
 }
@@ -53,11 +56,13 @@ object BucketNotEmptyException {
  * }}}
  */
 case class BucketAlreadyExistsException(
-  bucketName: String) extends BenjiException {
+    bucketName: String)
+    extends BenjiException {
   override def getMessage: String = s"Bucket '$bucketName' already exists."
 }
 
 object BucketAlreadyExistsException {
+
   private[benji] def apply(bucket: BucketRef): BucketAlreadyExistsException =
     BucketAlreadyExistsException(bucket.name)
 }

@@ -15,32 +15,35 @@ final class S3AwsSpec extends Specification with AwsTests {
 
   sequential
 
-  awsMinimalSuite(
-    "in path style with URI",
-    TestUtils.awsFromPathStyleURL)(TestUtils.materializer)
+  awsMinimalSuite("in path style with URI", TestUtils.awsFromPathStyleURL)(
+    TestUtils.materializer
+  )
 
   awsMinimalSuite(
     "in virtual host with URI",
-    TestUtils.awsFromVirtualHostStyleURL)(TestUtils.materializer)
+    TestUtils.awsFromVirtualHostStyleURL
+  )(TestUtils.materializer)
 
   awsMinimalSuite(
     "in virtual host style with URI V4",
-    TestUtils.awsFromVirtualHostStyleURLV4)(TestUtils.materializer)
+    TestUtils.awsFromVirtualHostStyleURLV4
+  )(TestUtils.materializer)
 
-  awsSuite(
-    "in path style",
-    TestUtils.aws)(TestUtils.materializer)
+  awsSuite("in path style", TestUtils.aws)(TestUtils.materializer)
 
-  awsSuite(
-    "in virtual host style",
-    TestUtils.awsVirtualHost)(TestUtils.materializer)
+  awsSuite("in virtual host style", TestUtils.awsVirtualHost)(
+    TestUtils.materializer
+  )
 
-  awsSuite(
-    "in virtual host style V4",
-    TestUtils.awsVirtualHostV4)(TestUtils.materializer)
+  awsSuite("in virtual host style V4", TestUtils.awsVirtualHostV4)(
+    TestUtils.materializer
+  )
 }
 
-sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S3Spec { specs: Specification =>
+sealed trait AwsTests
+    extends StorageCommonSpec
+    with VersioningCommonSpec
+    with S3Spec { specs: Specification =>
   import TestUtils.withMatEx
   import org.specs2.specification.core.Fragment
 
@@ -50,21 +53,30 @@ sealed trait AwsTests extends StorageCommonSpec with VersioningCommonSpec with S
     scala.concurrent.duration.FiniteDuration(5, "seconds")
 
   def awsMinimalSuite(
-    label: String,
-    s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer): Fragment = s"S3 client $label" should {
+      label: String,
+      s3f: => com.zengularity.benji.s3.WSS3
+    )(implicit
+      m: Materializer
+    ): Fragment = s"S3 client $label" should {
     val bucketName = s"benji-test-${random.nextInt().toString}"
 
     withMatEx { implicit ee: EE => minimalCommonTests(s3f, bucketName) }
   }
 
   def awsSuite(
-    label: String,
-    s3f: => com.zengularity.benji.s3.WSS3)(implicit m: Materializer): Fragment = s"S3 client $label" should {
+      label: String,
+      s3f: => com.zengularity.benji.s3.WSS3
+    )(implicit
+      m: Materializer
+    ): Fragment = s"S3 client $label" should {
     val bucketName = s"benji-test-${random.nextInt().toString}"
 
     withMatEx { implicit ee: EE =>
       commonTests("aws", s3f, bucketName)
-      commonVersioningTests(s3f, sampleVersionId = "t1Uelqn.uwzanWblaNOrIWpgWapViNXY")
+      commonVersioningTests(
+        s3f,
+        sampleVersionId = "t1Uelqn.uwzanWblaNOrIWpgWapViNXY"
+      )
     }
 
     s3Suite(s3f, bucketName, "testfile.txt")

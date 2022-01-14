@@ -32,6 +32,7 @@ import play.api.libs.ws.BodyWritable
  * @define targetObjectNameParam the name of the target object
  */
 trait ObjectRef { ref =>
+
   /**
    * The name of parent bucket.
    */
@@ -87,7 +88,10 @@ trait ObjectRef { ref =>
    *   myObject.metadata()
    * }}}
    */
-  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
+  def metadata(
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Map[String, Seq[String]]]
 
   /**
    * Prepares the request to get the contents of this object.
@@ -105,13 +109,25 @@ trait ObjectRef { ref =>
   /**
    * @tparam E $consumerInputTParam
    */
-  def put[E](implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[NotUsed]] = put[E, NotUsed](NotUsed)((_, _) => Future.successful(NotUsed))
+  def put[E](
+      implicit
+      m: Materializer,
+      w: BodyWritable[E]
+    ): Sink[E, Future[NotUsed]] =
+    put[E, NotUsed](NotUsed)((_, _) => Future.successful(NotUsed))
 
   /**
    * @tparam E $consumerInputTParam
    * @param size $putSizeParam
    */
-  def put[E](size: Long)(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[NotUsed]] = put[E, NotUsed](NotUsed, size = Some(size))((_, _) => Future.successful(NotUsed))
+  def put[E](
+      size: Long
+    )(implicit
+      m: Materializer,
+      w: BodyWritable[E]
+    ): Sink[E, Future[NotUsed]] = put[E, NotUsed](NotUsed, size = Some(size))(
+    (_, _) => Future.successful(NotUsed)
+  )
 
   /**
    * @tparam E $consumerInputTParam
@@ -160,12 +176,21 @@ trait ObjectRef { ref =>
    *   implicit ec: ExecutionContext) = myObject.moveTo(otherRef)
    * }}}
    */
-  final def moveTo(target: ObjectRef, preventOverwrite: Boolean = true)(implicit ec: ExecutionContext): Future[Unit] = target match {
+  final def moveTo(
+      target: ObjectRef,
+      preventOverwrite: Boolean = true
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Unit] = target match {
     case ObjectRef(targetBucketName, targetObjectName) =>
       moveTo(targetBucketName, targetObjectName, preventOverwrite)
 
-    case _ => Future.failed[Unit](new IllegalArgumentException(
-      s"Target object you specified [${target.bucket}/${target.name}] is unknown."))
+    case _ =>
+      Future.failed[Unit](
+        new IllegalArgumentException(
+          s"Target object you specified [${target.bucket}/${target.name}] is unknown."
+        )
+      )
   }
 
   /**
@@ -183,7 +208,13 @@ trait ObjectRef { ref =>
    *   myObject.moveTo("targetBucket", "newName", false)
    * }}}
    */
-  def moveTo(targetBucketName: String, targetObjectName: String, preventOverwrite: Boolean)(implicit ec: ExecutionContext): Future[Unit]
+  def moveTo(
+      targetBucketName: String,
+      targetObjectName: String,
+      preventOverwrite: Boolean
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Unit]
 
   /**
    * $copyToOperation
@@ -200,13 +231,18 @@ trait ObjectRef { ref =>
    *   myObject.copyTo(otherRef)
    * }}}
    */
-  def copyTo(target: ObjectRef)(implicit ec: ExecutionContext): Future[Unit] = target match {
-    case ObjectRef(targetBucketName, targetObjectName) =>
-      copyTo(targetBucketName, targetObjectName)
+  def copyTo(target: ObjectRef)(implicit ec: ExecutionContext): Future[Unit] =
+    target match {
+      case ObjectRef(targetBucketName, targetObjectName) =>
+        copyTo(targetBucketName, targetObjectName)
 
-    case _ => Future.failed[Unit](new IllegalArgumentException(
-      s"Target object you specified [${target.bucket}/${target.name}] is unknown."))
-  }
+      case _ =>
+        Future.failed[Unit](
+          new IllegalArgumentException(
+            s"Target object you specified [${target.bucket}/${target.name}] is unknown."
+          )
+        )
+    }
 
   /**
    * $copyToOperation
@@ -222,7 +258,12 @@ trait ObjectRef { ref =>
    *   myObject.copyTo("targetBucket", "copyName")
    * }}}
    */
-  def copyTo(targetBucketName: String, targetObjectName: String)(implicit ec: ExecutionContext): Future[Unit]
+  def copyTo(
+      targetBucketName: String,
+      targetObjectName: String
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Unit]
 
   /**
    * Try to get a reference of this object that would allow
@@ -256,7 +297,11 @@ trait ObjectRef { ref =>
      *   myObject.get()
      * }}}
      */
-    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed]
+    def apply(
+        range: Option[ByteRange] = None
+      )(implicit
+        m: Materializer
+      ): Source[ByteString, NotUsed]
   }
 
   /**
@@ -268,7 +313,16 @@ trait ObjectRef { ref =>
   trait PutRequest[E, A] {
 
     @deprecated("Use `apply` with metadata", "1.3.1")
-    final def apply(z: => A, threshold: Bytes, size: Option[Long])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]] = apply(z, threshold, size, Map.empty[String, String])(f)
+    final def apply(
+        z: => A,
+        threshold: Bytes,
+        size: Option[Long]
+      )(f: (A, Chunk) => Future[A]
+      )(implicit
+        m: Materializer,
+        w: BodyWritable[E]
+      ): Sink[E, Future[A]] =
+      apply(z, threshold, size, Map.empty[String, String])(f)
 
     /**
      * Applies this request to the specified object.
@@ -296,13 +350,23 @@ trait ObjectRef { ref =>
      * }
      * }}}
      */
-    def apply(z: => A, threshold: Bytes = defaultThreshold, size: Option[Long] = None, metadata: Map[String, String] = Map.empty[String, String])(f: (A, Chunk) => Future[A])(implicit m: Materializer, w: BodyWritable[E]): Sink[E, Future[A]]
+    def apply(
+        z: => A,
+        threshold: Bytes = defaultThreshold,
+        size: Option[Long] = None,
+        metadata: Map[String, String] = Map.empty[String, String]
+      )(f: (A, Chunk) => Future[A]
+      )(implicit
+        m: Materializer,
+        w: BodyWritable[E]
+      ): Sink[E, Future[A]]
   }
 
   /**
    * A request to delete the bucket.
    */
   trait DeleteRequest {
+
     /**
      * Deletes the current object.
      *
@@ -336,6 +400,7 @@ trait ObjectRef { ref =>
  * Companion object
  */
 object ObjectRef {
+
   /**
    * Extractor.
    *
@@ -347,5 +412,6 @@ object ObjectRef {
    * }
    * }}}
    */
-  def unapply(ref: ObjectRef): Option[(String, String)] = Some(ref.bucket -> ref.name)
+  def unapply(ref: ObjectRef): Option[(String, String)] =
+    Some(ref.bucket -> ref.name)
 }

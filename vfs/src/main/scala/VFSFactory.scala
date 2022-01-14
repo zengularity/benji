@@ -10,6 +10,7 @@ import com.zengularity.benji.ObjectStorage
 import com.zengularity.benji.spi.{ Injector, StorageFactory, StorageScheme }
 
 final class VFSFactory extends StorageFactory {
+
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   def apply(injector: Injector, uri: URI): ObjectStorage =
     VFSStorage(VFSTransport[URI](uri).get)

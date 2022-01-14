@@ -29,33 +29,61 @@ import com.zengularity.benji.Compat.javaConverters._
  * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html and http://ceph.com/docs/master/radosgw/s3/authentication/
  */
 private[s3] class SignatureCalculatorV1(
-  accessKey: String,
-  secretKey: String,
-  serverHost: String) extends WSSignatureCalculator
-  with play.shaded.ahc.org.asynchttpclient.SignatureCalculator {
+    accessKey: String,
+    secretKey: String,
+    serverHost: String)
+    extends WSSignatureCalculator
+    with play.shaded.ahc.org.asynchttpclient.SignatureCalculator {
 
   val logger = org.slf4j.LoggerFactory.getLogger("com.zengularity.s3")
 
-  private val subResourceParameters = Seq("acl", "lifecycle", "location", "logging", "notification", "partNumber", "policy", "requestPayment", "torrent", "uploadId", "uploads", "versionId", "versioning", "versions", "website", "delete")
+  private val subResourceParameters = Seq(
+    "acl",
+    "lifecycle",
+    "location",
+    "logging",
+    "notification",
+    "partNumber",
+    "policy",
+    "requestPayment",
+    "torrent",
+    "uploadId",
+    "uploads",
+    "versionId",
+    "versioning",
+    "versions",
+    "website",
+    "delete"
+  )
 
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheAuthenticationHeader
    */
-  override def calculateAndAddSignature(request: Request, requestBuilder: RequestBuilderBase[_]): Unit = {
+  override def calculateAndAddSignature(
+      request: Request,
+      requestBuilder: RequestBuilderBase[_]
+    ): Unit = {
     @inline def header(name: String): Option[String] = {
       Option(request.getHeaders.get(name))
     }
 
-    val date = header("x-amz-date").orElse(header("Date")).getOrElse(
-      RFC1123_DATE_TIME_FORMATTER format Instant.now())
+    val date = header("x-amz-date")
+      .orElse(header("Date"))
+      .getOrElse(RFC1123_DATE_TIME_FORMATTER format Instant.now())
     val style = RequestStyle(header("X-Request-Style").getOrElse("path"))
 
     requestBuilder.setHeader("Date", date)
 
     val str = stringToSign(
-      request.getMethod, style,
-      header("Content-MD5"), header("Content-Type"),
-      date, request.getHeaders, serverHost, signatureUrl(request))
+      request.getMethod,
+      style,
+      header("Content-MD5"),
+      header("Content-Type"),
+      date,
+      request.getHeaders,
+      serverHost,
+      signatureUrl(request)
+    )
 
     logger.trace(s"s3V1StringToSign {\n$str\n}")
 
@@ -99,14 +127,25 @@ private[s3] class SignatureCalculatorV1(
    * will be applied on the current date time to set a new header value.
    */
   private val RFC1123_DATE_TIME_FORMATTER =
-    DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z").
-      withLocale(java.util.Locale.US).withZone(ZoneOffset.UTC)
+    DateTimeFormatter
+      .ofPattern("EEE, dd MMM yyyy HH:mm:ss Z")
+      .withLocale(java.util.Locale.US)
+      .withZone(ZoneOffset.UTC)
 
   /**
    * Computes the string-to-sign for request authentication.
    * @param serverHost the base host of the S3 server (without the bucket prefix in the virtual host style)
    */
-  def stringToSign(httpVerb: String, style: RequestStyle, contentMd5: Option[String], contentType: Option[String], date: String, headers: HttpHeaders, serverHost: String, url: String): String = {
+  def stringToSign(
+      httpVerb: String,
+      style: RequestStyle,
+      contentMd5: Option[String],
+      contentType: Option[String],
+      date: String,
+      headers: HttpHeaders,
+      serverHost: String,
+      url: String
+    ): String = {
     httpVerb + "\n" +
       contentMd5.getOrElse("") + "\n" +
       contentType.getOrElse("") + s"\n$date\n" +
@@ -132,8 +171,7 @@ private[s3] class SignatureCalculatorV1(
   def computeSignature(data: String): Try[String] = Try {
     val signatureMac = Mac.getInstance("HmacSHA1")
 
-    signatureMac.init(new SecretKeySpec(
-      secretKey.getBytes("UTF8"), "HmacSHA1"))
+    signatureMac.init(new SecretKeySpec(secretKey.getBytes("UTF8"), "HmacSHA1"))
 
     Base64.getEncoder.encodeToString(signatureMac doFinal data.getBytes("UTF8"))
   }
@@ -143,9 +181,10 @@ private[s3] class SignatureCalculatorV1(
   /**
    */
   def canonicalizeHeaders(allHeaders: HttpHeaders): String = {
-    val amzHeaderNames = allHeaders.names.asScala.filter(
-      _.toLowerCase(Locale.US).startsWith("x-amz-")).
-      toList.sortBy(_.toLowerCase(Locale.US))
+    val amzHeaderNames = allHeaders.names.asScala
+      .filter(_.toLowerCase(Locale.US).startsWith("x-amz-"))
+      .toList
+      .sortBy(_.toLowerCase(Locale.US))
 
     amzHeaderNames.map { amzHeaderName =>
       amzHeaderName.toLowerCase(Locale.US) + ":" +
@@ -166,7 +205,11 @@ private[s3] class SignatureCalculatorV1(
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#ConstructingTheCanonicalizedResourceElement
    */
-  def canonicalizeResource(style: RequestStyle, requestUrl: String, host: String): String = {
+  def canonicalizeResource(
+      style: RequestStyle,
+      requestUrl: String,
+      host: String
+    ): String = {
     val url = new URL(requestUrl) // TODO: Unsafe
 
     val query = Option(url.getQuery).fold("")(q => s"?$q")

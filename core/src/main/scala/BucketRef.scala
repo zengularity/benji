@@ -18,6 +18,7 @@ import akka.stream.scaladsl.{ Sink, Source }
  * Such reference must only be used with the storage which resolved it first.
  */
 trait BucketRef {
+
   /**
    * The name of the bucket.
    */
@@ -75,7 +76,11 @@ trait BucketRef {
    * }
    * }}}
    */
-  def create(failsIfExists: Boolean = false)(implicit ec: ExecutionContext): Future[Unit]
+  def create(
+      failsIfExists: Boolean = false
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Unit]
 
   /**
    * Prepares a request to delete the referenced bucket.
@@ -129,6 +134,7 @@ trait BucketRef {
    * A request to list the objects inside this bucket.
    */
   trait ListRequest {
+
     /**
      * Lists of the matching objects within the bucket.
      *
@@ -153,12 +159,18 @@ trait BucketRef {
      *   bucketRef.objects.collect[List]()
      * }}}
      */
-    final def collect[M[_]]()(implicit m: Materializer, @deprecatedName(Symbol("builder")) factory: Compat.Factory[M, Object]): Future[M[Object]] = {
+    final def collect[M[_]](
+      )(implicit
+        m: Materializer,
+        @deprecatedName(Symbol("builder")) factory: Compat.Factory[M, Object]
+      ): Future[M[Object]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      apply() runWith Sink.fold(Compat.newBuilder[M, Object](factory)) {
-        _ += (_: Object)
-      }.mapMaterializedValue(_.map(_.result()))
+      apply() runWith Sink
+        .fold(Compat.newBuilder[M, Object](factory)) {
+          _ += (_: Object)
+        }
+        .mapMaterializedValue(_.map(_.result()))
     }
 
     /**
@@ -194,6 +206,7 @@ trait BucketRef {
    * A request to delete the bucket.
    */
   trait DeleteRequest {
+
     /**
      * Deletes the current bucket.
      *

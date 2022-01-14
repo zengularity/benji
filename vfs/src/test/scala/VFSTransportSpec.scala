@@ -39,11 +39,13 @@ class VFSTransportSpec extends Specification {
     }
 
     "return Failure with wrong scheme" in {
-      VFSTransport("vfs:wrong://path") must beFailedTry.withThrowable[IllegalArgumentException]
+      VFSTransport("vfs:wrong://path") must beFailedTry
+        .withThrowable[IllegalArgumentException]
     }
 
     "return Failure without scheme prefix" in {
-      VFSTransport("file:///home/someuser/somedir") must beFailedTry.withThrowable[IllegalArgumentException]
+      VFSTransport("file:///home/someuser/somedir") must beFailedTry
+        .withThrowable[IllegalArgumentException]
     }
 
     "return Success when we use temporary as uri" in {

@@ -16,8 +16,8 @@ final class StorageSchemeSpec extends org.specs2.mutable.Specification {
   "Dummy storage" should {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
     lazy val scheme = loader.iterator.next()
-    lazy val service = scheme.factoryClass.
-      getDeclaredConstructor().newInstance()
+    lazy val service =
+      scheme.factoryClass.getDeclaredConstructor().newInstance()
 
     {
       val uri = new URI("dummy:foo")
@@ -72,6 +72,7 @@ final class DummyScheme extends StorageScheme {
 }
 
 final class DummyFactory extends StorageFactory {
+
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   def apply(injector: Injector, uri: URI): ObjectStorage = {
     if (uri.getScheme == "dummy") DummyStorage

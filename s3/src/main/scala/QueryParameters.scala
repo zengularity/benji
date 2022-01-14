@@ -17,8 +17,7 @@ private[s3] object QueryParameters {
   val versionParam: Option[String] = Some("versions")
 
   def prefixParam(maybePrefix: Option[String]): Option[String] =
-    maybePrefix.map(prefix =>
-      s"prefix=${URLEncoder.encode(prefix, "UTF-8")}")
+    maybePrefix.map(prefix => s"prefix=${URLEncoder.encode(prefix, "UTF-8")}")
 
   def prefixParam(prefix: String): Option[String] =
     Some(s"prefix=${URLEncoder.encode(prefix, "UTF-8")}")

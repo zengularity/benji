@@ -39,11 +39,11 @@ case class Object(name: String, size: Bytes, lastModifiedAt: LocalDateTime)
  * @see [[VersionedObjectRef]]
  */
 case class VersionedObject(
-  name: String,
-  size: Bytes,
-  versionCreatedAt: LocalDateTime,
-  versionId: String,
-  isLatest: Boolean)
+    name: String,
+    size: Bytes,
+    versionCreatedAt: LocalDateTime,
+    versionId: String,
+    isLatest: Boolean)
 
 /**
  * An explicit range of bytes.

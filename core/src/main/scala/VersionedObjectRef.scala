@@ -21,6 +21,7 @@ import akka.stream.scaladsl.Source
  * @see [[ObjectRef]]
  */
 trait VersionedObjectRef {
+
   /**
    * The name of parent bucket.
    */
@@ -87,7 +88,10 @@ trait VersionedObjectRef {
    *   myObject.metadata()
    * }}}
    */
-  def metadata()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
+  def metadata(
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Map[String, Seq[String]]]
 
   /**
    * Checks whether or not this object exists.
@@ -122,13 +126,18 @@ trait VersionedObjectRef {
      *   myObject.get()
      * }}}
      */
-    def apply(range: Option[ByteRange] = None)(implicit m: Materializer): Source[ByteString, NotUsed]
+    def apply(
+        range: Option[ByteRange] = None
+      )(implicit
+        m: Materializer
+      ): Source[ByteString, NotUsed]
   }
 
   /**
    * A request to delete the bucket.
    */
   trait DeleteRequest {
+
     /**
      * Deletes the current object.
      *

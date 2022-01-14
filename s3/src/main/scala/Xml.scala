@@ -13,11 +13,13 @@ import com.zengularity.benji.{ Bytes, Object, VersionedObject }
 
 // !! UNSAFE - Can raise exceptions
 private[s3] object Xml {
+
   def objectFromXml(content: Node): Object =
     Object(
       name = (content \ "Key").text,
       size = size(content),
-      lastModifiedAt = lastModified(content))
+      lastModifiedAt = lastModified(content)
+    )
 
   def versionDecoder(content: Node): VersionedObject = {
     VersionedObject(
@@ -25,7 +27,8 @@ private[s3] object Xml {
       size = size(content),
       versionCreatedAt = lastModified(content),
       versionId = (content \ "VersionId").text,
-      isLatest = (content \ "IsLatest").text.toBoolean)
+      isLatest = (content \ "IsLatest").text.toBoolean
+    )
   }
 
   def deleteMarkerDecoder(content: Node): VersionedObject = {
@@ -34,7 +37,8 @@ private[s3] object Xml {
       size = Bytes(-1),
       versionCreatedAt = lastModified(content),
       versionId = (content \ "VersionId").text,
-      isLatest = (content \ "IsLatest").text.toBoolean)
+      isLatest = (content \ "IsLatest").text.toBoolean
+    )
   }
 
   // ---
@@ -45,5 +49,6 @@ private[s3] object Xml {
   @inline private def lastModified(content: Node): LocalDateTime =
     LocalDateTime.parse(
       (content \ "LastModified").text,
-      DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+      DateTimeFormatter.ISO_OFFSET_DATE_TIME
+    )
 }

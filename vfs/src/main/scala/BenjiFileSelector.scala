@@ -12,9 +12,10 @@ import org.apache.commons.vfs2.{
 }
 
 private[vfs] class BenjiFileSelector(
-  parent: FileName,
-  fileType: FileType,
-  prefix: Option[String]) extends FileTypeSelector(fileType) {
+    parent: FileName,
+    fileType: FileType,
+    prefix: Option[String])
+    extends FileTypeSelector(fileType) {
 
   private lazy val parentNameSz = parent.getPath.size + 1
 
