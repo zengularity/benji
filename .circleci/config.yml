@@ -242,7 +242,7 @@ jobs:
 
   common_scala211_jdk8:
     docker:
-      - image: cimg/openjdk:8-jdk
+      - image: circleci/openjdk:8-jdk
 
     working_directory: ~/repo
     
@@ -254,7 +254,7 @@ jobs:
 
   common_scala212_play27_jdk8:
     docker:
-      - image: cimg/openjdk:8-jdk
+      - image: circleci/openjdk:8-jdk
 
     working_directory: ~/repo
 
@@ -268,7 +268,7 @@ jobs:
 
   common_scala213_play28_jdk9:
     docker:
-      - image: cimg/openjdk:9-jdk
+      - image: circleci/openjdk:9-jdk
 
     working_directory: ~/repo
 
@@ -286,7 +286,7 @@ jobs:
 
   int_scala211_jdk8:
     docker:
-      - image: cimg/openjdk:8-jdk
+      - image: circleci/openjdk:8-jdk
 
     working_directory: ~/repo
     
@@ -298,7 +298,7 @@ jobs:
 
   int_scala212_play27_jdk8:
     docker:
-      - image: cimg/openjdk:8-jdk
+      - image: circleci/openjdk:8-jdk
 
     working_directory: ~/repo
 
@@ -312,7 +312,7 @@ jobs:
 
   int_scala213_play28_jdk9:
     docker:
-      - image: cimg/openjdk:9-jdk
+      - image: circleci/openjdk:9-jdk
 
     working_directory: ~/repo
 
@@ -330,7 +330,7 @@ jobs:
 
   publish_snapshots:
     docker:
-      - image: cimg/openjdk:8-jdk
+      - image: circleci/openjdk:8-jdk
 
     working_directory: ~/repo
 
@@ -380,7 +380,7 @@ jobs:
 
   examples:
     docker:
-      - image: cimg/openjdk:8-jdk
+      - image: circleci/openjdk:8-jdk
 
     working_directory: ~/repo
 

@@ -17,8 +17,8 @@ private[google] object ErrorHandler {
   def ofBucketFromValues(defaultMessage: => String, bucketName: String)(statusCode: Int, message: String): Throwable =
     (statusCode, message) match {
       case (404, _) => BucketNotFoundException(bucketName)
-      case (409, "You already own this bucket. Please select another name.") => BucketAlreadyExistsException(bucketName)
-      case (409, "The bucket you tried to delete was not empty.") => BucketNotEmptyException(bucketName)
+      case (409, "Your previous request to create the named bucket succeeded and you already own it.") => BucketAlreadyExistsException(bucketName)
+      case (409, "The bucket you tried to delete is not empty.") => BucketNotEmptyException(bucketName)
       case (_, _) => BenjiUnknownError(s"$defaultMessage - Response: ${statusCode.toString} - $message")
     }
 
