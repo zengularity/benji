@@ -21,11 +21,12 @@ final class S3CephSpec
   import tests.benji.StreamUtils._
   import TestUtils.{ ceph, withMatEx }
 
-  "S3 Ceph" title
+  "S3 Ceph".title
 
   sequential
 
-  @inline private implicit def materializer = TestUtils.materializer
+  @inline private implicit def materializer: akka.stream.Materializer =
+    TestUtils.materializer
 
   "Client" should {
     val bucketName = s"benji-test-${random.nextInt().toString}"

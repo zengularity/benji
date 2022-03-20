@@ -97,7 +97,8 @@ final class WSS3ObjectRef private[s3] (
     }
   }
 
-  def put[E, A] = new RESTPutRequest[E, A](defaultMaxPart)
+  override def put[E, A]: RESTPutRequest[E, A] =
+    new RESTPutRequest[E, A](defaultMaxPart)
 
   def delete: DeleteRequest = WSS3DeleteRequest()
 

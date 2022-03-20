@@ -7,7 +7,7 @@ import com.zengularity.benji.s3.tests.TestUtils
 import com.zengularity.benji.spi.{ Injector, Registry, StorageScheme }
 
 class S3FactorySpec extends org.specs2.mutable.Specification {
-  "S3 factory" title
+  "S3 factory".title
 
   "S3 storage" should {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
@@ -52,7 +52,8 @@ class S3FactorySpec extends org.specs2.mutable.Specification {
 
   import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
-  private implicit def materializer = TestUtils.materializer
+  private implicit def materializer: akka.stream.Materializer =
+    TestUtils.materializer
 
   object WSInjector extends Injector {
     private val WS = classOf[StandaloneAhcWSClient]

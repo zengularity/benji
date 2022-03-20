@@ -4,8 +4,8 @@ import play.shaded.ahc.io.netty.handler.codec.http.DefaultHttpHeaders
 import play.shaded.ahc.org.asynchttpclient.RequestBuilder
 
 // Sanity tests related to calculating the signature for S3 requests.
-class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
-  "Signature calculator (V1/V2)" title
+final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
+  "Signature calculator (V1/V2)".title
 
   // Examples taken from:
   // http://s3.amazonaws.com/doc/s3-developer-guide/RESTAuthentication.html

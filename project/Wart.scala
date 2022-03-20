@@ -1,12 +1,8 @@
 import sbt.Keys._
 import sbt._
 
-import wartremover.{
-  Warts,
-  wartremoverClasspaths,
-  wartremoverExcluded,
-  wartremoverErrors
-}
+import wartremover.{ Warts, wartremoverClasspaths, wartremoverExcluded }
+import wartremover.WartRemover.autoImport.wartremoverErrors
 
 object Wart {
   import wartremover.Wart.{

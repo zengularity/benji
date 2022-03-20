@@ -99,7 +99,7 @@ final class VFSObjectRef private[vfs] (
 
   val get: GetRequest = new VFSGetRequest()
 
-  def put[E, A]: PutRequest[E, A] = new RESTPutRequest[E, A]()
+  def put[E, A]: PutRequest[E, A] = new VFSPutRequest[E, A]()
 
   def delete: DeleteRequest = VFSDeleteRequest()
 
@@ -234,7 +234,7 @@ final class VFSObjectRef private[vfs] (
     }
   }
 
-  private[vfs] final class RESTPutRequest[E, A]() extends ref.PutRequest[E, A] {
+  private[vfs] final class VFSPutRequest[E, A]() extends ref.PutRequest[E, A] {
 
     @silent(".*fromFuture.*")
     def apply(
@@ -252,13 +252,14 @@ final class VFSObjectRef private[vfs] (
       def writeMetadata(): Try[Unit] = {
         val json = Json.toJson(metadata)
         val jsonBytes = Json.toBytes(json)
+
         Try {
           metadataFile.getContent.getOutputStream
         }.flatMap { out =>
           try {
             out.write(jsonBytes)
-            out.flush()
-            Success(())
+
+            Success(out.flush())
           } catch {
             case NonFatal(err) =>
               logger.warn(s"Cannot write metadata", err)

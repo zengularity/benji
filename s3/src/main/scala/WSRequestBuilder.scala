@@ -53,16 +53,10 @@ private[s3] object WSRequestBuilder {
       url: String,
       hostHeader: String,
       style: String
-    ): StandaloneWSRequest = {
-    val _ = Tuple2("Host", hostHeader)
-    /* TODO
-.addHttpHeaders(
-      "Host" -> hostHeader,
-      "X-Request-Style" -> style)
-     */
-
-    ws.url(url).sign(calculator) // TODO
-  }
+    ): StandaloneWSRequest =
+    ws.url(url)
+      .addHttpHeaders("Host" -> hostHeader, "X-Request-Style" -> style)
+      .sign(calculator)
 
   private[s3] def appendName(
       url: StringBuilder,

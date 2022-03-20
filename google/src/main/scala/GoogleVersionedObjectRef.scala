@@ -143,7 +143,7 @@ final class GoogleVersionedObjectRef(
 
   // ---
 
-  private final class GoogleGetRequest private[google] () extends GetRequest {
+  private[google] final class GoogleGetRequest() extends GetRequest {
 
     @com.github.ghik.silencer.silent(".*fromFutureSource.*")
     def apply(

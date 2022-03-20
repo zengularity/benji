@@ -10,8 +10,8 @@ import com.zengularity.benji.s3.tests.TestUtils
 
 import org.specs2.mutable.Specification
 
-class WSS3Spec extends Specification {
-  "WSS3" title
+final class WSS3Spec extends Specification {
+  "WSS3".title
 
   import TestUtils.WS
 

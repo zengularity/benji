@@ -11,7 +11,7 @@ import org.specs2.concurrent.{ ExecutionEnv => EE }
 import org.specs2.mutable.Specification
 
 final class S3AwsSpec extends Specification with AwsTests {
-  "S3 Amazon" title
+  "S3 Amazon".title
 
   sequential
 

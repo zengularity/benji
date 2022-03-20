@@ -13,7 +13,9 @@ import tests.benji.BenjiMatchers
 import org.specs2.concurrent.{ ExecutionEnv => EE }
 import org.specs2.specification.core.Fragment
 
-trait S3Spec extends BenjiMatchers { _: org.specs2.mutable.Specification =>
+trait S3Spec extends BenjiMatchers {
+  spec: org.specs2.mutable.Specification =>
+
   import TestUtils.withMatEx
 
   def s3Suite(
@@ -81,9 +83,9 @@ trait S3Spec extends BenjiMatchers { _: org.specs2.mutable.Specification =>
         .obj(objName)
         .headers() must beLike[Map[String, Seq[String]]] {
         case headers =>
-          headers.get("x-amz-meta-foo").aka("custom metadata") must beSome(
-            Seq("bar")
-          )
+          headers.get("x-amz-meta-foo") must beSome[Seq[String]].like {
+            case values => values must_=== Seq("bar")
+          }
       }.await(1, 5.seconds)
     }
 

@@ -62,18 +62,20 @@ object Common extends AutoPlugin {
         Seq(
           "-Wunused:all",
           "-language:implicitConversions",
-          "-Wconf:cat=deprecation&msg=.*fromFuture.*:s"
+          "-Wconf:cat=deprecation&msg=.*(fromFuture|ActorMaterializer).*:s"
         )
       }
     },
     Compile / console / scalacOptions ~= {
       _.filterNot(o =>
-        o.startsWith("-X") || o.startsWith("-Y") || o.startsWith("-P:silencer")
+        (o.startsWith("-X") && o != "-Xmax-classfile-name") ||
+          o.startsWith("-Y") || o.startsWith("-P:silencer")
       )
     },
     Compile / doc / scalacOptions ~= {
       _.filterNot { opt =>
-        opt.startsWith("-X") || opt.startsWith("-Y") || opt.startsWith("-P")
+        (opt.startsWith("-X") && opt != "-Xmax-classfile-name") ||
+        opt.startsWith("-Y") || opt.startsWith("-P")
       }
     },
     Test / scalacOptions ~= {
@@ -105,7 +107,12 @@ object Common extends AutoPlugin {
       "specs2-core",
       "specs2-junit"
     ).map(d => {
-      ("org.specs2" %% d % "4.10.6").cross(CrossVersion.for3Use2_13) % Test
+      val v = {
+        if (scalaBinaryVersion.value == "2.11") "4.10.6"
+        else "4.15.0"
+      }
+
+      ("org.specs2" %% d % v) % Test
     }) ++ Seq(
       "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
       "com.typesafe.akka" %% "akka-slf4j" % akkaVer.value,
@@ -178,71 +185,4 @@ object Common extends AutoPlugin {
       case _                 => sys.error("Fails to transform the POM")
     }
   }
-}
-
-object Dependencies {
-
-  object Version {
-    val playWS = sys.env.getOrElse("WS_VERSION", "2.0.8") // upper 2.0.6
-
-    val play: Def.Initialize[String] = Def.setting[String] {
-      val v = scalaBinaryVersion.value
-      val lower = {
-        if (v == "3" || v == "2.13") "2.8.13"
-        else "2.6.25"
-      }
-
-      sys.env.getOrElse("PLAY_VERSION", lower)
-    }
-
-    val akka = Def.setting[String] {
-      if (scalaBinaryVersion.value startsWith "3") "2.6.19"
-      else if (play.value startsWith "2.8.") "2.6.1"
-      else "2.5.32"
-    }
-
-    val playJson: Def.Initialize[String] = Def.setting[String] {
-      val v = scalaBinaryVersion.value
-      val lower = {
-        if (v startsWith "3") "2.10.0-RC5"
-        else if (v == "2.13") "2.7.4"
-        else "2.6.14"
-      }
-
-      sys.env.getOrElse("PLAY_JSON_VERSION", lower)
-    }
-  }
-
-  val playWS = ("com.typesafe.play" %% "play-ws-standalone" % Version.playWS)
-    .cross(CrossVersion.for3Use2_13)
-    .exclude("org.scala-lang.modules", "*")
-    .exclude("com.typesafe.akka", "*")
-    .exclude("com.typesafe.play", "*")
-
-  lazy val wsStream = Def.setting[Seq[ModuleID]] {
-    Seq(
-      playWS % Provided,
-      "com.typesafe.akka" %% "akka-stream" % Version.akka.value % Provided
-    )
-  }
-
-  val playAhcWS =
-    ("com.typesafe.play" %% "play-ahc-ws-standalone" % Version.playWS)
-      .cross(CrossVersion.for3Use2_13)
-      .exclude("org.scala-lang.modules", "*")
-      .exclude("com.typesafe.akka", "*")
-      .exclude("com.typesafe.play", "*")
-
-  val playWSJson =
-    ("com.typesafe.play" %% "play-ws-standalone-json" % Version.playWS)
-      .cross(CrossVersion.for3Use2_13)
-      .exclude("org.scala-lang.modules", "*")
-      .exclude("com.typesafe.akka", "*")
-      .exclude("com.typesafe.play", "*")
-
-  val playWSXml =
-    ("com.typesafe.play" %% "play-ws-standalone-xml" % Version.playWS)
-      .cross(CrossVersion.for3Use2_13)
-
-  val slf4jApi = "org.slf4j" % "slf4j-api" % "1.7.36"
 }

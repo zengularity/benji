@@ -6,8 +6,8 @@ import play.shaded.ahc.org.asynchttpclient.RequestBuilder
 //import play.shaded.ahc.io.netty.handler.codec.http.DefaultHttpHeaders
 
 // Sanity tests related to calculating the signature for S3 requests.
-class SignatureCalculatorV4Spec extends org.specs2.mutable.Specification {
-  "Signature calculator (V4)" title
+final class SignatureCalculatorV4Spec extends org.specs2.mutable.Specification {
+  "Signature calculator (V4)".title
 
   "Canonical request" should {
     // Examples from https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html

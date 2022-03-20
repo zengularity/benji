@@ -57,9 +57,7 @@ abstract class BenjiFromContext(
     new PlayInjector(configureBenji(injector))
 
   private lazy val parsed: Option[URI] =
-    BenjiModule.parseConfiguration(configuration).collectFirst {
-      case (`name`, uri) => uri
-    }
+    BenjiConfig.parse(configuration).collectFirst { case (`name`, uri) => uri }
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   lazy val parsedUri: URI = parsed.getOrElse(

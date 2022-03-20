@@ -233,6 +233,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       // See https://github.com/zengularity/benji/pull/23
       val sourceName = {
         if (storageKind == "ceph") "ceph.txt"
+        else if (storageKind == "vfs") "vfs.txt"
         else "Capture d’écran 2018-11-14 à 09.35.49 (1).png"
       }
 
@@ -246,6 +247,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
         repeat(20)(body)
           .runWith(put) must beDone.await(2, 5.seconds).setMessage("put file1")
+
       } and {
         file1 must existsIn(
           defaultBucketRef,

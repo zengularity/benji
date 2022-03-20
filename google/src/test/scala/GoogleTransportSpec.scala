@@ -11,7 +11,7 @@ import com.zengularity.benji.google.tests.TestUtils
 import org.specs2.mutable.Specification
 
 final class GoogleTransportSpec extends Specification {
-  "GoogleTransport" title
+  "GoogleTransport".title
 
   import TestUtils.ws
 

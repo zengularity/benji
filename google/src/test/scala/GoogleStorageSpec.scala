@@ -22,7 +22,7 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
   import TestUtils.google
   import tests.benji.StreamUtils._
 
-  "Google Cloud Storage" title
+  "Google Cloud Storage".title
 
   sequential
 
@@ -60,7 +60,7 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
         GoogleObjectRef.defaultThreshold.bytes.toInt - 3
       )(nextByte) ++ "XXX".getBytes("UTF-8")
 
-      type PutReq = filetest.RESTPutRequest[Array[Byte], Unit]
+      type PutReq = filetest.PutRequest[Array[Byte], Unit]
 
       filetest.put[Array[Byte], Unit] must beLike[PutReq] {
         case req =>
@@ -81,7 +81,10 @@ final class GoogleStorageSpec(implicit ee: ExecutionEnv)
       val objRef = gbucket.obj(objName)
 
       objRef.headers() must beLike[Map[String, Seq[String]]] {
-        case headers => headers.get("metadata.foo") must beSome(Seq("bar"))
+        case headers =>
+          headers.get("metadata.foo") must beSome[Seq[String]].like {
+            case values => values must_=== Seq("bar")
+          }
       }.await(1, 5.seconds)
     }
 
