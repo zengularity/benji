@@ -101,6 +101,7 @@ private[benji] object Streams {
           if (!hasPushed) pull(in)
         }
 
+        @SuppressWarnings(Array("org.wartremover.warts.SizeIs"))
         override def onUpstreamFinish(): Unit = {
           val rem = outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
 
