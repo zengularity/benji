@@ -8,7 +8,7 @@ The project is using [SBT](http://www.scala-sbt.org/), so to build it from sourc
 
     ./project/build.sh
 
-[![CircleCI](https://circleci.com/gh/zengularity/benji.svg?style=svg)](https://circleci.com/gh/zengularity/benji)
+[![CircleCI](https://circleci.com/gh/zengularity/benji/tree/master.svg?style=svg)](https://circleci.com/gh/zengularity/benji/tree/master)
 [![Maven](https://img.shields.io/maven-central/v/com.zengularity/benji-core_2.13.svg)](http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22benji-core_2.13%22)
 [![Javadocs](https://javadoc.io/badge/com.zengularity/benji-core_2.12.svg)](https://javadoc.io/doc/com.zengularity/benji-core_2.13)
 
