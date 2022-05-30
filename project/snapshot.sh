@@ -9,6 +9,8 @@ if [ "x$PUBLISH_USER" = "x" ]; then
   read PUBLISH_USER
 fi
 
+export PUBLISH_USER
+
 echo "Password: "
 read PASS
 export PUBLISH_PASS="$PASS"

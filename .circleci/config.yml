@@ -205,7 +205,7 @@ commands:
                       exit 1
                     fi
                     
-                    V=`sbt ';project core ;show version' | tail -n 1 | sed -e 's/^\[info\] //'`
+                    V=`sbt ';project core ;show version' | grep -A 1 core | grep -v core | cut -d ' ' -f 2`
                     IS_SNAPSHOT=`echo "$V" | grep SNAPSHOT | wc -l`
                     
                     if [ $IS_SNAPSHOT -eq 0 ]; then
