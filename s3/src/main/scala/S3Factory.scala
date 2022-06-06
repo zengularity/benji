@@ -16,6 +16,7 @@ import com.zengularity.benji.spi.{ Injector, StorageFactory, StorageScheme }
  * to resolve `play.api.libs.ws.ahc.StandaloneAhcWSClient`.
  */
 class S3Factory extends StorageFactory {
+
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   def apply(injector: Injector, uri: URI): ObjectStorage = {
     @inline implicit def ws: StandaloneAhcWSClient =

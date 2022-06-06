@@ -16,20 +16,27 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
 import com.zengularity.benji.{ BucketRef, BucketVersioning, Bytes, Object }
-import com.zengularity.benji.exception.{ BucketAlreadyExistsException, BucketNotEmptyException, BucketNotFoundException }
+import com.zengularity.benji.exception.{
+  BucketAlreadyExistsException,
+  BucketNotEmptyException,
+  BucketNotFoundException
+}
 
 final class VFSBucketRef private[vfs] (
-  storage: VFSStorage,
-  val name: String) extends BucketRef { ref =>
+    storage: VFSStorage,
+    val name: String)
+    extends BucketRef { ref =>
 
   @inline private def logger = storage.logger
 
   def objects: ref.ListRequest = new VFSListRequest(None)
 
   private final class VFSListRequest(
-    prefix: Option[String]) extends ref.ListRequest {
+      prefix: Option[String])
+      extends ref.ListRequest {
 
-    private val rootPath = s"${storage.transport.fsManager.getBaseFile.getName.getPath}${FileName.SEPARATOR}$name${FileName.SEPARATOR}"
+    private val rootPath =
+      s"${storage.transport.fsManager.getBaseFile.getName.getPath}${FileName.SEPARATOR}$name${FileName.SEPARATOR}"
 
     private val selector =
       new BenjiFileSelector(dir.getName, FileType.FILE, prefix)
@@ -39,27 +46,33 @@ final class VFSBucketRef private[vfs] (
     def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      Source.fromFuture(Future {
-        lazy val items = Option(dir.findFiles(selector))
+      Source
+        .fromFuture(Future {
+          lazy val items = Option(dir.findFiles(selector))
 
-        Source.fromIterator[Object] { () =>
-          items match {
-            case Some(itm) if itm.nonEmpty =>
-              itm.map { o =>
-                val content = o.getContent
-                Object(
-                  o.getName.getPath.stripPrefix(rootPath),
-                  Bytes(content.getSize),
-                  LocalDateTime.ofInstant(Instant.ofEpochMilli(content.getLastModifiedTime), ZoneOffset.UTC))
+          Source.fromIterator[Object] { () =>
+            items match {
+              case Some(itm) if itm.nonEmpty =>
+                itm.map { o =>
+                  val content = o.getContent
+                  Object(
+                    o.getName.getPath.stripPrefix(rootPath),
+                    Bytes(content.getSize),
+                    LocalDateTime.ofInstant(
+                      Instant.ofEpochMilli(content.getLastModifiedTime),
+                      ZoneOffset.UTC
+                    )
+                  )
 
-              }.iterator
-            case Some(_) =>
-              Iterator.empty
-            case None =>
-              throw BucketNotFoundException(name)
+                }.iterator
+              case Some(_) =>
+                Iterator.empty
+              case None =>
+                throw BucketNotFoundException(name)
+            }
           }
-        }
-      }).flatMapMerge(1, identity)
+        })
+        .flatMapMerge(1, identity)
     }
 
     def withBatchSize(max: Long) = {
@@ -77,10 +90,14 @@ final class VFSBucketRef private[vfs] (
   def exists(implicit ec: ExecutionContext): Future[Boolean] =
     Future(dir.exists)
 
-  def create(failsIfExists: Boolean = false)(implicit ec: ExecutionContext): Future[Unit] = {
+  def create(
+      failsIfExists: Boolean = false
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Unit] = {
     val before = if (failsIfExists) {
       exists.flatMap {
-        case true => Future.failed[Unit](BucketAlreadyExistsException(name))
+        case true  => Future.failed[Unit](BucketAlreadyExistsException(name))
         case false => Future.successful({})
       }
     } else {
@@ -118,7 +135,11 @@ final class VFSBucketRef private[vfs] (
 
   // ---
 
-  private case class VFSDeleteRequest(isRecursive: Boolean = false, ignoreExists: Boolean = false) extends DeleteRequest {
+  private case class VFSDeleteRequest(
+      isRecursive: Boolean = false,
+      ignoreExists: Boolean = false)
+      extends DeleteRequest {
+
     private def delete()(implicit m: Materializer): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 

@@ -11,13 +11,16 @@ import scala.collection.immutable.Set
  * according their associated [[StorageScheme]].
  */
 final class Registry private[spi] () {
+
   /** The known factories per scheme */
   lazy val factories: Map[String, Class[_ <: StorageFactory]] = {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
     val services = loader.iterator
 
     @annotation.tailrec
-    def append(m: Map[String, Class[_ <: StorageFactory]]): Map[String, Class[_ <: StorageFactory]] = {
+    def append(
+        m: Map[String, Class[_ <: StorageFactory]]
+      ): Map[String, Class[_ <: StorageFactory]] = {
       if (!services.hasNext) {
         m
       } else {
@@ -40,6 +43,7 @@ final class Registry private[spi] () {
 
 /** Registry utility */
 object Registry {
+
   /** Returns a new registry instance. */
   def getInstance: Registry = new Registry()
 }

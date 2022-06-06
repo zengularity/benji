@@ -10,7 +10,7 @@ import com.zengularity.benji.vfs.VFSTransport
 import org.specs2.mutable.Specification
 
 class VFSTransportSpec extends Specification {
-  "VFSTransport" title
+  "VFSTransport".title
 
   "Factory using URs" should {
     "return Failure when the provider fail" in {
@@ -39,11 +39,13 @@ class VFSTransportSpec extends Specification {
     }
 
     "return Failure with wrong scheme" in {
-      VFSTransport("vfs:wrong://path") must beFailedTry.withThrowable[IllegalArgumentException]
+      VFSTransport("vfs:wrong://path") must beFailedTry
+        .withThrowable[IllegalArgumentException]
     }
 
     "return Failure without scheme prefix" in {
-      VFSTransport("file:///home/someuser/somedir") must beFailedTry.withThrowable[IllegalArgumentException]
+      VFSTransport("file:///home/someuser/somedir") must beFailedTry
+        .withThrowable[IllegalArgumentException]
     }
 
     "return Success when we use temporary as uri" in {

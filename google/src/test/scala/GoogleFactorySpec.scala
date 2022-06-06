@@ -11,7 +11,7 @@ import com.zengularity.benji.google.tests.TestUtils
 import com.zengularity.benji.spi.{ Injector, Registry, StorageScheme }
 
 final class GoogleFactorySpec extends org.specs2.mutable.Specification {
-  "Google factory" title
+  "Google factory".title
 
   "Google storage" should {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
@@ -33,7 +33,8 @@ final class GoogleFactorySpec extends org.specs2.mutable.Specification {
 
       s"not be resolved from ${uri.toString}" in {
         factory(WSInjector, uri) must throwA[Exception](
-          "Expected URI with scheme.*")
+          "Expected URI with scheme.*"
+        )
       }
     }
   }
@@ -55,7 +56,8 @@ final class GoogleFactorySpec extends org.specs2.mutable.Specification {
 
   import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
-  private implicit def materializer = TestUtils.materializer
+  private implicit def materializer: akka.stream.Materializer =
+    TestUtils.materializer
 
   object WSInjector extends Injector {
     private val WS = classOf[StandaloneAhcWSClient]
@@ -63,7 +65,7 @@ final class GoogleFactorySpec extends org.specs2.mutable.Specification {
     @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
     def instanceOf[T](cls: Class[T]): T = cls match {
       case WS => StandaloneAhcWSClient().asInstanceOf[T]
-      case _ => ???
+      case _  => ???
     }
   }
 }

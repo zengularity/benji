@@ -17,6 +17,7 @@ import akka.stream.scaladsl.{ Sink, Source }
  * @see [[VersionedObjectRef]]
  */
 trait ObjectVersioning {
+
   /**
    * Prepares a request to list the bucket versioned objects.
    *
@@ -53,6 +54,7 @@ trait ObjectVersioning {
    * Prepares a request to list the bucket objects.
    */
   trait VersionedListRequest {
+
     /**
      * Lists of all versioned objects within the bucket.
      *
@@ -77,13 +79,21 @@ trait ObjectVersioning {
      *   versioning.versions.collect[List]()
      * }}}
      */
-    final def collect[M[_]]()(implicit m: Materializer, @deprecatedName(Symbol("builder")) factory: Compat.Factory[M, VersionedObject]): Future[M[VersionedObject]] = {
+    final def collect[M[_]](
+      )(implicit
+        m: Materializer,
+        @deprecatedName(Symbol("builder")) factory: Compat.Factory[
+          M,
+          VersionedObject
+        ]
+      ): Future[M[VersionedObject]] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      apply() runWith Sink.fold(
-        Compat.newBuilder[M, VersionedObject](factory)) {
+      apply() runWith Sink
+        .fold(Compat.newBuilder[M, VersionedObject](factory)) {
           _ += (_: VersionedObject)
-        }.mapMaterializedValue(_.map(_.result()))
+        }
+        .mapMaterializedValue(_.map(_.result()))
     }
 
     /**

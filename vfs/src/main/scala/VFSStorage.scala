@@ -23,8 +23,9 @@ import com.zengularity.benji.{ Bucket, ObjectStorage }
  * @param requestTimeout the optional timeout for the prepared requests
  */
 class VFSStorage(
-  val transport: VFSTransport,
-  val requestTimeout: Option[Long]) extends ObjectStorage { self =>
+    val transport: VFSTransport,
+    val requestTimeout: Option[Long])
+    extends ObjectStorage { self =>
 
   def withRequestTimeout(timeout: Long) =
     new VFSStorage(transport, Some(timeout))
@@ -39,22 +40,35 @@ class VFSStorage(
     def apply()(implicit m: Materializer): Source[Bucket, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      Source.fromFuture(Future {
-        lazy val root = transport.fsManager.resolveFile(rootBaseFile.getURL)
-        lazy val items = Option(root.findFiles(selector))
+      Source
+        .fromFuture(Future {
+          lazy val root = transport.fsManager.resolveFile(rootBaseFile.getURL)
+          lazy val items = Option(root.findFiles(selector))
 
-        Source.fromIterator[Bucket] { () =>
-          items match {
-            case Some(itm) if itm.nonEmpty =>
-              itm.filter(_.getName.getBaseName != rootBaseFile.getName.getBaseName).map { b =>
-                Bucket(
-                  b.getName.getPathDecoded.stripPrefix(s"${rootBaseFile.getName.getPath}${FileName.SEPARATOR}"),
-                  LocalDateTime.ofInstant(Instant.ofEpochMilli(b.getContent.getLastModifiedTime), ZoneOffset.UTC))
-              }.iterator
-            case _ => Iterator.empty
+          Source.fromIterator[Bucket] { () =>
+            items match {
+              case Some(itm) if itm.nonEmpty =>
+                itm
+                  .filter(
+                    _.getName.getBaseName != rootBaseFile.getName.getBaseName
+                  )
+                  .map { b =>
+                    Bucket(
+                      b.getName.getPathDecoded.stripPrefix(
+                        s"${rootBaseFile.getName.getPath}${FileName.SEPARATOR}"
+                      ),
+                      LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(b.getContent.getLastModifiedTime),
+                        ZoneOffset.UTC
+                      )
+                    )
+                  }
+                  .iterator
+              case _ => Iterator.empty
+            }
           }
-        }
-      }).flatMapMerge(1, identity)
+        })
+        .flatMapMerge(1, identity)
     }
 
     // TODO: Use pagination
@@ -63,11 +77,15 @@ class VFSStorage(
 
 /** VFS factory. */
 object VFSStorage {
+
   /**
    * Returns a client for VFS Object Storage.
    *
    * @param transport the VFS transport
    * @param requestTimeout the optional timeout for the prepared requests (none by default)
    */
-  def apply(transport: VFSTransport, requestTimeout: Option[Long] = None): VFSStorage = new VFSStorage(transport, requestTimeout)
+  def apply(
+      transport: VFSTransport,
+      requestTimeout: Option[Long] = None
+    ): VFSStorage = new VFSStorage(transport, requestTimeout)
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## Release 2.2.0
+
+Support Scala 3 (still minimal for Play modules)
+
 ## Release 2.1.0
 
 - Update dependencies (#94):

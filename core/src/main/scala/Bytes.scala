@@ -11,6 +11,7 @@ package com.zengularity.benji
  * @param bytes the number of bytes (binary size)
  */
 final class Bytes private (val bytes: Long) extends AnyVal {
+
   /**
    * Indicates whether this size value was exceeded by the given byte array.
    *

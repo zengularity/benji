@@ -1,12 +1,8 @@
 import sbt.Keys._
 import sbt._
 
-import wartremover.{
-  Warts,
-  wartremoverClasspaths,
-  wartremoverExcluded,
-  wartremoverErrors
-}
+import wartremover.{ Warts, wartremoverClasspaths, wartremoverExcluded }
+import wartremover.WartRemover.autoImport.wartremoverErrors
 
 object Wart {
   import wartremover.Wart.{
@@ -18,8 +14,8 @@ object Wart {
     NonUnitStatements
   }
 
-  def wartFilter(w: String): String => Boolean = (_: String).startsWith(
-    s"-P:wartremover:traverser:org.wartremover.warts.$w")
+  def wartFilter(w: String): String => Boolean =
+    (_: String).startsWith(s"-P:wartremover:traverser:org.wartremover.warts.$w")
 
   val settings = Seq(
     wartremoverErrors ++= Warts.allBut(
@@ -28,7 +24,8 @@ object Wart {
       Equals,
       FinalCaseClass,
       ImplicitParameter,
-      NonUnitStatements),
+      NonUnitStatements
+    ),
     scalacOptions ~= {
       val nothingFilter = wartFilter("Nothing")
       val javaConvFilter = wartFilter("JavaConversions") // 2.11 compat
@@ -49,7 +46,7 @@ object Wart {
 
       val filter: String => Boolean = { s =>
         anyFilter(s) || anyValFilter(s) || productFilter(s) ||
-          serializableFilter(s) || javaSerializableFilter(s)
+        serializableFilter(s) || javaSerializableFilter(s)
       }
 
       (_: Seq[String]).filterNot(filter)
@@ -62,5 +59,6 @@ object Wart {
     },
     Test / console / scalacOptions ~= {
       _.filterNot(_.contains("wartremover"))
-    })
+    }
+  )
 }

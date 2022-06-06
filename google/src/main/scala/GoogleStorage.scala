@@ -22,9 +22,10 @@ import com.zengularity.benji.{ Bucket, Compat, ObjectStorage }
  * @param disableGZip if true, disables the GZip compression for upload and download (automatically disabled for multi-part upload)
  */
 class GoogleStorage(
-  private[google] val transport: GoogleTransport,
-  val requestTimeout: Option[Long],
-  val disableGZip: Boolean) extends ObjectStorage { self =>
+    private[google] val transport: GoogleTransport,
+    val requestTimeout: Option[Long],
+    val disableGZip: Boolean)
+    extends ObjectStorage { self =>
 
   import Compat.javaConverters._
 
@@ -40,25 +41,38 @@ class GoogleStorage(
   def bucket(name: String) = new GoogleBucketRef(this, name)
 
   object buckets extends self.BucketsRequest {
+
     @com.github.ghik.silencer.silent(".*fromFuture.*")
     def apply()(implicit m: Materializer): Source[Bucket, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
-      Source.fromFuture(Future {
-        val items = transport.buckets().
-          list(transport.projectId).execute().getItems
+      Source
+        .fromFuture(Future {
+          val items =
+            transport.buckets().list(transport.projectId).execute().getItems
 
-        Source(
-          if (items == null) List.empty[Bucket] else items.asScala.map { b =>
-            Bucket(b.getName, LocalDateTime.ofInstant(Instant.ofEpochMilli(b.getTimeCreated.getValue), ZoneOffset.UTC))
-          }.toList)
-      }).flatMapMerge(1, identity)
+          Source(
+            if (items == null) List.empty[Bucket]
+            else
+              items.asScala.map { b =>
+                Bucket(
+                  b.getName,
+                  LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(b.getTimeCreated.getValue),
+                    ZoneOffset.UTC
+                  )
+                )
+              }.toList
+          )
+        })
+        .flatMapMerge(1, identity)
     }
   }
 }
 
 /** Google factory. */
 object GoogleStorage {
+
   /**
    * Returns a client for Google Cloud Storage.
    *

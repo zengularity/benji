@@ -24,8 +24,12 @@ object Publish {
         Set.empty[ModuleID]
       }
     },
-    licenses := Seq("Apache-2.0" ->
-      url("https://www.apache.org/licenses/LICENSE-2.0.txt")),
+    Compile / packageBin / mappings ~= coreFilter,
+    Compile / packageSrc / mappings ~= coreFilter,
+    licenses := Seq(
+      "Apache-2.0" ->
+        url("https://www.apache.org/licenses/LICENSE-2.0.txt")
+    ),
     pomIncludeRepository := { _ => false },
     autoAPIMappings := true,
     apiURL := Some(url(siteUrl)), // TODO
@@ -33,20 +37,34 @@ object Publish {
     scmInfo := Some(
       ScmInfo(
         url("https://github.com/zengularity/benji"),
-        "git@github.com:zengularity/benji.git")),
+        "git@github.com:zengularity/benji.git"
+      )
+    ),
     headerLicense := {
       val currentYear = java.time.Year.now(java.time.Clock.systemUTC).getValue
-      Some(HeaderLicense.Custom(
-        s"Copyright (C) 2018-$currentYear Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>"))
+      Some(HeaderLicense.Custom(s"Copyright (C) 2018-$currentYear Zengularity SA (FaberNovel Technologies) <https://www.zengularity.com>"))
     },
     developers := List(
       Developer(
         id = "cchantep",
         name = "Cédric Chantepie",
         email = "",
-        url = url("http://github.com/cchantep/"))),
+        url = url("http://github.com/cchantep/")
+      )
+    ),
     publishTo := Some(repoUrl).map(repoName at _),
-    credentials += Credentials(repoName, env("PUBLISH_REPO_ID"),
-      env("PUBLISH_USER"), env("PUBLISH_PASS")))
+    credentials += Credentials(
+      repoName,
+      env("PUBLISH_REPO_ID"),
+      env("PUBLISH_USER"),
+      env("PUBLISH_PASS")
+    )
+  )
 
+  private lazy val coreFilter: Seq[(File, String)] => Seq[(File, String)] = {
+    (_: Seq[(File, String)]).filter {
+      case (file, name) =>
+        name.indexOf("com/github/ghik/silencer") == -1
+    }
+  }
 }

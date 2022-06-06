@@ -10,6 +10,7 @@ import com.zengularity.benji.ObjectStorage
 
 /** Benji components contract */
 trait BenjiComponents {
+
   /** The instance name (default: `default`) */
   def name: String
 
@@ -48,12 +49,13 @@ trait BenjiComponents {
  * }}}
  */
 trait BenjiComponentsWithInjector extends BenjiComponents {
+
   /** The injector used to resolve the storage dependencies */
   def benjiInjector: com.zengularity.benji.spi.Injector
 
   final lazy val benji: ObjectStorage = {
     @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
-    def provider = BenjiModule.provider(parsedUri).get
+    def provider = BenjiProvider.from(parsedUri).get
 
     val p = provider
 

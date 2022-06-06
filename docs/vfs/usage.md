@@ -18,7 +18,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
 
 import com.zengularity.benji.{ Bucket, Object }
-import com.zengularity.benji.vfs.{ VFSBucketRef, VFSStorage, VFSTransport }
+import com.zengularity.benji.vfs.{ VFSStorage, VFSTransport }
 
 // Settings
 val projectId = "vfs-project-123456"
@@ -28,14 +28,14 @@ def sample1(implicit m: Materializer): Future[Unit] = {
   implicit def ec: ExecutionContext = m.executionContext
 
   Future.fromTry(VFSTransport.temporary(projectId)).flatMap {
-    vfsTransport: VFSTransport => 
+    (vfsTransport: VFSTransport) => 
       lazy val vfs = VFSStorage(vfsTransport)
 
       val buckets: Future[List[Bucket]] = vfs.buckets.collect[List]()
 
       buckets.flatMap {
         _.headOption.fold(Future.successful(println("No found"))) { firstBucket =>
-          val bucketRef: VFSBucketRef = vfs.bucket(firstBucket.name)
+          val bucketRef = vfs.bucket(firstBucket.name)
           val objects: Source[Object, NotUsed] = bucketRef.objects()
       
           objects.runWith(Sink.foreach[Object] { obj =>

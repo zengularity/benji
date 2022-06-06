@@ -17,6 +17,7 @@ sealed trait URIProvider[T] {
 
 /** [[URIProvider]] factory */
 object URIProvider {
+
   /**
    * Creates a URIProvider from a function.
    */

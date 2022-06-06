@@ -5,7 +5,7 @@ resolvers ++= Seq(
 
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.10.0-RC1")
 
-addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.8.3")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.6")
 
 addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.34")
 
@@ -24,5 +24,4 @@ addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.8")
 addSbtPlugin("com.dwijnand" % "sbt-dynver" % "4.1.1")
 
 // For the the highlight extractor
-libraryDependencies ++= Seq(
-  "commons-io" % "commons-io" % "2.11.0")
+libraryDependencies ++= Seq("commons-io" % "commons-io" % "2.11.0")

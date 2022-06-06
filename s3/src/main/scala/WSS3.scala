@@ -22,12 +22,7 @@ import play.api.libs.ws.{ StandaloneWSRequest, StandaloneWSResponse }
 import play.api.libs.ws.ahc.{ AhcWSClientConfig, StandaloneAhcWSClient }
 import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
-import com.zengularity.benji.{
-  Bucket,
-  Compat,
-  ObjectStorage,
-  URIProvider
-}
+import com.zengularity.benji.{ Bucket, Compat, ObjectStorage, URIProvider }
 
 import Compat.javaConverters._
 
@@ -39,15 +34,17 @@ import Compat.javaConverters._
  * @define contentTypeParam the MIME type of content
  */
 class WSS3(
-  private val transport: StandaloneAhcWSClient,
-  requestBuilder: WSRequestBuilder,
-  val requestTimeout: Option[Long] = None) extends ObjectStorage { self =>
+    private val transport: StandaloneAhcWSClient,
+    requestBuilder: WSRequestBuilder,
+    val requestTimeout: Option[Long] = None)
+    extends ObjectStorage { self =>
 
   private[s3] def request(
-    bucketName: Option[String] = None,
-    objectName: Option[String] = None,
-    query: Option[String] = None,
-    requestTimeout: Option[Long] = None): StandaloneWSRequest = {
+      bucketName: Option[String] = None,
+      objectName: Option[String] = None,
+      query: Option[String] = None,
+      requestTimeout: Option[Long] = None
+    ): StandaloneWSRequest = {
     val req = requestBuilder(transport, bucketName, objectName, query)
 
     requestTimeout.fold(req) { t => req.withRequestTimeout(t.milliseconds) }
@@ -60,20 +57,30 @@ class WSS3(
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html
    */
   object buckets extends self.BucketsRequest {
-    def error(response: StandaloneWSResponse): Throwable = new IllegalStateException(s"Could not get a list of all buckets. Response: ${response.status.toString} - ${response.body}")
+
+    def error(
+        response: StandaloneWSResponse
+      ): Throwable = new IllegalStateException(
+      s"Could not get a list of all buckets. Response: ${response.status.toString} - ${response.body}"
+    )
 
     def apply()(implicit m: Materializer): Source[Bucket, NotUsed] =
-      S3.getXml[Bucket](request(requestTimeout = requestTimeout))({ xml =>
-        def buckets = xml \ "Buckets" \ "Bucket"
+      S3.getXml[Bucket](request(requestTimeout = requestTimeout))(
+        { xml =>
+          def buckets = xml \ "Buckets" \ "Bucket"
 
-        Source(buckets.map { bucket =>
-          Bucket(
-            name = (bucket \ "Name").text,
-            creationTime = LocalDateTime.parse(
-              (bucket \ "CreationDate").text,
-              DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-        })
-      }, error)
+          Source(buckets.map { bucket =>
+            Bucket(
+              name = (bucket \ "Name").text,
+              creationTime = LocalDateTime.parse(
+                (bucket \ "CreationDate").text,
+                DateTimeFormatter.ISO_OFFSET_DATE_TIME
+              )
+            )
+          })
+        },
+        error
+      )
 
     // TODO: Use pagination
   }
@@ -103,7 +110,20 @@ object S3 {
    *     host = "s3.amazonaws.com")
    * }}}
    */
-  def apply(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new PathStyleWSRequestBuilder(new SignatureCalculatorV1(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
+  def apply(
+      accessKeyId: String,
+      secretAccessKeyId: String,
+      scheme: String,
+      host: String
+    )(implicit
+      ws: StandaloneAhcWSClient
+    ): WSS3 = new WSS3(
+    ws,
+    new PathStyleWSRequestBuilder(
+      new SignatureCalculatorV1(accessKeyId, secretAccessKeyId, host),
+      new java.net.URL(s"${scheme}://${host}")
+    )
+  )
 
   /**
    * Returns the S3 client in the virtual host style.
@@ -123,9 +143,21 @@ object S3 {
    *     scheme = "https",
    *     host = "s3.amazonaws.com")
    * }}}
-   *
    */
-  def virtualHost(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new VirtualHostWSRequestBuilder(new SignatureCalculatorV1(accessKeyId, secretAccessKeyId, host), new java.net.URL(s"${scheme}://${host}")))
+  def virtualHost(
+      accessKeyId: String,
+      secretAccessKeyId: String,
+      scheme: String,
+      host: String
+    )(implicit
+      ws: StandaloneAhcWSClient
+    ): WSS3 = new WSS3(
+    ws,
+    new VirtualHostWSRequestBuilder(
+      new SignatureCalculatorV1(accessKeyId, secretAccessKeyId, host),
+      new java.net.URL(s"${scheme}://${host}")
+    )
+  )
 
   /**
    * Returns the S3 client in the virtual host style.
@@ -147,9 +179,22 @@ object S3 {
    *     host = "s3.amazonaws.com",
    *     region = "us-east-1")
    * }}}
-   *
    */
-  def virtualHostAwsV4(accessKeyId: String, secretAccessKeyId: String, scheme: String, host: String, region: String)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, new VirtualHostWSRequestBuilder(new SignatureCalculatorV4(accessKeyId, secretAccessKeyId, region), new java.net.URL(s"${scheme}://${host}")))
+  def virtualHostAwsV4(
+      accessKeyId: String,
+      secretAccessKeyId: String,
+      scheme: String,
+      host: String,
+      region: String
+    )(implicit
+      ws: StandaloneAhcWSClient
+    ): WSS3 = new WSS3(
+    ws,
+    new VirtualHostWSRequestBuilder(
+      new SignatureCalculatorV4(accessKeyId, secretAccessKeyId, region),
+      new java.net.URL(s"${scheme}://${host}")
+    )
+  )
 
   /**
    * Tries to create a S3 client from an URI using the following format:
@@ -174,7 +219,12 @@ object S3 {
    * @tparam T the config type to be consumed by the provider typeclass
    * @return Success if the WSS3 was properly created, otherwise Failure
    */
-  def apply[T](config: T)(implicit ws: StandaloneAhcWSClient, provider: URIProvider[T]): Try[WSS3] = {
+  def apply[T](
+      config: T
+    )(implicit
+      ws: StandaloneAhcWSClient,
+      provider: URIProvider[T]
+    ): Try[WSS3] = {
     def fromUri(uri: URI, accessKey: String, secretKey: String): Try[WSS3] = {
       val host = uri.getHost
       val scheme = uri.getScheme
@@ -183,40 +233,59 @@ object S3 {
       def reqTimeout: Try[Option[Long]] = params.get("requestTimeout") match {
         case Some(Seq(LongVal(timeout))) => Success(Some(timeout))
 
-        case Some(Seq(v)) => Failure[Option[Long]](new IllegalArgumentException(
-          s"Invalid request timeout parameter in URI: $v"))
+        case Some(Seq(v)) =>
+          Failure[Option[Long]](
+            new IllegalArgumentException(
+              s"Invalid request timeout parameter in URI: $v"
+            )
+          )
 
-        case Some(ps) => Failure[Option[Long]](new IllegalArgumentException(
-          s"Invalid request timeout parameter in URI: ${ps.toString}"))
+        case Some(ps) =>
+          Failure[Option[Long]](
+            new IllegalArgumentException(
+              s"Invalid request timeout parameter in URI: ${ps.toString}"
+            )
+          )
 
         case _ => Success(Option.empty[Long])
       }
 
-      def awsRegion = params.get("awsRegion").collect {
-        case Seq(region) => region
-      }
+      def awsRegion =
+        params.get("awsRegion").collect { case Seq(region) => region }
 
       def storage: Try[WSS3] = params.get("style") match {
         case Some(Seq("path")) if awsRegion.isDefined =>
-          Failure[WSS3](new IllegalArgumentException(
-            "Style 'virtualHost' must be specified when 'awsRegion' is defined"))
+          Failure[WSS3](
+            new IllegalArgumentException(
+              "Style 'virtualHost' must be specified when 'awsRegion' is defined"
+            )
+          )
 
-        case Some(Seq("virtualHost")) => awsRegion match {
-          case Some(region) => Success(virtualHostAwsV4(
-            accessKey, secretKey, scheme, host, region))
+        case Some(Seq("virtualHost")) =>
+          awsRegion match {
+            case Some(region) =>
+              Success(
+                virtualHostAwsV4(accessKey, secretKey, scheme, host, region)
+              )
 
-          case _ =>
-            Success(virtualHost(accessKey, secretKey, scheme, host))
-        }
+            case _ =>
+              Success(virtualHost(accessKey, secretKey, scheme, host))
+          }
 
         case Some(Seq("path")) =>
           Success(apply(accessKey, secretKey, scheme, host))
 
-        case Some(style) => Failure[WSS3](new IllegalArgumentException(
-          s"Invalid style parameter in URI: ${style.toString}"))
+        case Some(style) =>
+          Failure[WSS3](
+            new IllegalArgumentException(
+              s"Invalid style parameter in URI: ${style.toString}"
+            )
+          )
 
-        case _ => Failure[WSS3](new IllegalArgumentException(
-          "Expected style parameter in URI"))
+        case _ =>
+          Failure[WSS3](
+            new IllegalArgumentException("Expected style parameter in URI")
+          )
       }
 
       for {
@@ -227,15 +296,19 @@ object S3 {
 
     provider(config).flatMap { builtUri =>
       if (builtUri == null) {
-        Failure[WSS3](new IllegalArgumentException(
-          "URI provider returned a null URI"))
+        Failure[WSS3](
+          new IllegalArgumentException("URI provider returned a null URI")
+        )
 
       } else if (builtUri.getScheme != "s3") {
         // URI object fails to parse properly with scheme like "s3:http"
         // So we check for "s3" scheme and then recreate an URI without it
 
-        Failure[WSS3](new IllegalArgumentException(
-          "Expected URI with scheme containing \"s3:\""))
+        Failure[WSS3](
+          new IllegalArgumentException(
+            "Expected URI with scheme containing \"s3:\""
+          )
+        )
 
       } else {
         builtUri.getSchemeSpecificPart match {
@@ -243,43 +316,64 @@ object S3 {
             fromUri(new URI(s"$scheme://$raw"), accessKey, secret)
 
           case uri =>
-            Failure[WSS3](new IllegalArgumentException(
-              s"Expected URI containing accessKey and secretKey: $uri"))
+            Failure[WSS3](
+              new IllegalArgumentException(
+                s"Expected URI containing accessKey and secretKey: $uri"
+              )
+            )
         }
       }
     }
   }
 
-  private[s3] def apply(requestBuilder: WSRequestBuilder)(implicit ws: StandaloneAhcWSClient): WSS3 = new WSS3(ws, requestBuilder)
+  private[s3] def apply(
+      requestBuilder: WSRequestBuilder
+    )(implicit
+      ws: StandaloneAhcWSClient
+    ): WSS3 = new WSS3(ws, requestBuilder)
 
   // Utility functions
 
   /** Returns a WS client (take care to close it once used). */
-  private[s3] def client(config: AhcWSClientConfig = AhcWSClientConfig())(implicit materializer: Materializer): StandaloneAhcWSClient = StandaloneAhcWSClient(config)
+  private[s3] def client(
+      config: AhcWSClientConfig = AhcWSClientConfig()
+    )(implicit
+      materializer: Materializer
+    ): StandaloneAhcWSClient = StandaloneAhcWSClient(config)
 
   @com.github.ghik.silencer.silent(".*fromFuture.*")
-  private[s3] def getXml[T](req: => StandaloneWSRequest)(
-    f: scala.xml.Elem => Source[T, NotUsed],
-    err: StandaloneWSResponse => Throwable)(implicit m: Materializer): Source[T, NotUsed] = {
+  private[s3] def getXml[T](
+      req: => StandaloneWSRequest
+    )(f: scala.xml.Elem => Source[T, NotUsed],
+      err: StandaloneWSResponse => Throwable
+    )(implicit
+      m: Materializer
+    ): Source[T, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
-    Source.fromFuture(req.withMethod("GET").stream().flatMap { response =>
-      if (response.status == 200 || response.status == 206) {
+    Source
+      .fromFuture(req.withMethod("GET").stream().flatMap { response =>
+        if (response.status == 200 || response.status == 206) {
 
-        Future.successful(response.bodyAsSource.mapMaterializedValue(_ => NotUsed).
-          fold(new StringBuilder) {
-            _ ++= _.utf8String
-          }.
-          flatMapConcat { buf =>
-            f(scala.xml.XML.loadString(buf.result()))
-          })
-      } else Future.failed[Source[T, NotUsed]](err(response))
-    }).flatMapConcat(identity)
+          Future.successful(
+            response.bodyAsSource
+              .mapMaterializedValue(_ => NotUsed)
+              .fold(new StringBuilder) {
+                _ ++= _.utf8String
+              }
+              .flatMapConcat { buf =>
+                f(scala.xml.XML.loadString(buf.result()))
+              }
+          )
+        } else Future.failed[Source[T, NotUsed]](err(response))
+      })
+      .flatMapConcat(identity)
   }
 
   private def parseQuery(uri: URI): Map[String, Seq[String]] =
-    Compat.mapValues(new QueryStringDecoder(uri.toString).parameters.
-      asScala.toMap)(_.asScala.toSeq)
+    Compat.mapValues(
+      new QueryStringDecoder(uri.toString).parameters.asScala.toMap
+    )(_.asScala.toSeq)
 
   private lazy val HttpUrl = "^(http[s]*)://([^:]+):([^@]+)@(.+)$".r
 }

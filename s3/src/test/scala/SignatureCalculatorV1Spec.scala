@@ -4,8 +4,8 @@ import play.shaded.ahc.io.netty.handler.codec.http.DefaultHttpHeaders
 import play.shaded.ahc.org.asynchttpclient.RequestBuilder
 
 // Sanity tests related to calculating the signature for S3 requests.
-class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
-  "Signature calculator (V1/V2)" title
+final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
+  "Signature calculator (V1/V2)".title
 
   // Examples taken from:
   // http://s3.amazonaws.com/doc/s3-developer-guide/RESTAuthentication.html
@@ -13,15 +13,14 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
   "Canolicalized signature url" should {
     "keep sub-resource parameter (e.g. ?acl)" in {
       @SuppressWarnings(Array("org.wartremover.warts.Null"))
-      val req = new RequestBuilder("http").
-        addQueryParam("acl", null).build()
+      val req = new RequestBuilder("http").addQueryParam("acl", null).build()
 
       calculator.signatureUrl(req) must_== "http://localhost?acl"
     }
 
     "filter query parameters (e.g. ?max-keys)" in {
-      val req = new RequestBuilder("http").
-        addQueryParam("max-keys", "50").build()
+      val req =
+        new RequestBuilder("http").addQueryParam("max-keys", "50").build()
 
       calculator.signatureUrl(req) must_== "http://localhost"
     }
@@ -32,7 +31,12 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
     val awsHost = "s3.amazonaws.com"
     val path = "/johnsmith/photos/puppy.jpg"
 
-    def resForTest(style: RequestStyle, url: String, host: String, path: String) = s"be '$path' for $url with $host" in {
+    def resForTest(
+        style: RequestStyle,
+        url: String,
+        host: String,
+        path: String
+      ) = s"be '$path' for $url with $host" in {
       calculator.canonicalizeResource(style, url, host) must_== path
     }
     def vhResTest(url: String, host: String, path: String) =
@@ -45,44 +49,63 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
     vhResTest("http://johnsmith.10.192.8.62/photos/puppy.jpg", ipHost, path)
 
     pathResTest(
-      "https://s3.amazonaws.com/johnsmith/photos/puppy.jpg", awsHost, path)
+      "https://s3.amazonaws.com/johnsmith/photos/puppy.jpg",
+      awsHost,
+      path
+    )
 
     vhResTest(
-      "https://johnsmith.s3.amazonaws.com/photos/puppy.jpg", awsHost, path)
+      "https://johnsmith.s3.amazonaws.com/photos/puppy.jpg",
+      awsHost,
+      path
+    )
 
     vhResTest(
       "http://com.domain.bucket.10.192.8.62/photos/puppy.jpg",
-      ipHost, "/com.domain.bucket/photos/puppy.jpg")
+      ipHost,
+      "/com.domain.bucket/photos/puppy.jpg"
+    )
 
     pathResTest(
       "http://10.192.8.62/com.domain.bucket/photos/puppy.jpg",
-      ipHost, "/com.domain.bucket/photos/puppy.jpg")
+      ipHost,
+      "/com.domain.bucket/photos/puppy.jpg"
+    )
 
-    vhResTest("http://johnsmith.s3.amazonaws.com/?prefix=photos&max-keys=50&marker=puppy", awsHost, "/johnsmith/?prefix=photos&max-keys=50&marker=puppy")
+    vhResTest(
+      "http://johnsmith.s3.amazonaws.com/?prefix=photos&max-keys=50&marker=puppy",
+      awsHost,
+      "/johnsmith/?prefix=photos&max-keys=50&marker=puppy"
+    )
 
     vhResTest(
       "http://johnsmith.s3.amazonaws.com/?acl",
-      awsHost, "/johnsmith/?acl")
+      awsHost,
+      "/johnsmith/?acl"
+    )
 
     "required to list objects within a bucket with /" in {
       calculator.canonicalizeResource(
         VirtualHostRequest,
         "https://bucket-name.s3.amazonaws.com/",
-        host = "s3.amazonaws.com") must_== "/bucket-name/"
+        host = "s3.amazonaws.com"
+      ) must_== "/bucket-name/"
     }
 
     "required to list objects within a bucket" in {
       calculator.canonicalizeResource(
         VirtualHostRequest,
         "https://bucket-name.s3.amazonaws.com",
-        host = "s3.amazonaws.com") must_== "/bucket-name/"
+        host = "s3.amazonaws.com"
+      ) must_== "/bucket-name/"
     }
 
     "required to do multi-part object uploads" in {
       calculator.canonicalizeResource(
         VirtualHostRequest,
         "https://bucket-name.s3.amazonaws.com/object?uploads",
-        host = "s3.amazonaws.com") must_== "/bucket-name/object?uploads"
+        host = "s3.amazonaws.com"
+      ) must_== "/bucket-name/object?uploads"
     }
   }
 
@@ -96,8 +119,9 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
       headers.add("X-Amz-Meta-FileChecksum", "0x02661779")
       headers.add("X-Amz-Meta-ChecksumAlgorithm", "crc32")
 
-      calculator.canonicalizeHeaders(headers) must_== (
-        "x-amz-acl:public-read\n" +
+      calculator.canonicalizeHeaders(
+        headers
+      ) must_== ("x-amz-acl:public-read\n" +
         "x-amz-meta-checksumalgorithm:crc32\n" +
         "x-amz-meta-filechecksum:0x02661779\n" +
         "x-amz-meta-reviewedby:joe@johnsmith.net,jane@johnsmith.net\n")
@@ -113,8 +137,9 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
       headers.add("X-Amz-Meta-FileChecksum", "0x02661779")
       headers.add("X-Amz-Meta-ChecksumAlgorithm", "crc32")
 
-      calculator.canonicalizeHeaders(headers).
-        aka("canonicalized") must_== "x-amz-acl:public-read\n" +
+      calculator
+        .canonicalizeHeaders(headers)
+        .aka("canonicalized") must_== "x-amz-acl:public-read\n" +
         "x-amz-meta-checksumalgorithm:crc32\n" +
         "x-amz-meta-filechecksum:0x02661779\n" +
         "x-amz-meta-reviewedby:joe@johnsmith.net,jane@johnsmith.net\n"
@@ -131,11 +156,19 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
       val date = "Tue, 27 Mar 2007 19:36:42 +0000"
       val headers = headerMap("Host" -> host, "Date" -> date)
 
-      val expected = "GET\n\n\nTue, 27 Mar 2007 19:36:42 +0000\n/johnsmith/photos/puppy.jpg"
+      val expected =
+        "GET\n\n\nTue, 27 Mar 2007 19:36:42 +0000\n/johnsmith/photos/puppy.jpg"
 
-      stringToSign("GET", VirtualHostRequest, None, None,
-        date, headers, serverHost, s"http://$host/photos/puppy.jpg").
-        aka("string-to-sign") must_== expected
+      stringToSign(
+        "GET",
+        VirtualHostRequest,
+        None,
+        None,
+        date,
+        headers,
+        serverHost,
+        s"http://$host/photos/puppy.jpg"
+      ).aka("string-to-sign") must_== expected
     }
 
     "be computed for PUT" >> {
@@ -146,13 +179,22 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
           "Content-Type" -> contentType,
           "Content-Length" -> "94328",
           "Host" -> host,
-          "Date" -> date)
+          "Date" -> date
+        )
 
-        val expected = "PUT\n\nimage/jpeg\nTue, 27 Mar 2007 21:15:45 +0000\n/johnsmith/photos/puppy.jpg"
+        val expected =
+          "PUT\n\nimage/jpeg\nTue, 27 Mar 2007 21:15:45 +0000\n/johnsmith/photos/puppy.jpg"
 
-        stringToSign("PUT", VirtualHostRequest,
-          None, Some(contentType), date, headers, serverHost,
-          s"http://$host/photos/puppy.jpg") must_== expected
+        stringToSign(
+          "PUT",
+          VirtualHostRequest,
+          None,
+          Some(contentType),
+          date,
+          headers,
+          serverHost,
+          s"http://$host/photos/puppy.jpg"
+        ) must_== expected
       }
 
       "to bucket in virtual host style" in {
@@ -161,28 +203,42 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
         val headers = headerMap(
           "Content-Type" -> contentType,
           "Host" -> s"bucket-1005827192.$serverHost",
-          "Date" -> date)
+          "Date" -> date
+        )
 
-        val expected = "PUT\n\ntext/plain; charset=utf-8\nSun, 24 Jan 2016 17:27:45 +0000\n/bucket-1005827192/"
+        val expected =
+          "PUT\n\ntext/plain; charset=utf-8\nSun, 24 Jan 2016 17:27:45 +0000\n/bucket-1005827192/"
 
-        stringToSign("PUT", VirtualHostRequest, None, Some(contentType),
-          date, headers, serverHost, s"http://bucket-1005827192.$serverHost").
-          aka("string-to-sign") must_== expected
+        stringToSign(
+          "PUT",
+          VirtualHostRequest,
+          None,
+          Some(contentType),
+          date,
+          headers,
+          serverHost,
+          s"http://bucket-1005827192.$serverHost"
+        ).aka("string-to-sign") must_== expected
       }
     }
 
     "be computed for '/?prefix=photos&max-keys=50&marker=puppy'" in {
       val date = "Tue, 27 Mar 2007 19:42:41 +0000"
-      val headers = headerMap(
-        "User-Agent" -> "Mozilla/5.0",
-        "Host" -> host,
-        "Date" -> date)
+      val headers =
+        headerMap("User-Agent" -> "Mozilla/5.0", "Host" -> host, "Date" -> date)
 
       val expected = "GET\n\n\nTue, 27 Mar 2007 19:42:41 +0000\n/johnsmith/"
 
-      stringToSign("GET", VirtualHostRequest, None, None, date, headers,
-        serverHost, s"https://$host/").
-        aka("string-to-sign") must_== expected
+      stringToSign(
+        "GET",
+        VirtualHostRequest,
+        None,
+        None,
+        date,
+        headers,
+        serverHost,
+        s"https://$host/"
+      ).aka("string-to-sign") must_== expected
     }
 
     "be computed for '/?acl'" in {
@@ -191,8 +247,16 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
 
       val expected = "GET\n\n\nTue, 27 Mar 2007 19:44:46 +0000\n/johnsmith/?acl"
 
-      stringToSign("GET", VirtualHostRequest, None, None, date, headers,
-        serverHost, s"https://$host/?acl") must_== expected
+      stringToSign(
+        "GET",
+        VirtualHostRequest,
+        None,
+        None,
+        date,
+        headers,
+        serverHost,
+        s"https://$host/?acl"
+      ) must_== expected
     }
 
     "be computed for 'DELETE /johnsmith/photos/puppy.jpg'" in {
@@ -200,12 +264,22 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
       val headers = headerMap(
         "User-Agent" -> "dotnet",
         "Host" -> serverHost,
-        "Date" -> "Tue, 27 Mar 2007 21:20:27 +0000")
+        "Date" -> "Tue, 27 Mar 2007 21:20:27 +0000"
+      )
 
-      val expected = "DELETE\n\n\nTue, 27 Mar 2007 21:20:26 +0000\n/johnsmith/photos/puppy.jpg"
+      val expected =
+        "DELETE\n\n\nTue, 27 Mar 2007 21:20:26 +0000\n/johnsmith/photos/puppy.jpg"
 
-      stringToSign("DELETE", PathRequest, None, None, date, headers, serverHost,
-        s"https://$serverHost/johnsmith/photos/puppy.jpg") must_== expected
+      stringToSign(
+        "DELETE",
+        PathRequest,
+        None,
+        None,
+        date,
+        headers,
+        serverHost,
+        s"https://$serverHost/johnsmith/photos/puppy.jpg"
+      ) must_== expected
 
     }
 
@@ -214,12 +288,22 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
       val headers = headerMap(
         "User-Agent" -> "dotnet",
         "Host" -> host,
-        "Date" -> "Tue, 27 Mar 2007 21:20:27 +0000")
+        "Date" -> "Tue, 27 Mar 2007 21:20:27 +0000"
+      )
 
-      val expected = "DELETE\n\n\nTue, 27 Mar 2007 21:20:26 +0000\n/johnsmith/photos/puppy.jpg"
+      val expected =
+        "DELETE\n\n\nTue, 27 Mar 2007 21:20:26 +0000\n/johnsmith/photos/puppy.jpg"
 
-      stringToSign("DELETE", VirtualHostRequest, None, None, date, headers,
-        serverHost, s"https://$host/photos/puppy.jpg") must_== expected
+      stringToSign(
+        "DELETE",
+        VirtualHostRequest,
+        None,
+        None,
+        date,
+        headers,
+        serverHost,
+        s"https://$host/photos/puppy.jpg"
+      ) must_== expected
 
     }
 
@@ -260,8 +344,16 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
 
       val expected = "GET\n\n\nWed, 28 Mar 2007 01:29:59 +0000\n/"
 
-      stringToSign("GET", PathRequest, None, None, date, headers, serverHost,
-        s"http://$serverHost/") must_== expected
+      stringToSign(
+        "GET",
+        PathRequest,
+        None,
+        None,
+        date,
+        headers,
+        serverHost,
+        s"http://$serverHost/"
+      ) must_== expected
     }
   }
 
@@ -272,7 +364,8 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
         "GET\n\n\n\n" +
           "x-amz-date:Thu, 17 Nov 2005 18:49:58 GMT\n" +
           "x-amz-magic:abracadabra\n" +
-          "/quotes/nelson") aka "signature" must beSuccessfulTry(signature1)
+          "/quotes/nelson"
+      ) aka "signature" must beSuccessfulTry(signature1)
     }
 
     val signature2 = "jZNOcbfWmD/A/f3hSvVzXZjM2HU="
@@ -284,14 +377,15 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
           "Thu, 17 Nov 2005 18:49:58 GMT\n" +
           "x-amz-magic:abracadabra\n" +
           "x-amz-meta-author:foo@bar.com\n" +
-          "/quotes/nelson") aka "signature" must beSuccessfulTry(signature2)
+          "/quotes/nelson"
+      ) aka "signature" must beSuccessfulTry(signature2)
     }
 
     val signature3 = "vjbyPxybdZaNmGa+yT272YEAiv4="
     s"be '$signature3' for request #3" in {
-      calculator.computeSignature(
-        "GET\n\n\n1141889120\n/quotes/nelson").
-        aka("signature") must beSuccessfulTry(signature3)
+      calculator
+        .computeSignature("GET\n\n\n1141889120\n/quotes/nelson")
+        .aka("signature") must beSuccessfulTry(signature3)
     }
   }
 
@@ -305,5 +399,6 @@ class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
   private lazy val calculator = new SignatureCalculatorV1(
     accessKey = "44CF9590006BF252F707",
     secretKey = "OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV",
-    "s3.amazonaws.com")
+    "s3.amazonaws.com"
+  )
 }

@@ -27,9 +27,7 @@ import com.google.auth.oauth2.GoogleCredentials
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 import com.zengularity.benji.{ Bucket, Object }
-import com.zengularity.benji.google.{
-  GoogleBucketRef, GoogleStorage, GoogleTransport
-}
+import com.zengularity.benji.google.{ GoogleStorage, GoogleTransport }
 
 // Settings
 val projectId = "google-project-123456"
@@ -51,7 +49,7 @@ def sample1(implicit m: Materializer): Future[Unit] = {
 
   buckets.flatMap {
     _.headOption.fold(Future.successful(println("No found"))) { firstBucket =>
-      val bucketRef: GoogleBucketRef = gcs.bucket(firstBucket.name)
+      val bucketRef = gcs.bucket(firstBucket.name)
       val objects: Source[Object, NotUsed] = bucketRef.objects()
 
       objects.runWith(Sink.foreach[Object] { obj =>

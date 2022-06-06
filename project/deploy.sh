@@ -43,17 +43,19 @@ if [ "x$SCALA_MODULES" = "x" ]; then
     SCALA_MODULES="core:benji-core s3:benji-s3 google:benji-google vfs:benji-vfs play:benji-play"
 fi
 
-SCALA_VERSIONS="2.11 2.12 2.13"
+SCALA_VERSIONS="2.11 2.12 2.13 3.1.3-RC2"
 PLAY_VERSIONS="26 27 28"
 
 BASES=""
 
 for V in $SCALA_VERSIONS; do
+    MV=`echo "$V" | sed -e 's/^3.*/3/'`
+
     for M in $SCALA_MODULES; do
         B=`echo "$M" | cut -d ':' -f 1`
         SCALA_DIR="$B/target/scala-$V"
         N=`echo "$M" | cut -d ':' -f 2`
-        BASE_NAME="$SCALA_DIR/${N}_$V"
+        BASE_NAME="$SCALA_DIR/${N}_$MV"
         FOUND=0
 
         if [ -r "${BASE_NAME}-$VERSION.pom" ]; then

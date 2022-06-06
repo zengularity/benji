@@ -26,12 +26,15 @@ import play.api.libs.ws.StandaloneWSResponse
  * }}}
  */
 object Successful {
+
   // The S3 REST API only ever returns OK or NO_CONTENT ...
   // which is why I'll only check these two.
   def unapply(response: StandaloneWSResponse): Option[StandaloneWSResponse] = {
-    if (response.status == 200 ||
+    if (
+      response.status == 200 ||
       response.status == 204 ||
-      response.status == 206) {
+      response.status == 206
+    ) {
       Some(response)
     } else None
   }
@@ -52,6 +55,7 @@ object Successful {
  * }}}
  */
 object Ok {
+
   def unapply(response: StandaloneWSResponse): Option[StandaloneWSResponse] =
     if (response.status == 200) Some(response) else None
 }

@@ -35,7 +35,8 @@ object TestUtils {
     config.getString("aws.s3.accessKey"),
     config.getString("aws.s3.secretKey"),
     config.getString("aws.s3.host"),
-    config.getString("aws.s3.protocol"))
+    config.getString("aws.s3.protocol")
+  )
 
   lazy val awsRegion: String = config.getString("aws.s3.region")
 
@@ -43,7 +44,8 @@ object TestUtils {
     config.getString("ceph.s3.accessKey"),
     config.getString("ceph.s3.secretKey"),
     config.getString("ceph.s3.host"),
-    config.getString("ceph.s3.protocol"))
+    config.getString("ceph.s3.protocol")
+  )
 
   lazy val aws: WSS3 = S3(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
 
@@ -52,25 +54,40 @@ object TestUtils {
     S3.virtualHost(awsAccessKey, awsSecretKey, awsProtocol, awsHost)
 
   lazy val awsVirtualHostV4: WSS3 = S3.virtualHostAwsV4(
-    awsAccessKey, awsSecretKey, awsProtocol, awsHost, awsRegion)
+    awsAccessKey,
+    awsSecretKey,
+    awsProtocol,
+    awsHost,
+    awsRegion
+  )
 
-  val virtualHostStyleUrl: String = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost"
+  val virtualHostStyleUrl: String =
+    s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost"
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   lazy val awsFromVirtualHostStyleURL: WSS3 = S3(virtualHostStyleUrl).get
 
-  val virtualHostStyleUrlV4: String = s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost&awsRegion=$awsRegion"
+  val virtualHostStyleUrlV4: String =
+    s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=virtualHost&awsRegion=$awsRegion"
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   lazy val awsFromVirtualHostStyleURLV4: WSS3 = S3(virtualHostStyleUrlV4).get
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
   lazy val awsFromPathStyleURL: WSS3 =
-    S3(s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=path").get
+    S3(
+      s"s3:$awsProtocol://$awsAccessKey:$awsSecretKey@$awsHost/?style=path"
+    ).get
 
   lazy val ceph: WSS3 = S3(cephAccessKey, cephSecretKey, cephProtocol, cephHost)
 
-  def withMatEx[T](f: org.specs2.concurrent.ExecutionEnv => T)(implicit m: Materializer): T = f(org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext))
+  def withMatEx[T](
+      f: org.specs2.concurrent.ExecutionEnv => T
+    )(implicit
+      m: Materializer
+    ): T = f(
+    org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext)
+  )
 
   // ---
 
@@ -81,10 +98,14 @@ object TestUtils {
     import com.zengularity.benji.ObjectStorage
 
     def storageCleanup(st: ObjectStorage): Future[Unit] =
-      st.buckets.collect[List]().flatMap(bs =>
-        Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
-          st.bucket(b.name).delete.recursive()
-        })).map(_ => {})
+      st.buckets
+        .collect[List]()
+        .flatMap(bs =>
+          Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
+            st.bucket(b.name).delete.recursive()
+          })
+        )
+        .map(_ => {})
 
     try {
       Await.result(storageCleanup(aws), Duration("30s"))
@@ -100,7 +121,8 @@ object TestUtils {
 
     system.terminate()
 
-    try { WS.close() } catch {
+    try { WS.close() }
+    catch {
       case e: Throwable => logger.warn("fails to close WS", e)
     }
   }
