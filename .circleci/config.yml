@@ -381,9 +381,9 @@ jobs:
 
       - publish_snapshots:
           release_suffix: play28
-          play_version: 2.8.0
+          ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
+          play_version: 2.8.11
           play_json_version: 2.10.0-RC5
-          ws_version: 2.1.2
           scala_versions: 3.1.3-RC2
       # TODO: play29
 
