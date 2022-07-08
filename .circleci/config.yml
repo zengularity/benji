@@ -295,7 +295,7 @@ jobs:
           scala_version: 3.1.3-RC2
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
           play_version: 2.8.11
-          play_json_version: 2.10.0-RC5
+          play_json_version: 2.10.0-RC6
           variant: Play 2.8, WS 2.8
 
   # --- Integration: S3/Google --- #
@@ -339,7 +339,7 @@ jobs:
           scala_version: 3.1.3-RC2
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
           play_version: 2.8.11
-          play_json_version: 2.10.0-RC5
+          play_json_version: 2.10.0-RC6
           variant: Play 2.8, WS 2.8
 
   # --- Master jobs --- #
@@ -383,7 +383,7 @@ jobs:
           release_suffix: play28
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
           play_version: 2.8.11
-          play_json_version: 2.10.0-RC5
+          play_json_version: 2.10.0-RC6
           scala_versions: 3.1.3-RC2
       # TODO: play29
 
