@@ -13,6 +13,7 @@ import com.zengularity.benji.demo.controllers.BenjiController
 import play.modules.benji.BenjiFromContext
 
 class CustomApplicationLoader extends ApplicationLoader {
+
   def load(context: Context): Application = {
     LoggerConfigurator(context.environment.classLoader).foreach {
       _.configure(context.environment)
@@ -22,12 +23,15 @@ class CustomApplicationLoader extends ApplicationLoader {
 }
 
 class CustomComponents(context: Context)
-  extends BenjiFromContext(context)
-  with AssetsComponents with HttpFiltersComponents {
+    extends BenjiFromContext(context)
+    with AssetsComponents
+    with HttpFiltersComponents {
 
   implicit val ec = actorSystem.dispatcher
 
-  lazy val applicationController = new BenjiController(controllerComponents, benji)
+  lazy val applicationController =
+    new BenjiController(controllerComponents, benji)
 
-  lazy val router: Router = new Routes(httpErrorHandler, applicationController, assets)
+  lazy val router: Router =
+    new Routes(httpErrorHandler, applicationController, assets)
 }
