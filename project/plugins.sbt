@@ -13,7 +13,7 @@ addSbtPlugin("com.github.sbt" % "sbt-unidoc" % "0.5.0")
 
 addSbtPlugin("com.github.sbt" % "sbt-findbugs" % "2.0.0")
 
-addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.20")
+addSbtPlugin("org.wartremover" % "sbt-wartremover" % "3.0.5")
 
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.0")
 
