@@ -141,7 +141,7 @@ object Common extends AutoPlugin {
     apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")(
       "scala-library"
     ).value
-  ) ++ Wart.settings ++ Publish.settings
+  ) ++ Publish.settings
 
   // ---
 
