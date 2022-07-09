@@ -261,7 +261,7 @@ jobs:
     steps:
       - test_suite:
           modules: core vfs play
-          scala_version: 2.12.15
+          scala_version: 2.12.16
           ws_version: 2.0.6
           play_version: 2.7.1
           variant: Play 2.7, WS 2.0
@@ -295,7 +295,7 @@ jobs:
           scala_version: 3.1.3-RC2
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
           play_version: 2.8.11
-          play_json_version: 2.10.0-RC5
+          play_json_version: 2.10.0-RC6
           variant: Play 2.8, WS 2.8
 
   # --- Integration: S3/Google --- #
@@ -321,7 +321,7 @@ jobs:
     steps:
       - test_suite:
           modules: s3 google
-          scala_version: 2.12.15
+          scala_version: 2.12.16
           ws_version: 2.0.6
           play_version: 2.7.1
           variant: Play 2.7, WS 2.0
@@ -339,7 +339,7 @@ jobs:
           scala_version: 3.1.3-RC2
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
           play_version: 2.8.11
-          play_json_version: 2.10.0-RC5
+          play_json_version: 2.10.0-RC6
           variant: Play 2.8, WS 2.8
 
   # --- Master jobs --- #
@@ -363,14 +363,14 @@ jobs:
           play_version: 2.6.7
           play_json_version: 2.6.7
           ws_version: 1.1.6
-          scala_versions: 2.11.12 2.12.15
+          scala_versions: 2.11.12 2.12.16
 
       - publish_snapshots:
           release_suffix: play27
           play_version: 2.7.1
           play_json_version: 2.9.1
           ws_version: 2.0.6
-          scala_versions: 2.12.15
+          scala_versions: 2.12.16
 
       - publish_snapshots:
           release_suffix: play27
@@ -383,7 +383,7 @@ jobs:
           release_suffix: play28
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
           play_version: 2.8.11
-          play_json_version: 2.10.0-RC5
+          play_json_version: 2.10.0-RC6
           scala_versions: 3.1.3-RC2
       # TODO: play29
 
