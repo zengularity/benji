@@ -17,7 +17,7 @@ addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.20")
 
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.0")
 
-addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.6.5")
+addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.7.0")
 
 addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.8")
 
