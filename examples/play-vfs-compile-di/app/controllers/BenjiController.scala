@@ -18,8 +18,12 @@ import com.zengularity.benji.exception.{
 }
 
 class BenjiController(
-  val controllerComponents: ControllerComponents,
-  benji: ObjectStorage)(implicit ec: ExecutionContext, mat: Materializer) extends BaseController {
+    val controllerComponents: ControllerComponents,
+    benji: ObjectStorage
+  )(implicit
+    ec: ExecutionContext,
+    mat: Materializer)
+    extends BaseController {
 
   def index = Action {
     Ok(views.html.api.root()).as("text/html")
@@ -32,12 +36,14 @@ class BenjiController(
   }
 
   def createBucket(bucketName: String) = Action.async {
-    benji.bucket(bucketName).create(failsIfExists = true).map { _ =>
-      Created(s"$bucketName created")
-    }.recover {
-      case BucketAlreadyExistsException(_) =>
-        Ok(s"$bucketName already exists")
-    }
+    benji
+      .bucket(bucketName)
+      .create(failsIfExists = true)
+      .map { _ => Created(s"$bucketName created") }
+      .recover {
+        case BucketAlreadyExistsException(_) =>
+          Ok(s"$bucketName already exists")
+      }
   }
 
   def deleteBucket(bucketName: String) = Action.async { request =>
@@ -64,24 +70,30 @@ class BenjiController(
       NoContent.withHeaders(meta.toSeq.flatMap {
         case (name, values) => values.map(name -> _)
       }: _*)
-    }.recover {
-      case _: ObjectNotFoundException => NotFound
-    }
+    }.recover { case _: ObjectNotFoundException => NotFound }
   }
 
-  def createObject(bucketName: String) = Action.async(parse.multipartFormData) { request =>
+  def createObject(
+      bucketName: String
+    ) = Action.async(parse.multipartFormData) { request =>
     val files = request.body.files.map { file =>
       val source = FileIO.fromPath(file.ref.path)
-      val uploaded: Future[NotUsed] = source runWith benji.bucket(bucketName).obj(file.filename).put[ByteString]
+      val uploaded: Future[NotUsed] = source runWith benji
+        .bucket(bucketName)
+        .obj(file.filename)
+        .put[ByteString]
       uploaded
     }
     if (files.isEmpty) Future.successful(BadRequest("No files to upload"))
-    else Future.sequence(files).map { _ => Ok(s"File ${request.body.files.map(_.filename).mkString(",")} uploaded") }
+    else
+      Future.sequence(files).map { _ =>
+        Ok(s"File ${request.body.files.map(_.filename).mkString(",")} uploaded")
+      }
   }
 
   def deleteObject(bucketName: String, objectName: String) = Action.async {
-    benji.bucket(bucketName).obj(objectName).delete.ignoreIfNotExists.apply().map { _ =>
-      NoContent
+    benji.bucket(bucketName).obj(objectName).delete.ignoreIfNotExists.apply().map {
+      _ => NoContent
     }
   }
 }
