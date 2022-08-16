@@ -6,7 +6,7 @@ ThisBuild / crossScalaVersions := Seq(
   "2.11.12",
   scalaVersion.value,
   "2.13.8",
-  "3.1.2-RC2"
+  "3.1.3"
 )
 
 lazy val core = project
