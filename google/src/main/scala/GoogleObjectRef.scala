@@ -456,7 +456,7 @@ final class GoogleObjectRef private[google] (
                 Future.failed[String](
                   new BenjiUnknownError(
                     s"missing upload URL: ${response.status.toString} - ${response.statusText}: ${response.headers
-                      .mkString("{", ",", "}")}"
+                        .mkString("{", ",", "}")}"
                   )
                 )
             }
@@ -556,7 +556,7 @@ final class GoogleObjectRef private[google] (
       Future.failed[String](
         BenjiUnknownError(
           s"missing upload range: ${response.status.toString} - ${response.statusText}: ${response.headers
-            .mkString("{", ",", "}")}"
+              .mkString("{", ",", "}")}"
         )
       )
   }

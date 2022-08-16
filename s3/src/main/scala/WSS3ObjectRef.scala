@@ -543,7 +543,7 @@ final class WSS3ObjectRef private[s3] (
         Future.failed[String](
           new IllegalStateException(
             s"Response for the upload [$bucket/$name, $uploadId, part: ${partNumber.toString}] did not include an ETag header: ${response.headers
-              .mkString("{", ",", "}")}."
+                .mkString("{", ",", "}")}."
           )
         )
 

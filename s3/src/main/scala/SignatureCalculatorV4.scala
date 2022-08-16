@@ -123,8 +123,8 @@ private[s3] final class SignatureCalculatorV4(
       canonicalHeaders(request, awsDate, hashedPayload)
 
     s"${request.getMethod}\n${canonicalUri(request)}\n${canonicalQueryString(
-      request
-    )}\n${canoHeaders}\n${signedHeaders}\n${hashedPayload}" -> signedHeaders
+        request
+      )}\n${canoHeaders}\n${signedHeaders}\n${hashedPayload}" -> signedHeaders
   }
 
   @inline def canonicalUri(request: Request): String = {
