@@ -1,12 +1,12 @@
 ThisBuild / organization := "com.zengularity"
 
-ThisBuild / scalaVersion := "2.12.16"
+ThisBuild / scalaVersion := "2.12.17"
 
 ThisBuild / crossScalaVersions := Seq(
   "2.11.12",
   scalaVersion.value,
   "2.13.8",
-  "3.1.3"
+  "3.2.0"
 )
 
 lazy val core = project
@@ -132,7 +132,7 @@ lazy val google = project
     libraryDependencies ++= Dependencies.playAhcWS.value ++ Seq(
       "com.typesafe.play" %% "play-json" % Dependencies.Version.playJson.value,
       Dependencies.playWSJson.value,
-      "com.google.auth" % "google-auth-library-oauth2-http" % "1.8.1",
+      "com.google.auth" % "google-auth-library-oauth2-http" % "1.11.0",
       "com.google.apis" % "google-api-services-storage" % "v1-rev20210127-1.31.0"
     )
   )

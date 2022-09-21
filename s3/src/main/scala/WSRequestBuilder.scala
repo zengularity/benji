@@ -125,19 +125,6 @@ private[s3] object WSRequestBuilder {
   }
 }
 
-/** Extractor for URL. */
-private[s3] object URLInformation {
-
-  /** Extracts (protocol scheme, host with port) from the given url. */
-  def unapply(url: URL): Option[(String, String)] = {
-    val hostAndPort = if (url.getPort > 0) {
-      s"${url.getHost}:${url.getPort.toString}"
-    } else url.getHost
-
-    Some(url.getProtocol -> hostAndPort)
-  }
-}
-
 /**
  * Builder for requests using the path style
  * (e.g. https://s3.amazonaws.com/bucket-name/object?uploads).
