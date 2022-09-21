@@ -261,7 +261,7 @@ jobs:
     steps:
       - test_suite:
           modules: core vfs play
-          scala_version: 2.12.16
+          scala_version: 2.12.17
           ws_version: 2.0.6
           play_version: 2.7.1
           variant: Play 2.7, WS 2.0
@@ -321,7 +321,7 @@ jobs:
     steps:
       - test_suite:
           modules: s3 google
-          scala_version: 2.12.16
+          scala_version: 2.12.17
           ws_version: 2.0.6
           play_version: 2.7.1
           variant: Play 2.7, WS 2.0
@@ -363,14 +363,14 @@ jobs:
           play_version: 2.6.7
           play_json_version: 2.6.7
           ws_version: 1.1.6
-          scala_versions: 2.11.12 2.12.16
+          scala_versions: 2.11.12 2.12.17
 
       - publish_snapshots:
           release_suffix: play27
           play_version: 2.7.1
           play_json_version: 2.9.1
           ws_version: 2.0.6
-          scala_versions: 2.12.16
+          scala_versions: 2.12.17
 
       - publish_snapshots:
           release_suffix: play27
