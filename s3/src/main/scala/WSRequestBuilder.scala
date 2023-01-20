@@ -21,8 +21,8 @@ private[s3] sealed trait WSRequestBuilder
             Option[String],
             Option[String],
             Option[String]
-        ) => StandaloneWSRequest
-    ) {
+          ) => StandaloneWSRequest
+      ) {
 
   /**
    * @param ws the WS client used to prepared the request
