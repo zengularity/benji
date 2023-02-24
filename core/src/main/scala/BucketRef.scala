@@ -54,7 +54,10 @@ trait BucketRef {
    *   store.bucket(name).exists
    * }}}
    */
-  def exists(implicit ec: ExecutionContext): Future[Boolean]
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean]
 
   /**
    * Creates the bucket, if the bucket already exists operation will succeed unless parameter failsIfExists is true.
@@ -146,7 +149,10 @@ trait BucketRef {
      *   bucketRef.objects()
      * }}}
      */
-    def apply()(implicit m: Materializer): Source[Object, NotUsed]
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[Object, NotUsed]
 
     /**
      * Collects the matching objects.
@@ -218,7 +224,10 @@ trait BucketRef {
      *   bucketRef.delete()
      * }}}
      */
-    def apply()(implicit m: Materializer): Future[Unit]
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Future[Unit]
 
     /**
      * Updates the request, so that it will not raise an error

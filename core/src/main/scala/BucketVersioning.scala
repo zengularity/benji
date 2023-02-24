@@ -30,7 +30,10 @@ trait BucketVersioning {
    *   versioning.isVersioned
    * }}}
    */
-  def isVersioned(implicit ec: ExecutionContext): Future[Boolean]
+  def isVersioned(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean]
 
   /**
    * Enables or disables the versioning of objects on this bucket,
@@ -92,7 +95,10 @@ trait BucketVersioning {
      *   versioning.versionedObjects()
      * }}}
      */
-    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed]
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[VersionedObject, NotUsed]
 
     /**
      * Collects the matching objects.

@@ -53,7 +53,10 @@ final class GoogleObjectRef private[google] (
   import Compat.javaConverters._
   import storage.{ logger, transport => gt }
 
-  def exists(implicit ec: ExecutionContext): Future[Boolean] = Future {
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean] = Future {
     gt.client.objects().get(bucket, name).executeUsingHead()
   }.map(_ => true).recoverWith {
     case HttpResponse(404, _) => Future.successful(false)
@@ -261,7 +264,10 @@ final class GoogleObjectRef private[google] (
   private case class GoogleDeleteRequest(ignoreExists: Boolean = false)
       extends DeleteRequest {
 
-    def apply()(implicit ec: ExecutionContext): Future[Unit] = {
+    def apply(
+      )(implicit
+        ec: ExecutionContext
+      ): Future[Unit] = {
       val futureResult = Future {
         gt.client.objects().delete(bucket, name).execute(); ()
       }.recoverWith(
@@ -640,7 +646,10 @@ final class GoogleObjectRef private[google] (
       }.recoverWith(ErrorHandler.ofObjectToFuture(s"Could not list versions of object $name inside bucket $bucket", ref)))
     }.mapMaterializedValue(_ => NotUsed)
 
-    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] =
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[VersionedObject, NotUsed] =
       apply(None, maybeEmpty = true)
   }
 

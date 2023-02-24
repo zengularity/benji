@@ -12,7 +12,9 @@ import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.MatchResult
 
 @SuppressWarnings(Array("org.wartremover.warts.Any"))
-final class StreamSpec(implicit ee: ExecutionEnv)
+final class StreamSpec(
+    implicit
+    ee: ExecutionEnv)
     extends org.specs2.mutable.Specification {
 
   "Streams".title

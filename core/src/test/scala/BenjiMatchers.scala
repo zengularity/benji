@@ -116,7 +116,10 @@ trait BenjiMatchers { self: Matchers =>
     }
   }
 
-  def supportCheckedCreation(implicit ee: ExecutionEnv): Matcher[BucketRef] = {
+  def supportCheckedCreation(
+      implicit
+      ee: ExecutionEnv
+    ): Matcher[BucketRef] = {
     implicit val ec: ExecutionContext = ee.executionContext
 
     beTypedEqualTo[Unit]({}).await(1, 5.seconds) ^^ { (bucket: BucketRef) =>

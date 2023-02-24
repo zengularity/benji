@@ -61,7 +61,10 @@ trait ObjectRef { ref =>
    *   myObject.exists
    * }}}
    */
-  def exists(implicit ec: ExecutionContext): Future[Boolean]
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean]
 
   /**
    * Returns the headers associated with the currently referenced object.
@@ -74,7 +77,10 @@ trait ObjectRef { ref =>
    *   myObject.headers()
    * }}}
    */
-  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
+  def headers(
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Map[String, Seq[String]]]
 
   /**
    * Returns the metadata associated with the currently referenced object
@@ -231,7 +237,11 @@ trait ObjectRef { ref =>
    *   myObject.copyTo(otherRef)
    * }}}
    */
-  def copyTo(target: ObjectRef)(implicit ec: ExecutionContext): Future[Unit] =
+  def copyTo(
+      target: ObjectRef
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Unit] =
     target match {
       case ObjectRef(targetBucketName, targetObjectName) =>
         copyTo(targetBucketName, targetObjectName)
@@ -378,7 +388,10 @@ trait ObjectRef { ref =>
      *   myObject.delete()
      * }}}
      */
-    def apply()(implicit ec: ExecutionContext): Future[Unit]
+    def apply(
+      )(implicit
+        ec: ExecutionContext
+      ): Future[Unit]
 
     /**
      * Updates the request, so that it will not raise an error

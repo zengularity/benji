@@ -59,7 +59,10 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html RESTObjectHEAD]]
    */
-  def exists(implicit ec: ExecutionContext): Future[Boolean] =
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean] =
     storage
       .request(Some(bucket), Some(name), requestTimeout = requestTimeout)
       .head()
@@ -331,7 +334,10 @@ final class WSS3ObjectRef private[s3] (
   private case class WSS3DeleteRequest(ignoreExists: Boolean = false)
       extends DeleteRequest {
 
-    private def delete(implicit ec: ExecutionContext): Future[Unit] = {
+    private def delete(
+        implicit
+        ec: ExecutionContext
+      ): Future[Unit] = {
       storage
         .request(Some(bucket), Some(name), requestTimeout = requestTimeout)
         .delete()
@@ -354,7 +360,10 @@ final class WSS3ObjectRef private[s3] (
         }
     }
 
-    private def checkExists(implicit ec: ExecutionContext) =
+    private def checkExists(
+        implicit
+        ec: ExecutionContext
+      ) =
       if (ignoreExists) {
         Future.successful({}) // .unit > 2.12
       } else {
@@ -364,7 +373,10 @@ final class WSS3ObjectRef private[s3] (
         }
       }
 
-    def apply()(implicit ec: ExecutionContext): Future[Unit] =
+    def apply(
+      )(implicit
+        ec: ExecutionContext
+      ): Future[Unit] =
       checkExists.flatMap(_ => delete)
 
     def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
@@ -625,7 +637,10 @@ final class WSS3ObjectRef private[s3] (
     def withDeleteMarkers: ObjectVersions =
       this.copy(includeDeleteMarkers = true)
 
-    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[VersionedObject, NotUsed] = {
       @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
       def next(nextToken: String): Source[VersionedObject, NotUsed] =
         list(Some(nextToken))(next(_), None)

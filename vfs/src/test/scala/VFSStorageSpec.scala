@@ -14,7 +14,9 @@ import tests.benji.StorageCommonSpec
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AfterAll
 
-final class VFSStorageSpec(implicit ee: ExecutionEnv)
+final class VFSStorageSpec(
+    implicit
+    ee: ExecutionEnv)
     extends org.specs2.mutable.Specification
     with StorageCommonSpec
     with AfterAll {
