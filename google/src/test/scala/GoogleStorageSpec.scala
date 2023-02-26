@@ -14,7 +14,9 @@ import tests.benji.{ StorageCommonSpec, VersioningCommonSpec }
 
 import org.specs2.concurrent.ExecutionEnv
 
-final class GoogleStorageSpec(implicit ee: ExecutionEnv)
+final class GoogleStorageSpec(
+    implicit
+    ee: ExecutionEnv)
     extends org.specs2.mutable.Specification
     with StorageCommonSpec
     with VersioningCommonSpec {

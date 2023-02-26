@@ -20,7 +20,10 @@ object StreamUtils {
       case _                          => None
     }
 
-  def consume(implicit m: Materializer): Sink[ByteString, Future[String]] = {
+  def consume(
+      implicit
+      m: Materializer
+    ): Sink[ByteString, Future[String]] = {
     implicit def ec: ExecutionContext = m.executionContext
 
     Sink

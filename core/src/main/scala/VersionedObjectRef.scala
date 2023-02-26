@@ -74,7 +74,10 @@ trait VersionedObjectRef {
    *   myObject.headers()
    * }}}
    */
-  def headers()(implicit ec: ExecutionContext): Future[Map[String, Seq[String]]]
+  def headers(
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Map[String, Seq[String]]]
 
   /**
    * Returns the metadata of the referenced version.
@@ -106,7 +109,10 @@ trait VersionedObjectRef {
    *   myObject.exists
    * }}}
    */
-  def exists(implicit ec: ExecutionContext): Future[Boolean]
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean]
 
   // ---
 
@@ -149,7 +155,10 @@ trait VersionedObjectRef {
      *   myObject.delete()
      * }}}
      */
-    def apply()(implicit m: Materializer): Future[Unit]
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Future[Unit]
 
     /**
      * Updates the request, so that it will not raise an error

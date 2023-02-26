@@ -76,7 +76,10 @@ final class WSS3VersionedObjectRef(
   /**
    * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html RESTObjectHEAD]]
    */
-  def exists(implicit ec: ExecutionContext): Future[Boolean] =
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean] =
     storage
       .request(
         Some(bucket),
@@ -197,7 +200,10 @@ final class WSS3VersionedObjectRef(
     /**
      * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
      */
-    def apply()(implicit m: Materializer): Future[Unit] = {
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
       val self = VersionedObject(

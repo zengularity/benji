@@ -43,7 +43,10 @@ class GoogleStorage(
   object buckets extends self.BucketsRequest {
 
     @com.github.ghik.silencer.silent(".*fromFuture.*")
-    def apply()(implicit m: Materializer): Source[Bucket, NotUsed] = {
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[Bucket, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       Source

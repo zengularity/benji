@@ -48,7 +48,11 @@ final class GoogleBucketRef private[google] (
       maybePrefix: Option[String],
       maybeMax: Option[Long])
       extends ref.ListRequest {
-    def apply()(implicit m: Materializer): Source[Object, NotUsed] = list(None)
+
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[Object, NotUsed] = list(None)
 
     @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
     @silent(".*fromFutureSource.*")
@@ -109,7 +113,10 @@ final class GoogleBucketRef private[google] (
 
   def objects: ListRequest = Objects(None, None)
 
-  def exists(implicit ec: ExecutionContext): Future[Boolean] = Future {
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean] = Future {
     gt.client.buckets().get(name).executeUsingHead()
   }.map(_ => true).recoverWith {
     case HttpResponse(404, _) => Future.successful(false)
@@ -130,7 +137,10 @@ final class GoogleBucketRef private[google] (
         Future.successful({})
     }
 
-  private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
+  private def emptyBucket(
+    )(implicit
+      m: Materializer
+    ): Future[Unit] = {
     implicit val ec: ExecutionContext = m.executionContext
 
     Future(versionedObjects()).flatMap(_.runFoldAsync(()) { (_: Unit, e) =>
@@ -143,10 +153,16 @@ final class GoogleBucketRef private[google] (
       ignoreExists: Boolean = false)
       extends DeleteRequest {
 
-    private def delete()(implicit ec: ExecutionContext): Future[Unit] =
+    private def delete(
+      )(implicit
+        ec: ExecutionContext
+      ): Future[Unit] =
       gt.executeBucketOp(GoogleTransport.DeleteBucket(name))
 
-    def apply()(implicit m: Materializer): Future[Unit] = {
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
       val rawResult = {
@@ -176,7 +192,10 @@ final class GoogleBucketRef private[google] (
 
   def versioning: Option[BucketVersioning] = Some(this)
 
-  def isVersioned(implicit ec: ExecutionContext): Future[Boolean] = {
+  def isVersioned(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean] = {
     gt.withWSRequest1("", s"/b/$name?fields=versioning")(_.get()).flatMap {
       response =>
         val json = Json.parse(response.body)
@@ -245,7 +264,10 @@ final class GoogleBucketRef private[google] (
       maybeMax: Option[Long])
       extends ref.VersionedListRequest {
 
-    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] =
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[VersionedObject, NotUsed] =
       list(None)
 
     @SuppressWarnings(Array("org.wartremover.warts.Recursion"))

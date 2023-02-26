@@ -51,7 +51,10 @@ final class VFSObjectRef private[vfs] (
 
   import storage.transport
 
-  def exists(implicit ec: ExecutionContext): Future[Boolean] =
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean] =
     Future(file.exists)
 
   def headers(
@@ -333,7 +336,10 @@ final class VFSObjectRef private[vfs] (
   private case class VFSDeleteRequest(ignoreExists: Boolean = false)
       extends DeleteRequest {
 
-    def apply()(implicit ec: ExecutionContext): Future[Unit] = {
+    def apply(
+      )(implicit
+        ec: ExecutionContext
+      ): Future[Unit] = {
       Future {
         metadataFile.delete()
         file.delete()

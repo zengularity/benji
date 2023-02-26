@@ -43,7 +43,10 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html RESTBucketHEAD]]
    */
-  def exists(implicit ec: ExecutionContext): Future[Boolean] =
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean] =
     storage
       .request(Some(name), requestTimeout = requestTimeout)
       .head()
@@ -95,7 +98,10 @@ final class WSS3BucketRef private[s3] (
       }
   }
 
-  private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
+  private def emptyBucket(
+    )(implicit
+      m: Materializer
+    ): Future[Unit] = {
     // We want to delete all versions including deleteMarkers for this bucket to be considered empty.
     ObjectVersions()
       .withDeleteMarkers()
@@ -115,7 +121,10 @@ final class WSS3BucketRef private[s3] (
 
   def versioning: Option[BucketVersioning] = Some(this)
 
-  def isVersioned(implicit ec: ExecutionContext): Future[Boolean] = {
+  def isVersioned(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean] = {
     val request = storage
       .request(
         Some(name),
@@ -206,7 +215,10 @@ final class WSS3BucketRef private[s3] (
       maybeMax: Option[Long])
       extends ref.ListRequest {
 
-    def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[Object, NotUsed] = {
       @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
       def next(nextToken: String): Source[Object, NotUsed] =
         list(Some(nextToken))(next(_))
@@ -258,7 +270,10 @@ final class WSS3BucketRef private[s3] (
       ignoreExists: Boolean = false)
       extends DeleteRequest {
 
-    private def delete()(implicit m: Materializer): Future[Unit] = {
+    private def delete(
+      )(implicit
+        m: Materializer
+      ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
       storage
@@ -285,7 +300,10 @@ final class WSS3BucketRef private[s3] (
         }
     }
 
-    def apply()(implicit m: Materializer): Future[Unit] = {
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
       if (isRecursive) emptyBucket().flatMap(_ => delete())
@@ -312,7 +330,10 @@ final class WSS3BucketRef private[s3] (
 
     def withDeleteMarkers = this.copy(includeDeleteMarkers = true)
 
-    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed] = {
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[VersionedObject, NotUsed] = {
       @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
       def next(nextToken: String): Source[VersionedObject, NotUsed] =
         list(Some(nextToken))(next(_))
