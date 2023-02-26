@@ -16,13 +16,12 @@ import com.github.ghik.silencer.silent
 
 private[s3] sealed trait WSRequestBuilder
     extends (
-        (
-            StandaloneWSClient,
+        (StandaloneWSClient,
             Option[String],
             Option[String],
             Option[String]
-        ) => StandaloneWSRequest
-    ) {
+          ) => StandaloneWSRequest
+      ) {
 
   /**
    * @param ws the WS client used to prepared the request

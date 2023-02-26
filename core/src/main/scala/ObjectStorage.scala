@@ -36,7 +36,10 @@ trait ObjectStorage { self =>
     /**
      * Lists of all objects within the bucket.
      */
-    def apply()(implicit m: Materializer): Source[Bucket, NotUsed]
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[Bucket, NotUsed]
 
     /**
      * Collects the bucket objects.

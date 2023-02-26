@@ -66,7 +66,10 @@ trait ObjectVersioning {
      *   versioning.versions()
      * }}}
      */
-    def apply()(implicit m: Materializer): Source[VersionedObject, NotUsed]
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[VersionedObject, NotUsed]
 
     /**
      * Collects the bucket objects.

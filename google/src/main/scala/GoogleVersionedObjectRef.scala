@@ -32,7 +32,10 @@ final class GoogleVersionedObjectRef(
   private case class GoogleDeleteRequest(ignoreExists: Boolean = false)
       extends DeleteRequest {
 
-    def apply()(implicit m: Materializer): Future[Unit] = {
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
       val rawResult = Future {
@@ -116,7 +119,10 @@ final class GoogleVersionedObjectRef(
    * `false` might be returned also in cases where you don't have permission
    * to view a certain object.
    */
-  def exists(implicit ec: ExecutionContext): Future[Boolean] = Future {
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean] = Future {
     gt.client
       .objects()
       .get(bucket, name)

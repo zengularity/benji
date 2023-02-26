@@ -64,7 +64,10 @@ class WSS3(
       s"Could not get a list of all buckets. Response: ${response.status.toString} - ${response.body}"
     )
 
-    def apply()(implicit m: Materializer): Source[Bucket, NotUsed] =
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[Bucket, NotUsed] =
       S3.getXml[Bucket](request(requestTimeout = requestTimeout))(
         { xml =>
           def buckets = xml \ "Buckets" \ "Bucket"

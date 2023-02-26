@@ -43,7 +43,10 @@ final class VFSBucketRef private[vfs] (
 
     @SuppressWarnings(Array("org.wartremover.warts.Throw"))
     @com.github.ghik.silencer.silent(".*fromFuture.*")
-    def apply()(implicit m: Materializer): Source[Object, NotUsed] = {
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Source[Object, NotUsed] = {
       implicit def ec: ExecutionContext = m.executionContext
 
       Source
@@ -87,7 +90,10 @@ final class VFSBucketRef private[vfs] (
     def withPrefix(prefix: String) = new VFSListRequest(Some(prefix))
   }
 
-  def exists(implicit ec: ExecutionContext): Future[Boolean] =
+  def exists(
+      implicit
+      ec: ExecutionContext
+    ): Future[Boolean] =
     Future(dir.exists)
 
   def create(
@@ -106,7 +112,10 @@ final class VFSBucketRef private[vfs] (
     before.map(_ => dir.createFolder())
   }
 
-  private def emptyBucket()(implicit m: Materializer): Future[Unit] = {
+  private def emptyBucket(
+    )(implicit
+      m: Materializer
+    ): Future[Unit] = {
     implicit val ec: ExecutionContext = m.executionContext
 
     // despite what the deleteAll documentation says, deleteAll don't delete the folder itself
@@ -140,7 +149,10 @@ final class VFSBucketRef private[vfs] (
       ignoreExists: Boolean = false)
       extends DeleteRequest {
 
-    private def delete()(implicit m: Materializer): Future[Unit] = {
+    private def delete(
+      )(implicit
+        m: Materializer
+      ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
       Future { dir.delete() }.flatMap { successful =>
@@ -161,7 +173,10 @@ final class VFSBucketRef private[vfs] (
       }
     }
 
-    def apply()(implicit m: Materializer): Future[Unit] = {
+    def apply(
+      )(implicit
+        m: Materializer
+      ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
       if (isRecursive) emptyBucket().flatMap(_ => delete())
