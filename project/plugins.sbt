@@ -13,7 +13,7 @@ addSbtPlugin("com.github.sbt" % "sbt-unidoc" % "0.5.0")
 
 addSbtPlugin("com.github.sbt" % "sbt-findbugs" % "2.0.0")
 
-addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.1")
+addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.2")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.9.0")
 
