@@ -22,4 +22,4 @@ addSbtPlugin("cchantep" % "sbt-hl-compiler" % "0.8")
 addSbtPlugin("com.dwijnand" % "sbt-dynver" % "4.1.1")
 
 // For the the highlight extractor
-libraryDependencies ++= Seq("commons-io" % "commons-io" % "2.11.0")
+libraryDependencies ++= Seq("commons-io" % "commons-io" % "2.12.0")
