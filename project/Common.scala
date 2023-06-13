@@ -91,7 +91,7 @@ object Common extends AutoPlugin {
     resolvers ++= Resolver.sonatypeOssRepos("staging" /* releases */ ),
     libraryDependencies ++= {
       if (!scalaBinaryVersion.value.startsWith("3")) {
-        val silencerVersion = "1.7.12"
+        val silencerVersion = "1.7.13"
 
         Seq(
           compilerPlugin(
