@@ -6,7 +6,7 @@ commands:
     parameters:
       sbt_version:
         type: string
-        default: "1.8.3"
+        default: "1.9.0"
     steps:
       - restore_cache:
           keys:

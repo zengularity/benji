@@ -69,25 +69,24 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
               .setMessage("versioned before")
 
           } and {
-            vbucket.setVersioning(enabled = true) must beLike[Unit] {
-              case _ =>
-                vbucket.isVersioned must beTrue
-                  .await(2, 3.seconds)
-                  .setMessage("!versioned after #1")
-
-            }.await(1, 3.seconds)
+            vbucket.setVersioning(enabled = true) must beTypedEqualTo({})
+              .await(1, 3.seconds)
               .eventually(rwConsistencyRetry, rwConsistencyDuration)
               .setMessage("versioning enabled")
+          } and {
+            vbucket.isVersioned must beTrue
+              .await(2, 3.seconds)
+              .setMessage("!versioned after #1")
 
           } and {
-            vbucket.setVersioning(enabled = false) must beLike[Unit] {
-              case _ =>
-                vbucket.isVersioned must beFalse
-                  .await(2, 3.seconds)
-                  .setMessage("!versioned after #2")
-            }.await(1, 3.seconds)
+            vbucket.setVersioning(enabled = false) must beTypedEqualTo({})
+              .await(1, 3.seconds)
               .eventually(rwConsistencyRetry, rwConsistencyDuration)
               .setMessage("versioning disabled")
+          } and {
+            vbucket.isVersioned must beFalse
+              .await(2, 3.seconds)
+              .setMessage("!versioned after #2")
           }
         }
       }
