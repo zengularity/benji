@@ -47,12 +47,14 @@ SBT_OPTS="++$SCALA_VERSION"
 # Scalariform check
 echo "[info] Check the source format and backward compatibility"
 
-sbt "$SBT_OPTS" ';error ;scalafixAll' || (
-  cat >> /dev/stdout <<EOF
+if [ ! "v$SCALA_VERSION" = "v2.11.12" ]; then
+  sbt "$SBT_OPTS" ';error ;scalafixAll' || (
+    cat >> /dev/stdout <<EOF
 [ERROR] Scalafix check failed. To fix, run scalafixAll before pushing.
 EOF
-  false
-)
+    false
+  )
+fi
 
 sbt "$SBT_OPTS" ';error ;scalafmtCheckAll ;scalafmtSbtCheck'
 
