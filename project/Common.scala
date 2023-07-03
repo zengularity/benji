@@ -20,8 +20,8 @@ object Common extends AutoPlugin {
     ),
     scalacOptions ++= {
       if (scalaBinaryVersion.value startsWith "2.") {
-        Seq("-target:jvm-1.8", "-Xlint", "-g:vars")
-      } else Seq()
+        Seq("-Xlint", "-g:vars")
+      } else Seq.empty
     },
     scalacOptions ++= {
       val sv = scalaBinaryVersion.value
@@ -81,6 +81,7 @@ object Common extends AutoPlugin {
     Test / scalacOptions ~= {
       _.filterNot(_ == "-Xfatal-warnings")
     },
+    Test / scalacOptions += "-Xlint:-infer-any", // specs2 `and`
     Test / scalacOptions ++= {
       if (scalaBinaryVersion.value startsWith "2.") {
         Seq("-Yrangepos")
@@ -91,7 +92,7 @@ object Common extends AutoPlugin {
     resolvers ++= Resolver.sonatypeOssRepos("staging" /* releases */ ),
     libraryDependencies ++= {
       if (!scalaBinaryVersion.value.startsWith("3")) {
-        val silencerVersion = "1.7.12"
+        val silencerVersion = "1.7.13"
 
         Seq(
           compilerPlugin(
