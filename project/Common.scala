@@ -56,7 +56,8 @@ object Common extends AutoPlugin {
           "-Wvalue-discard",
           "-Wextra-implicit",
           "-Wmacros:after",
-          "-Wunused"
+          "-Wunused",
+          "-Wconf:cat=deprecation&msg=.*(fromFuture|ActorMaterializer).*:s"
         )
       } else {
         Seq(
