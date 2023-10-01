@@ -24,6 +24,13 @@ lazy val core = project
         )
       }
     },
+    Compile / compile / scalacOptions ++= {
+      if (scalaBinaryVersion.value == "2.13") {
+        Seq("-Wconf:cat=deprecation&msg=.*deprecatedName.*:s")
+      } else {
+        Seq.empty
+      }
+    },
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
 
