@@ -10,7 +10,7 @@ import java.net.URL
 private[s3] object URLInformation {
 
   /** Extracts (protocol scheme, host with port) from the given url. */
-  def unapply(url: URL): Option[(String, String)] = {
+  def unapply(url: URL): Some[(String, String)] = {
     val hostAndPort = if (url.getPort > 0) {
       s"${url.getHost}:${url.getPort.toString}"
     } else url.getHost
