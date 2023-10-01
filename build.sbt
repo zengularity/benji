@@ -35,7 +35,7 @@ lazy val core = project
       )
     },
     libraryDependencies ++= Seq(
-      "commons-codec" % "commons-codec" % "1.15",
+      "commons-codec" % "commons-codec" % "1.16.0",
       Dependencies.slf4jApi % Provided
     ),
     libraryDependencies ~= {
