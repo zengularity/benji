@@ -276,7 +276,7 @@ jobs:
       - test_suite:
           java_version: openjdk9
           modules: core vfs play
-          scala_version: 2.13.12
+          scala_version: 2.13.13
           ws_version: 2.1.2
           play_version: 2.8.0
           play_json_version: 2.8.1
@@ -377,7 +377,7 @@ jobs:
           play_version: 2.7.1
           play_json_version: 2.9.1
           ws_version: 2.0.6
-          scala_versions: 2.13.12
+          scala_versions: 2.13.13
 
       - publish_snapshots:
           release_suffix: play28
@@ -392,7 +392,7 @@ jobs:
           ws_version: 2.1.2
           play_version: 2.8.0
           play_json_version: 2.8.1
-          scala_versions: 2.13.12
+          scala_versions: 2.13.13
 
       - save_cache:
           paths:
