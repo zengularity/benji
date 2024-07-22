@@ -118,7 +118,7 @@ object Common extends AutoPlugin {
     }) ++ Seq(
       "com.typesafe.akka" %% "akka-stream-testkit" % akkaVer.value,
       "com.typesafe.akka" %% "akka-slf4j" % akkaVer.value,
-      "ch.qos.logback" % "logback-classic" % "1.2.12"
+      "ch.qos.logback" % "logback-classic" % "1.2.13"
     ).map(_ % Test),
     Compile / compile / javacOptions ++= Seq(
       "-source",
