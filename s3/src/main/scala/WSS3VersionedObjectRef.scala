@@ -121,7 +121,9 @@ final class WSS3VersionedObjectRef(
       ): Future[Seq[VersionedObject]] = {
       implicit val ec: ExecutionContext = m.executionContext
 
-      new WSS3ObjectRef(storage, bucket, name)
+      val objRef = new WSS3ObjectRef(storage, bucket, name)
+
+      objRef
         .ObjectVersions()
         .withDeleteMarkers
         .collect[List]()
