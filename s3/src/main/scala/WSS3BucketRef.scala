@@ -102,16 +102,15 @@ final class WSS3BucketRef private[s3] (
     )(implicit
       m: Materializer
     ): Future[Unit] = {
-    // We want to delete all versions including deleteMarkers for this bucket to be considered empty.
-    ObjectVersions()
-      .withDeleteMarkers()
-      .runFoldAsync(())((_: Unit, e) => {
-        // As we will delete all deleteMarkers we disable the auto-delete of deleteMarkers using "skipMarkersCheck"
-        obj(e.name, e.versionId)
-          .WSS3DeleteRequest()
-          .skipMarkersCheck
-          .ignoreIfNotExists()
-      })
+    // We want to delete all versions including deleteMarkers
+    // for this bucket to be considered empty.
+    ObjectVersions().withDeleteMarkers().runFoldAsync(()) { (_: Unit, e) =>
+      // As we will delete all deleteMarkers we disable
+      // the auto-delete of deleteMarkers using "skipMarkersCheck"
+      val objRef = obj(e.name, e.versionId)
+
+      objRef.WSS3DeleteRequest().skipMarkersCheck.ignoreIfNotExists()
+    }
   }
 
   def delete: DeleteRequest = WSS3DeleteRequest()
