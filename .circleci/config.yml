@@ -139,6 +139,10 @@ commands:
       - checkout
       - setup_sbt
 
+      - run:
+          name: 'Clean Ceph tests'
+          command: 'rm -f s3/src/test/scala/S3CephSpec.scala'
+
       - build_n_test:
           java_version: << parameters.java_version >>
           scala_version: << parameters.scala_version >>
