@@ -58,7 +58,6 @@ private[benji] object Streams {
     OutHandler
   }
   import akka.stream.{ Attributes, FlowShape, Inlet, Outlet }
-  import akka.util.ByteString
 
   private class ChunkOfAtMost(limit: Int)
       extends GraphStage[FlowShape[ByteString, Chunk]] {
