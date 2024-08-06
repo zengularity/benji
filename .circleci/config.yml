@@ -286,7 +286,7 @@ jobs:
           play_json_version: 2.8.1
           variant: Play 2.8, WS 2.1
 
-  common_scala31_play28_jdk11:
+  common_scala3_play29_jdk11:
     docker:
       - image: cimg/openjdk:11.0
 
@@ -296,11 +296,11 @@ jobs:
       - test_suite:
           java_version: openjdk11
           modules: core vfs play
-          scala_version: 3.2.1
+          scala_version: 3.4.2
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
-          play_version: 2.8.11
-          play_json_version: 2.10.0-RC6
-          variant: Play 2.8, WS 2.8
+          play_version: 2.9.5
+          play_json_version: 2.10.6
+          variant: Play 2.9, WS 2.8
 
   # --- Integration: S3/Google --- #
 
@@ -330,7 +330,7 @@ jobs:
           play_version: 2.7.1
           variant: Play 2.7, WS 2.0
 
-  int_scala31_play28_jdk11:
+  int_scala3_play29_jdk11:
     docker:
       - image: cimg/openjdk:11.0
 
@@ -340,11 +340,11 @@ jobs:
       - test_suite:
           java_version: openjdk11
           modules: s3 google
-          scala_version: 3.2.1
+          scala_version: 3.4.2
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
-          play_version: 2.8.11
-          play_json_version: 2.10.0-RC6
-          variant: Play 2.8, WS 2.8
+          play_version: 2.9.5
+          play_json_version: 2.10.6
+          variant: Play 2.9, WS 2.8
 
   # --- Master jobs --- #
 
@@ -384,11 +384,11 @@ jobs:
           scala_versions: 2.13.14
 
       - publish_snapshots:
-          release_suffix: play28
+          release_suffix: play29
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
-          play_version: 2.8.11
-          play_json_version: 2.10.0-RC6
-          scala_versions: 3.2.1
+          play_version: 2.9.5
+          play_json_version: 2.10.6
+          scala_versions: 3.4.2
       # TODO: play29
 
       - publish_snapshots:
@@ -427,7 +427,7 @@ workflows:
       - common_scala211_jdk8
       - common_scala212_play27_jdk8
       - common_scala213_play28_jdk9
-      - common_scala31_play28_jdk11
+      - common_scala3_play29_jdk11
 
       # S3/Google
       - int_scala211_jdk8:
@@ -437,9 +437,9 @@ workflows:
           requires:
             - common_scala212_play27_jdk8
             - int_scala211_jdk8
-      - int_scala31_play28_jdk11:
+      - int_scala3_play29_jdk11:
           requires:
-            - common_scala31_play28_jdk11
+            - common_scala3_play29_jdk11
             - int_scala212_play27_jdk8
 
       # Master
@@ -451,7 +451,7 @@ workflows:
           requires:
             - int_scala211_jdk8
             - int_scala212_play27_jdk8
-            - int_scala31_play28_jdk11
+            - int_scala3_play29_jdk11
 
       - examples:
           filters:

@@ -63,7 +63,11 @@ object Common extends AutoPlugin {
         Seq(
           "-Wunused:all",
           "-language:implicitConversions",
-          "-Wconf:cat=deprecation&msg=.*(fromFuture|ActorMaterializer).*:s"
+          "-Wconf:cat=deprecation&msg=.*(fromFuture|ActorMaterializer).*:s",
+          "-Wconf:msg=.*deprecated\\ for\\ wildcard\\ arguments.*:s",
+          "-Wconf:msg=.*has\\ been\\ deprecated.*\\ uninitialized.*:s",
+          "-Wconf:msg=.*should\\ not\\ .*infix\\ operator.*:s",
+          "-Wconf:msg=.*vararg\\ splices.*:s"
         )
       }
     },

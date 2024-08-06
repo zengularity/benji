@@ -43,8 +43,8 @@ if [ "x$SCALA_MODULES" = "x" ]; then
     SCALA_MODULES="core:benji-core s3:benji-s3 google:benji-google vfs:benji-vfs play:benji-play"
 fi
 
-SCALA_VERSIONS="2.11 2.12 2.13 3.2.1"
-PLAY_VERSIONS="26 27 28"
+SCALA_VERSIONS="2.11 2.12 2.13 3.4.2"
+PLAY_VERSIONS="26 27 28 29"
 
 BASES=""
 
