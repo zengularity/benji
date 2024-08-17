@@ -5,7 +5,7 @@ set -e
 S2_11="2.11.12"
 S2_12="2.12.19"
 S2_13="2.13.14"
-S3="3.4.2"
+S3="3.4.3"
 
 # Play 2.6.x
 export PLAY_VERSION=2.6.7 PLAY_JSON_VERSION=2.6.7 WS_VERSION=1.1.6
