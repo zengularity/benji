@@ -139,7 +139,7 @@ lazy val google = project
     libraryDependencies ++= Dependencies.playAhcWS.value ++ Seq(
       "com.typesafe.play" %% "play-json" % Dependencies.Version.playJson.value,
       Dependencies.playWSJson.value,
-      "com.google.auth" % "google-auth-library-oauth2-http" % "1.24.1",
+      "com.google.auth" % "google-auth-library-oauth2-http" % "1.26.0",
       "com.google.apis" % "google-api-services-storage" % "v1-rev20210127-1.31.0"
     )
   )
