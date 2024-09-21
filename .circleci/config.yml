@@ -296,7 +296,7 @@ jobs:
       - test_suite:
           java_version: openjdk11
           modules: core vfs play
-          scala_version: 3.4.3
+          scala_version: 3.5.1
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
           play_version: 2.9.5
           play_json_version: 2.10.6
@@ -340,7 +340,7 @@ jobs:
       - test_suite:
           java_version: openjdk11
           modules: s3 google
-          scala_version: 3.4.3
+          scala_version: 3.5.1
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
           play_version: 2.9.5
           play_json_version: 2.10.6
@@ -388,7 +388,7 @@ jobs:
           ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
           play_version: 2.9.5
           play_json_version: 2.10.6
-          scala_versions: 3.4.3
+          scala_versions: 3.5.1
       # TODO: play29
 
       - publish_snapshots:
