@@ -146,8 +146,9 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
       bucket must notExistsIn(storage, 1, 10.seconds) and {
         // creating bucket
-        bucket.create(failsIfExists = true) must beTypedEqualTo({})
-          .await(2, 3.seconds)
+        bucket.create(failsIfExists =
+          true
+        ) must beTypedEqualTo({}).await(2, 3.seconds)
 
       } and {
         bucket must existsIn(storage, rwConsistencyRetry, rwConsistencyDuration)
@@ -376,8 +377,9 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       {
         bucket must notExistsIn(storage, 1, 10.seconds)
       } and {
-        bucket.create(failsIfExists = true) must beTypedEqualTo({})
-          .await(2, 5.seconds)
+        bucket.create(failsIfExists =
+          true
+        ) must beTypedEqualTo({}).await(2, 5.seconds)
       } and {
         bucket must existsIn(storage, 2, 7.seconds)
       } and {

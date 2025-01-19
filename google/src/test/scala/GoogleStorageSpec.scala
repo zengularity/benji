@@ -40,8 +40,9 @@ final class GoogleStorageSpec(
     lazy val gbucket = google.bucket(bucketName)
 
     s"Create another bucket $bucketName" in {
-      gbucket.create(failsIfExists = true) must beTypedEqualTo({})
-        .await(0, 5.seconds)
+      gbucket.create(failsIfExists =
+        true
+      ) must beTypedEqualTo({}).await(0, 5.seconds)
     }
 
     val objName = "testfile.txt"
