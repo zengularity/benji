@@ -32,13 +32,15 @@ private[google] object ErrorHandler {
     (statusCode, message) match {
       case (404, _) => BucketNotFoundException(bucketName)
 
-      case (
-            409,
-            "Your previous request to create the named bucket succeeded and you already own it."
-          ) =>
+      case (409, msg) if msg.contains("already") =>
         BucketAlreadyExistsException(bucketName)
 
-      case (409, "The bucket you tried to delete is not empty.") =>
+      case (400, msg)
+          if msg.contains("not empty") || msg.contains("non-empty") =>
+        BucketNotEmptyException(bucketName)
+
+      case (409, msg)
+          if msg.contains("not empty") || msg.contains("non-empty") =>
         BucketNotEmptyException(bucketName)
 
       case (_, _) =>

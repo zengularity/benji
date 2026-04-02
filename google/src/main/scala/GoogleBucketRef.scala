@@ -206,22 +206,30 @@ final class GoogleBucketRef private[google] (
             Future.successful(false)
 
           case JsObject(m) if m.contains("versioning") =>
-            json \ "versioning" \ "enabled" match {
-              case JsDefined(JsBoolean(enabled)) => Future.successful(enabled)
+            json \ "versioning" match {
+              // Testbench may return {"versioning": {}} for disabled
+              case JsDefined(JsObject(v)) if v.isEmpty =>
+                Future.successful(false)
 
-              case e: JsUndefined =>
-                Future.failed[Boolean](
-                  new java.io.IOException(
-                    s"Could not parse versioning result: ${e.error}"
-                  )
-                )
+              case _ =>
+                json \ "versioning" \ "enabled" match {
+                  case JsDefined(JsBoolean(enabled)) =>
+                    Future.successful(enabled)
 
-              case JsDefined(j) =>
-                Future.failed[Boolean](
-                  new java.io.IOException(
-                    s"Could not parse versioning result: unexpected value ${Json stringify j}"
-                  )
-                )
+                  case e: JsUndefined =>
+                    Future.failed[Boolean](
+                      new java.io.IOException(
+                        s"Could not parse versioning result: ${e.error}"
+                      )
+                    )
+
+                  case JsDefined(j) =>
+                    Future.failed[Boolean](
+                      new java.io.IOException(
+                        s"Could not parse versioning result: unexpected value ${Json stringify j}"
+                      )
+                    )
+                }
             }
 
           case _ =>
@@ -291,9 +299,23 @@ final class GoogleBucketRef private[google] (
 
           val currentPage = Option(request.getItems) match {
             case Some(items) =>
+              val collection = collectionAsScalaIterable(items).toList
+
+              // Group by name to find the latest generation per object
+              val latestGenerations: Map[String, Long] =
+                collection.groupBy(_.getName).map {
+                  case (n, objs) =>
+                    n -> objs.map(_.getGeneration.longValue).max
+                }
+
               Source.fromIterator[VersionedObject] { () =>
-                val collection = collectionAsScalaIterable(items)
                 collection.iterator.map { (obj: StorageObject) =>
+                  val isLatest = obj.getTimeDeleted == null &&
+                    obj.getGeneration.longValue == latestGenerations.getOrElse(
+                      obj.getName,
+                      -1L
+                    )
+
                   VersionedObject(
                     obj.getName,
                     Bytes(obj.getSize.longValue),
@@ -302,7 +324,7 @@ final class GoogleBucketRef private[google] (
                       ZoneOffset.UTC
                     ),
                     obj.getGeneration.toString,
-                    obj.getTimeDeleted == null
+                    isLatest
                   )
                 }
               }

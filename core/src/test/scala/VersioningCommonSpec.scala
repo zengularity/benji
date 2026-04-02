@@ -32,6 +32,13 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
   protected def rwConsistencyDuration: FiniteDuration
 
+  /**
+   * Whether the backend supports delete markers for versioned objects.
+   * Emulators like storage-testbench physically remove the latest version
+   * instead of creating a delete marker.
+   */
+  protected def supportsDeleteMarkers: Boolean = true
+
   def commonVersioningTests(
       storage: ObjectStorage,
       sampleVersionId: String
@@ -512,6 +519,10 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       }
 
       "to handle properly object deletion" in {
+        if (!supportsDeleteMarkers) {
+          skipped("storage-testbench doesn't support delete markers")
+        }
+
         val obj = bucket.obj(testObjName)
 
         obj.versioning must beSome[ObjectVersioning].which { vobj =>

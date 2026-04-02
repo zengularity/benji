@@ -6,7 +6,7 @@ commands:
     parameters:
       sbt_version:
         type: string
-        default: "1.10.1"
+        default: "1.11.4"
     steps:
       - restore_cache:
           keys:
@@ -310,7 +310,44 @@ jobs:
 
     working_directory: ~/repo
     
+    environment:
+      TESTBENCH_HOST: localhost
+      TESTBENCH_PORT: 9000
+      BENJI_USE_TESTBENCH: 'true'
+    
     steps:
+      - run:
+          name: "Install Docker"
+          command: |
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo bash get-docker.sh
+      
+      - run:
+          name: "Build storage-testbench from GitHub"
+          command: |
+            docker build -t storage-testbench:v0.62.0 \
+              https://github.com/googleapis/storage-testbench.git#v0.62.0
+      
+      - run:
+          name: "Start storage-testbench"
+          background: true
+          command: |
+            docker run --rm -p 9000:9000 storage-testbench:v0.62.0 &
+            sleep 2
+      
+      - run:
+          name: "Wait for storage-testbench"
+          command: |
+            for i in {1..30}; do
+              if curl -s http://localhost:9000 2>/dev/null | grep -q "OK"; then
+                echo "testbench ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "testbench not ready"
+            exit 1
+
       - test_suite:
           modules: s3 google
           scala_version: 2.11.12
@@ -321,8 +358,50 @@ jobs:
       - image: cimg/openjdk:8.0
 
     working_directory: ~/repo
+    
+    environment:
+      TESTBENCH_HOST: localhost
+      TESTBENCH_PORT: 9000
+      BENJI_USE_TESTBENCH: 'true'
 
     steps:
+      - run:
+          name: "Install Docker"
+          command: |
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo bash get-docker.sh
+      
+      - run:
+          name: "Build storage-testbench from GitHub"
+          command: |
+            docker build -t storage-testbench:v0.62.0 \
+              https://github.com/googleapis/storage-testbench.git#v0.62.0
+      
+      - run:
+          name: "Start storage-testbench"
+          background: true
+          command: |
+            docker run --rm -p 9000:9000 storage-testbench:v0.62.0 &
+            sleep 2
+      
+      - run:
+          name: "Wait for storage-testbench"
+          command: |
+            for i in {1..30}; do
+              if curl -s http://localhost:9000 2>/dev/null | grep -q "OK"; then
+                echo "testbench ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "testbench not ready"
+            exit 1
+
+      - test_suite:
+          modules: s3 google
+          scala_version: 2.12.18
+          variant: Play 2.7, WS 2.1
+
       - test_suite:
           modules: s3 google
           scala_version: 2.12.19
@@ -335,8 +414,45 @@ jobs:
       - image: cimg/openjdk:11.0
 
     working_directory: ~/repo
+    
+    environment:
+      TESTBENCH_HOST: localhost
+      TESTBENCH_PORT: 9000
+      BENJI_USE_TESTBENCH: 'true'
 
     steps:
+      - run:
+          name: "Install Docker"
+          command: |
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo bash get-docker.sh
+      
+      - run:
+          name: "Build storage-testbench from GitHub"
+          command: |
+            docker build -t storage-testbench:v0.62.0 \
+              https://github.com/googleapis/storage-testbench.git#v0.62.0
+      
+      - run:
+          name: "Start storage-testbench"
+          background: true
+          command: |
+            docker run --rm -p 9000:9000 storage-testbench:v0.62.0 &
+            sleep 2
+      
+      - run:
+          name: "Wait for storage-testbench"
+          command: |
+            for i in {1..30}; do
+              if curl -s http://localhost:9000 2>/dev/null | grep -q "OK"; then
+                echo "testbench ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "testbench not ready"
+            exit 1
+
       - test_suite:
           java_version: openjdk11
           modules: s3 google

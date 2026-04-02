@@ -23,15 +23,17 @@ import akka.stream.scaladsl.{
   SourceQueueWithComplete
 }
 
+import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
+
 import play.api.libs.ws.StandaloneWSRequest
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
-import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
+
+import com.google.auth.http.HttpCredentialsAdapter
+import com.google.auth.oauth2.GoogleCredentials
 
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.services.storage.{ model, Storage }
-import com.google.auth.http.HttpCredentialsAdapter
-import com.google.auth.oauth2.GoogleCredentials
 
 import com.zengularity.benji.{ Compat, URIProvider }
 import com.zengularity.benji.exception.BenjiUnknownError
@@ -333,6 +335,7 @@ object GoogleTransport {
     val build = { (creds: GoogleCredentials) =>
       new Storage.Builder(http, json, new HttpCredentialsAdapter(creds))
         .setApplicationName(application)
+        .setRootUrl(baseRestUrl)
         .build()
     }
 
@@ -466,9 +469,24 @@ object GoogleTransport {
             case _ => Success(Option.empty[Boolean])
           }
 
-          tx1 = GoogleTransport(credential, projectId, application)
-          tx2 = reqTimeout.fold(tx1)(tx1.withRequestTimeout(_))
-        } yield disableGz.fold(tx2)(tx2.withDisableGZip(_))
+          baseUrl <- optParam(params, "baseRestUrl")
+
+          tx0 = {
+            val http = GoogleNetHttpTransport.newTrustedTransport()
+            val json = new JacksonFactory()
+            val url = baseUrl.getOrElse(Storage.DEFAULT_ROOT_URL)
+            GoogleTransport(
+              credential,
+              projectId,
+              application,
+              http,
+              json,
+              url,
+              Storage.DEFAULT_SERVICE_PATH
+            )
+          }
+          tx1 = reqTimeout.fold(tx0)(tx0.withRequestTimeout(_))
+        } yield disableGz.fold(tx1)(tx1.withDisableGZip(_))
       }
     }
   }

@@ -103,7 +103,10 @@ final class GoogleObjectRef private[google] (
       ec: ExecutionContext
     ): Future[Map[String, Seq[String]]] = headers().map { headers =>
     headers.collect {
-      case (key, value) if key.startsWith("metadata") =>
+      case (key, value)
+          if key.startsWith("metadata") &&
+            !key.startsWith("metadata.x_emulator_") &&
+            !key.startsWith("metadata.x_testbench_") =>
         key.stripPrefix("metadata.") -> value
     }
   }
@@ -608,9 +611,18 @@ final class GoogleObjectRef private[google] (
 
         val (currentPage, empty) = Option(request.getItems) match {
           case Some(items) =>
-            val collection = items.asScala.filter(_.getName == name)
+            val collection = items.asScala.filter(_.getName == name).toList
+
+            // Find the latest generation for this object
+            val latestGen =
+              if (collection.isEmpty) -1L
+              else collection.map(_.getGeneration.longValue).max
+
             val source = Source.fromIterator[VersionedObject] { () =>
               collection.iterator.map { (obj: StorageObject) =>
+                val isLatest = obj.getTimeDeleted == null &&
+                  obj.getGeneration.longValue == latestGen
+
                 VersionedObject(
                   obj.getName,
                   Bytes(obj.getSize.longValue),
@@ -619,7 +631,7 @@ final class GoogleObjectRef private[google] (
                     ZoneOffset.UTC
                   ),
                   obj.getGeneration.toString,
-                  obj.getTimeDeleted == null
+                  isLatest
                 )
               }
             }
