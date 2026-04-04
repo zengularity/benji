@@ -19,25 +19,29 @@ final class S3AwsSpec extends Specification with AwsTests {
     TestUtils.materializer
   )
 
-  awsMinimalSuite(
-    "in virtual host with URI",
-    TestUtils.awsFromVirtualHostStyleURL
-  )(TestUtils.materializer)
+  if (TestUtils.awsSupportsVirtualHostStyle) {
+    awsMinimalSuite(
+      "in virtual host with URI",
+      TestUtils.awsFromVirtualHostStyleURL
+    )(TestUtils.materializer)
 
-  awsMinimalSuite(
-    "in virtual host style with URI V4",
-    TestUtils.awsFromVirtualHostStyleURLV4
-  )(TestUtils.materializer)
+    awsMinimalSuite(
+      "in virtual host style with URI V4",
+      TestUtils.awsFromVirtualHostStyleURLV4
+    )(TestUtils.materializer)
+  }
 
   awsSuite("in path style", TestUtils.aws)(TestUtils.materializer)
 
-  awsSuite("in virtual host style", TestUtils.awsVirtualHost)(
-    TestUtils.materializer
-  )
+  if (TestUtils.awsSupportsVirtualHostStyle) {
+    awsSuite("in virtual host style", TestUtils.awsVirtualHost)(
+      TestUtils.materializer
+    )
 
-  awsSuite("in virtual host style V4", TestUtils.awsVirtualHostV4)(
-    TestUtils.materializer
-  )
+    awsSuite("in virtual host style V4", TestUtils.awsVirtualHostV4)(
+      TestUtils.materializer
+    )
+  }
 }
 
 sealed trait AwsTests

@@ -215,15 +215,15 @@ The testbench integration is configured via environment variables and `google/sr
 
 The CircleCI configuration (`.circleci/config.yml`) automatically uses testbench for Google module tests. For each test job, the pipeline:
 
-1. Builds storage-testbench image from GitHub (with layer caching): `docker build https://github.com/googleapis/storage-testbench.git#v0.62.0`
-2. Starts testbench container: `docker run -p 9000:9000`
-3. Waits for health check on http://localhost:9000 (max 30 seconds)
-4. Runs tests with `BENJI_USE_TESTBENCH=true`
-5. Cleans up automatically
+1. Installs Python venv support in the primary container
+2. Clones `storage-testbench` from GitHub and installs it in a virtual environment
+3. Starts testbench as a Python process on `localhost:9023`
+4. Waits for health check on http://localhost:9023 (max 30 seconds)
+5. Runs tests with `BENJI_USE_TESTBENCH=true`
+
+MinIO remains available on `localhost:9000` for the S3 integration tests, so CircleCI keeps the Google testbench and MinIO on separate ports.
 
 **No action required** - tests will use testbench automatically on CircleCI.
-
-**Build Caching**: Docker automatically caches layers when building from the GitHub URL. Subsequent builds in the same CI run will be faster. To force a rebuild without cache, CircleCI would need `docker build --no-cache`.
 
 #### Local CI Simulation
 

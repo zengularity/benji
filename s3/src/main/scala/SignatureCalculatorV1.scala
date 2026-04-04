@@ -13,9 +13,10 @@ import javax.crypto.spec.SecretKeySpec
 
 import scala.util.{ Failure, Success, Try }
 
-import play.api.libs.ws.WSSignatureCalculator
 import play.shaded.ahc.io.netty.handler.codec.http.HttpHeaders
 import play.shaded.ahc.org.asynchttpclient.{ Request, RequestBuilderBase }
+
+import play.api.libs.ws.WSSignatureCalculator
 
 import com.zengularity.benji.Compat.javaConverters._
 
@@ -220,7 +221,11 @@ private[s3] class SignatureCalculatorV1(
       case _ => {
         val requestHost = url.getHost
         val canonicalHost = host.split(':').headOption.getOrElse(host)
-        val bucket = requestHost.dropRight(canonicalHost.size + 1)
+        val suffix = s".$canonicalHost"
+        val bucket = {
+          if (requestHost.endsWith(suffix)) requestHost.stripSuffix(suffix)
+          else ""
+        }
         if (bucket.isEmpty) path else s"/$bucket$path"
       }
     }

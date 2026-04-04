@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#! /usr/bin/env bash
 
 set -e
 
@@ -12,6 +12,7 @@ cd "$SCRIPT_DIR/.."
 : ${CEPH_ACCESSKEY:=minioadmin}
 : ${CEPH_SECRETKEY:=minioadmin123}
 : ${CEPH_PROTOCOL:=http}
+: ${AWS_HOST:=localhost:9000}
 : ${AWS_ACCESSKEY:=minioadmin}
 : ${AWS_SECRETKEY:=minioadmin123}
 : ${AWS_PROTOCOL:=http}
@@ -22,7 +23,7 @@ ceph.s3.accessKey="$CEPH_ACCESSKEY"
 ceph.s3.secretKey="$CEPH_SECRETKEY"
 ceph.s3.protocol=$CEPH_PROTOCOL
 
-aws.s3.host=s3.amazonaws.com
+aws.s3.host="$AWS_HOST"
 aws.s3.accessKey="$AWS_ACCESSKEY"
 aws.s3.secretKey="$AWS_SECRETKEY"
 aws.s3.protocol=${AWS_PROTOCOL:-https}
@@ -45,8 +46,11 @@ JVM_MAX_MEM="1G"
 
 JAVA_MAJOR=`java -version 2>&1 | head -n 1 | cut -d '"' -f 2 | sed -e 's/\.[0-9a-zA-Z_]*$//'`
 
+SBT_CMD_PREFIX=(sbt)
+
 if [ "v$JAVA_MAJOR" = "v10.0" -o "v$JAVA_MAJOR" = "v11.0" ]; then
-  JVM_OPTS="-XX:MaxRAMPercentage=70"
+  JVM_OPTS="-XX:MaxRAMPercentage=60"
+  SBT_CMD_PREFIX+=(-J-Xms256m -J-Xmx1024m -J-XX:ReservedCodeCacheSize=192m)
 else
   JVM_MAX_MEM="1632M" # 1760M"
   JVM_OPTS="-Xmx$JVM_MAX_MEM -XX:ReservedCodeCacheSize=192m"
@@ -59,8 +63,10 @@ SBT_OPTS="++$SCALA_VERSION"
 # Scalariform check
 echo "[info] Check the source format and backward compatibility"
 
-if [ ! "v$SCALA_VERSION" = "v2.11.12" ]; then
-  sbt "$SBT_OPTS" ';error ;scalafixAll' || (
+SV="v${SCALA_VERSION/2.11.*/2.11}"
+
+if [ "$SV" != "v2.11" ]; then
+  "${SBT_CMD_PREFIX[@]}" "$SBT_OPTS" ';error ;scalafixAll' || (
     cat >> /dev/stdout <<EOF
 [ERROR] Scalafix check failed. To fix, run scalafixAll before pushing.
 EOF
@@ -68,7 +74,7 @@ EOF
   )
 fi
 
-sbt "$SBT_OPTS" ';error ;scalafmtCheckAll ;scalafmtSbtCheck'
+"${SBT_CMD_PREFIX[@]}" "$SBT_OPTS" ';error ;scalafmtCheckAll ;scalafmtSbtCheck'
 
 # MiMa, Tests
 SBT_CMD=";error ;test:compile ;doc ;mimaReportBinaryIssues; info"
@@ -81,4 +87,4 @@ else
   done
 fi
 
-sbt "$SBT_OPTS" "$SBT_CMD"
+"${SBT_CMD_PREFIX[@]}" "$SBT_OPTS" "$SBT_CMD"

@@ -26,6 +26,46 @@ commands:
             - ~/.sbt
           key: *sbt_cache_key
 
+  setup_testbench:
+    description: Install and start storage-testbench
+    parameters:
+      port:
+        type: integer
+        default: 9023
+    steps:
+      - run:
+          name: Install testbench and AWS CLI dependencies
+          command: |
+                    sudo apt-get update
+                    sudo apt-get install -y python3-venv awscli
+
+      - run:
+          name: Start storage-testbench
+          background: true
+          command: |
+                    rm -rf /tmp/storage-testbench
+                    git clone --depth 1 --branch v0.62.0 https://github.com/googleapis/storage-testbench.git /tmp/storage-testbench
+                    cd /tmp/storage-testbench
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    python -m ensurepip --upgrade
+                    python -m pip install --quiet --upgrade pip setuptools wheel
+                    python -m pip install --quiet -e .
+                    python3 testbench_run.py localhost << parameters.port >> 10
+
+      - run:
+          name: Wait for storage-testbench
+          command: |
+                    for i in {1..30}; do
+                      if curl -s http://localhost:<< parameters.port >> 2>/dev/null | grep -q "OK"; then
+                        echo "testbench ready"
+                        exit 0
+                      fi
+                      sleep 1
+                    done
+                    echo "testbench not ready"
+                    exit 1
+
   build_n_test:
     description: Build & Run tests
     parameters:
@@ -104,8 +144,9 @@ commands:
       - run:
           name: Collect test report
           command: |
-                    mkdir test-reports
+                    mkdir -p test-reports
                     find . -path '*/test-reports/*' -name '*.xml' \
+                      -not -path './test-reports/*' \
                       -print -exec cp {} test-reports \;
           when: always
 
@@ -297,7 +338,7 @@ jobs:
           java_version: openjdk11
           modules: core vfs play
           scala_version: 3.4.3
-          ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
+          ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
           variant: Play 2.9, WS 2.8
@@ -317,48 +358,23 @@ jobs:
     
     environment:
       TESTBENCH_HOST: localhost
-      TESTBENCH_PORT: 9000
+      TESTBENCH_PORT: 9023
       BENJI_USE_TESTBENCH: 'true'
+      MINIO_ENDPOINT: http://localhost:9000
       CEPH_HOST: localhost:9000
       CEPH_ACCESSKEY: minioadmin
       CEPH_SECRETKEY: minioadmin123
       CEPH_PROTOCOL: http
+      AWS_HOST: localhost:9000
       AWS_ACCESSKEY: minioadmin
       AWS_SECRETKEY: minioadmin123
       AWS_PROTOCOL: http
     
     steps:
-      - run:
-          name: "Install Docker"
-          command: |
-            curl -fsSL https://get.docker.com -o get-docker.sh
-            sudo bash get-docker.sh
-      
-      - run:
-          name: "Build storage-testbench from GitHub"
-          command: |
-            docker build -t storage-testbench:v0.62.0 \
-              https://github.com/googleapis/storage-testbench.git#v0.62.0
-      
-      - run:
-          name: "Start storage-testbench"
-          background: true
-          command: |
-            docker run --rm -p 9000:9000 storage-testbench:v0.62.0 &
-            sleep 2
-      
-      - run:
-          name: "Wait for storage-testbench"
-          command: |
-            for i in {1..30}; do
-              if curl -s http://localhost:9000 2>/dev/null | grep -q "OK"; then
-                echo "testbench ready"
-                exit 0
-              fi
-              sleep 1
-            done
-            echo "testbench not ready"
-            exit 1
+      - checkout
+
+      - setup_testbench:
+          port: 9023
 
       - run:
           name: "Wait for MinIO"
@@ -396,48 +412,23 @@ jobs:
     
     environment:
       TESTBENCH_HOST: localhost
-      TESTBENCH_PORT: 9000
+      TESTBENCH_PORT: 9023
       BENJI_USE_TESTBENCH: 'true'
+      MINIO_ENDPOINT: http://localhost:9000
       CEPH_HOST: localhost:9000
       CEPH_ACCESSKEY: minioadmin
       CEPH_SECRETKEY: minioadmin123
       CEPH_PROTOCOL: http
+      AWS_HOST: localhost:9000
       AWS_ACCESSKEY: minioadmin
       AWS_SECRETKEY: minioadmin123
       AWS_PROTOCOL: http
 
     steps:
-      - run:
-          name: "Install Docker"
-          command: |
-            curl -fsSL https://get.docker.com -o get-docker.sh
-            sudo bash get-docker.sh
-      
-      - run:
-          name: "Build storage-testbench from GitHub"
-          command: |
-            docker build -t storage-testbench:v0.62.0 \
-              https://github.com/googleapis/storage-testbench.git#v0.62.0
-      
-      - run:
-          name: "Start storage-testbench"
-          background: true
-          command: |
-            docker run --rm -p 9000:9000 storage-testbench:v0.62.0 &
-            sleep 2
-      
-      - run:
-          name: "Wait for storage-testbench"
-          command: |
-            for i in {1..30}; do
-              if curl -s http://localhost:9000 2>/dev/null | grep -q "OK"; then
-                echo "testbench ready"
-                exit 0
-              fi
-              sleep 1
-            done
-            echo "testbench not ready"
-            exit 1
+      - checkout
+
+      - setup_testbench:
+          port: 9023
 
       - run:
           name: "Wait for MinIO"
@@ -482,48 +473,23 @@ jobs:
     
     environment:
       TESTBENCH_HOST: localhost
-      TESTBENCH_PORT: 9000
+      TESTBENCH_PORT: 9023
       BENJI_USE_TESTBENCH: 'true'
+      MINIO_ENDPOINT: http://localhost:9000
       CEPH_HOST: localhost:9000
       CEPH_ACCESSKEY: minioadmin
       CEPH_SECRETKEY: minioadmin123
       CEPH_PROTOCOL: http
+      AWS_HOST: localhost:9000
       AWS_ACCESSKEY: minioadmin
       AWS_SECRETKEY: minioadmin123
       AWS_PROTOCOL: http
 
     steps:
-      - run:
-          name: "Install Docker"
-          command: |
-            curl -fsSL https://get.docker.com -o get-docker.sh
-            sudo bash get-docker.sh
-      
-      - run:
-          name: "Build storage-testbench from GitHub"
-          command: |
-            docker build -t storage-testbench:v0.62.0 \
-              https://github.com/googleapis/storage-testbench.git#v0.62.0
-      
-      - run:
-          name: "Start storage-testbench"
-          background: true
-          command: |
-            docker run --rm -p 9000:9000 storage-testbench:v0.62.0 &
-            sleep 2
-      
-      - run:
-          name: "Wait for storage-testbench"
-          command: |
-            for i in {1..30}; do
-              if curl -s http://localhost:9000 2>/dev/null | grep -q "OK"; then
-                echo "testbench ready"
-                exit 0
-              fi
-              sleep 1
-            done
-            echo "testbench not ready"
-            exit 1
+      - checkout
+
+      - setup_testbench:
+          port: 9023
 
       - run:
           name: "Wait for MinIO"
@@ -547,7 +513,7 @@ jobs:
           java_version: openjdk11
           modules: s3 google
           scala_version: 3.4.3
-          ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
+          ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
           variant: Play 2.9, WS 2.8
@@ -591,7 +557,7 @@ jobs:
 
       - publish_snapshots:
           release_suffix: play29
-          ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
+          ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
           scala_versions: 3.4.3
@@ -666,4 +632,3 @@ workflows:
                 - master
           requires:
             - publish_snapshots
-

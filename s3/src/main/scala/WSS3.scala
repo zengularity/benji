@@ -18,9 +18,10 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
+import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
+
 import play.api.libs.ws.{ StandaloneWSRequest, StandaloneWSResponse }
 import play.api.libs.ws.ahc.{ AhcWSClientConfig, StandaloneAhcWSClient }
-import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
 import com.zengularity.benji.{ Bucket, Compat, ObjectStorage, URIProvider }
 
@@ -154,18 +155,13 @@ object S3 {
       host: String
     )(implicit
       ws: StandaloneAhcWSClient
-    ): WSS3 =
-    if (shouldFallbackToPathStyle(host)) {
-      apply(accessKeyId, secretAccessKeyId, scheme, host)
-    } else {
-      new WSS3(
-        ws,
-        new VirtualHostWSRequestBuilder(
-          new SignatureCalculatorV1(accessKeyId, secretAccessKeyId, host),
-          new java.net.URL(s"${scheme}://${host}")
-        )
-      )
-    }
+    ): WSS3 = new WSS3(
+    ws,
+    new VirtualHostWSRequestBuilder(
+      new SignatureCalculatorV1(accessKeyId, secretAccessKeyId, host),
+      new java.net.URL(s"${scheme}://${host}")
+    )
+  )
 
   /**
    * Returns the S3 client in the virtual host style.
@@ -196,24 +192,13 @@ object S3 {
       region: String
     )(implicit
       ws: StandaloneAhcWSClient
-    ): WSS3 =
-    if (shouldFallbackToPathStyle(host)) {
-      new WSS3(
-        ws,
-        new PathStyleWSRequestBuilder(
-          new SignatureCalculatorV4(accessKeyId, secretAccessKeyId, region),
-          new java.net.URL(s"${scheme}://${host}")
-        )
-      )
-    } else {
-      new WSS3(
-        ws,
-        new VirtualHostWSRequestBuilder(
-          new SignatureCalculatorV4(accessKeyId, secretAccessKeyId, region),
-          new java.net.URL(s"${scheme}://${host}")
-        )
-      )
-    }
+    ): WSS3 = new WSS3(
+    ws,
+    new VirtualHostWSRequestBuilder(
+      new SignatureCalculatorV4(accessKeyId, secretAccessKeyId, region),
+      new java.net.URL(s"${scheme}://${host}")
+    )
+  )
 
   /**
    * Tries to create a S3 client from an URI using the following format:
@@ -352,12 +337,6 @@ object S3 {
     )(implicit
       ws: StandaloneAhcWSClient
     ): WSS3 = new WSS3(ws, requestBuilder)
-
-  private def shouldFallbackToPathStyle(host: String): Boolean = {
-    val hostName = host.takeWhile(_ != ':').toLowerCase(java.util.Locale.ROOT)
-
-    hostName == "localhost" || hostName == "127.0.0.1" || hostName == "::1"
-  }
 
   // Utility functions
 

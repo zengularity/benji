@@ -28,6 +28,7 @@ import com.zengularity.benji.{
   VersionedObjectRef
 }
 import com.zengularity.benji.exception.{
+  BenjiUnknownError,
   BucketAlreadyExistsException,
   BucketNotFoundException
 }
@@ -153,6 +154,21 @@ final class GoogleBucketRef private[google] (
       ignoreExists: Boolean = false)
       extends DeleteRequest {
 
+    private def isTransientDeleteError(error: Throwable): Boolean = {
+      val marker = "unexpected end of file"
+
+      error match {
+        case BenjiUnknownError(msg, cause) =>
+          val fromCause = cause.map(_.getMessage).getOrElse("")
+          s"$msg $fromCause".toLowerCase.contains(marker)
+
+        case ioe: java.io.IOException =>
+          Option(ioe.getMessage).exists(_.toLowerCase.contains(marker))
+
+        case _ => false
+      }
+    }
+
     private def delete(
       )(implicit
         ec: ExecutionContext
@@ -174,10 +190,22 @@ final class GoogleBucketRef private[google] (
         ErrorHandler.ofBucketToFuture(s"Could not delete bucket $name", ref)
       )
 
-      if (ignoreExists)
-        result.recover { case BucketNotFoundException(_) => () }
-      else
+      if (ignoreExists) {
+        result.recoverWith {
+          case BucketNotFoundException(_) => Future.successful(())
+
+          case error if isTransientDeleteError(error) =>
+            exists.flatMap {
+              case false => Future.successful(())
+              case true  => Future.failed(error)
+            }.recoverWith {
+              case _ =>
+                Future.failed(error)
+            }
+        }
+      } else {
         result
+      }
     }
 
     def ignoreIfNotExists: DeleteRequest = this.copy(ignoreExists = true)
