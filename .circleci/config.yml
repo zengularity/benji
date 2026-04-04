@@ -307,6 +307,11 @@ jobs:
   int_scala211_jdk8:
     docker:
       - image: cimg/openjdk:8.0
+      - image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+        environment:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin123
+        command: minio server /data --console-address ":9001"
 
     working_directory: ~/repo
     
@@ -314,6 +319,13 @@ jobs:
       TESTBENCH_HOST: localhost
       TESTBENCH_PORT: 9000
       BENJI_USE_TESTBENCH: 'true'
+      CEPH_HOST: localhost:9000
+      CEPH_ACCESSKEY: minioadmin
+      CEPH_SECRETKEY: minioadmin123
+      CEPH_PROTOCOL: http
+      AWS_ACCESSKEY: minioadmin
+      AWS_SECRETKEY: minioadmin123
+      AWS_PROTOCOL: http
     
     steps:
       - run:
@@ -347,6 +359,24 @@ jobs:
             done
             echo "testbench not ready"
             exit 1
+
+      - run:
+          name: "Wait for MinIO"
+          command: |
+            for i in {1..30}; do
+              if curl -f http://localhost:9000/minio/health/live 2>/dev/null; then
+                echo "MinIO ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "MinIO not ready"
+            exit 1
+
+      - run:
+          name: "Initialize MinIO buckets"
+          command: |
+            cd s3 && chmod +x init-buckets.sh && ./init-buckets.sh
 
       - test_suite:
           modules: s3 google
@@ -356,6 +386,11 @@ jobs:
   int_scala212_play27_jdk8:
     docker:
       - image: cimg/openjdk:8.0
+      - image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+        environment:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin123
+        command: minio server /data --console-address ":9001"
 
     working_directory: ~/repo
     
@@ -363,6 +398,13 @@ jobs:
       TESTBENCH_HOST: localhost
       TESTBENCH_PORT: 9000
       BENJI_USE_TESTBENCH: 'true'
+      CEPH_HOST: localhost:9000
+      CEPH_ACCESSKEY: minioadmin
+      CEPH_SECRETKEY: minioadmin123
+      CEPH_PROTOCOL: http
+      AWS_ACCESSKEY: minioadmin
+      AWS_SECRETKEY: minioadmin123
+      AWS_PROTOCOL: http
 
     steps:
       - run:
@@ -396,6 +438,24 @@ jobs:
             done
             echo "testbench not ready"
             exit 1
+
+      - run:
+          name: "Wait for MinIO"
+          command: |
+            for i in {1..30}; do
+              if curl -f http://localhost:9000/minio/health/live 2>/dev/null; then
+                echo "MinIO ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "MinIO not ready"
+            exit 1
+
+      - run:
+          name: "Initialize MinIO buckets"
+          command: |
+            cd s3 && chmod +x init-buckets.sh && ./init-buckets.sh
 
       - test_suite:
           modules: s3 google
@@ -412,6 +472,11 @@ jobs:
   int_scala3_play29_jdk11:
     docker:
       - image: cimg/openjdk:11.0
+      - image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+        environment:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin123
+        command: minio server /data --console-address ":9001"
 
     working_directory: ~/repo
     
@@ -419,6 +484,13 @@ jobs:
       TESTBENCH_HOST: localhost
       TESTBENCH_PORT: 9000
       BENJI_USE_TESTBENCH: 'true'
+      CEPH_HOST: localhost:9000
+      CEPH_ACCESSKEY: minioadmin
+      CEPH_SECRETKEY: minioadmin123
+      CEPH_PROTOCOL: http
+      AWS_ACCESSKEY: minioadmin
+      AWS_SECRETKEY: minioadmin123
+      AWS_PROTOCOL: http
 
     steps:
       - run:
@@ -452,6 +524,24 @@ jobs:
             done
             echo "testbench not ready"
             exit 1
+
+      - run:
+          name: "Wait for MinIO"
+          command: |
+            for i in {1..30}; do
+              if curl -f http://localhost:9000/minio/health/live 2>/dev/null; then
+                echo "MinIO ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "MinIO not ready"
+            exit 1
+
+      - run:
+          name: "Initialize MinIO buckets"
+          command: |
+            cd s3 && chmod +x init-buckets.sh && ./init-buckets.sh
 
       - test_suite:
           java_version: openjdk11

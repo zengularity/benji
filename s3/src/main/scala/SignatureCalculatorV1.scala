@@ -218,7 +218,9 @@ private[s3] class SignatureCalculatorV1(
     style match {
       case PathRequest => path
       case _ => {
-        val bucket = url.getHost.dropRight(host.size + 1)
+        val requestHost = url.getHost
+        val canonicalHost = host.split(':').headOption.getOrElse(host)
+        val bucket = requestHost.dropRight(canonicalHost.size + 1)
         if (bucket.isEmpty) path else s"/$bucket$path"
       }
     }
