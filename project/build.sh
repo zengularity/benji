@@ -21,5 +21,5 @@ export PLAY_VERSION=2.8.11 PLAY_JSON_VERSION=2.8.1 WS_VERSION=2.1.2
 sbt ++${S2_13} makePom packageBin packageSrc packageDoc
 
 # Scala 3
-export PLAY_VERSION=2.9.5 PLAY_JSON_VERSION=2.10.6 WS_VERSION=2.2.0-M1+68-da80b259-SNAPSHOT
+export PLAY_VERSION=2.9.5 PLAY_JSON_VERSION=2.10.6 WS_VERSION=2.2.11
 sbt ++${S3} makePom packageBin packageSrc packageDoc
