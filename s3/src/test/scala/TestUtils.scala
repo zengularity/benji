@@ -40,6 +40,13 @@ object TestUtils {
 
   lazy val awsRegion: String = config.getString("aws.s3.region")
 
+  private def isLoopbackHost(host: String): Boolean = {
+    val hostName = host.takeWhile(_ != ':').toLowerCase(java.util.Locale.ROOT)
+    hostName == "localhost" || hostName == "127.0.0.1" || hostName == "::1"
+  }
+
+  lazy val awsSupportsVirtualHostStyle: Boolean = !isLoopbackHost(awsHost)
+
   private lazy val (cephAccessKey, cephSecretKey, cephHost, cephProtocol) = (
     config.getString("ceph.s3.accessKey"),
     config.getString("ceph.s3.secretKey"),
