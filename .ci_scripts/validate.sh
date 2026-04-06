@@ -31,6 +31,7 @@ aws.s3.region=us-east-1
 EOF
 
 # Prepare Google settings
+: ${GOOGLE_PROJECTID:=testbench-project}
 cat > google/src/test/resources/local.conf << EOF
 google.storage.projectId=$GOOGLE_PROJECTID
 EOF
