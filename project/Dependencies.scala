@@ -9,7 +9,7 @@ object Dependencies {
       sys.env.getOrElse(
         "WS_VERSION", {
           if (scalaBinaryVersion.value == "3") {
-            "2.2.0-M1+68-da80b259-SNAPSHOT"
+            "2.2.11"
           } else {
             "2.0.8" // upper 2.0.6
           }
