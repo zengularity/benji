@@ -177,7 +177,7 @@ final class WSS3BucketRef private[s3] (
 
     req.put(body.toString()).flatMap {
       case Successful(_) =>
-        Future.successful({}) // unit > 2.12
+        isVersioned.map(_ => {})
 
       case response =>
         val error = ErrorHandler.ofBucket(

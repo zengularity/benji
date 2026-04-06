@@ -92,6 +92,12 @@ private[s3] object ErrorHandler {
             || body.contains("<Code>NoSuchVersion</Code>")
             || body.isEmpty =>
         VersionNotFoundException(bucketName, objName, versionId)
+      case 400
+          if body.contains("<Code>InvalidArgument</Code>")
+            && body.contains("Invalid version id") =>
+        VersionNotFoundException(bucketName, objName, versionId)
+      case 400 if body.isEmpty =>
+        VersionNotFoundException(bucketName, objName, versionId)
       case status =>
         BenjiUnknownError(
           s"$defaultMessage - Response: ${status.toString} - $body"

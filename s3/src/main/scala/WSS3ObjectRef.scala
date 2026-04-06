@@ -160,8 +160,7 @@ final class WSS3ObjectRef private[s3] (
         requestTimeout = requestTimeout
       )
       .addHttpHeaders(
-        "x-amz-copy-source" -> java.net.URLEncoder
-          .encode(s"/$bucket/$name", "UTF-8")
+        "x-amz-copy-source" -> encodeCopySource(s"/$bucket/$name")
       )
       .put("")
       .flatMap {
@@ -197,6 +196,31 @@ final class WSS3ObjectRef private[s3] (
   override def hashCode: Int = tupled.hashCode
 
   @inline private def tupled = bucket -> name
+
+  // RFC 3986 encoding for x-amz-copy-source:
+  // keep '/' as path separator and avoid '+' for spaces.
+  private def encodeCopySource(source: String): String = {
+    val encoded = new StringBuilder(source.length)
+
+    source.foreach {
+      case '/'                  => encoded.append('/')
+      case c if isUnreserved(c) => encoded.append(c)
+      case c =>
+        val bytes = c.toString.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        bytes.foreach { b =>
+          encoded.append('%')
+          encoded.append(f"${b & 0xff}%02X")
+        }
+    }
+
+    encoded.toString
+  }
+
+  @inline private def isUnreserved(c: Char): Boolean =
+    (c >= 'A' && c <= 'Z') ||
+      (c >= 'a' && c <= 'z') ||
+      (c >= '0' && c <= '9') ||
+      c == '-' || c == '.' || c == '_' || c == '~'
 
   // Utility methods
 
