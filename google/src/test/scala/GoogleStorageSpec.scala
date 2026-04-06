@@ -30,6 +30,9 @@ final class GoogleStorageSpec(
 
   implicit def materializer: Materializer = TestUtils.materializer
 
+  override protected def supportsDeleteMarkers: Boolean =
+    !TestUtils.isTestbenchEnabled
+
   "Client" should {
     commonTests("google", google, s"benji-test-${random.nextInt().toString}")
     commonVersioningTests(google, sampleVersionId = "7")
