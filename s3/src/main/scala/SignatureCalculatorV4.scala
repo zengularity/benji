@@ -13,9 +13,10 @@ import javax.crypto.spec.SecretKeySpec
 import org.apache.commons.codec.binary.Hex
 import org.apache.commons.codec.digest.DigestUtils
 
-import play.api.libs.ws.WSSignatureCalculator
 import play.shaded.ahc.io.netty.handler.codec.http.HttpHeaders
 import play.shaded.ahc.org.asynchttpclient.{ Request, RequestBuilderBase }
+
+import play.api.libs.ws.WSSignatureCalculator
 
 import com.zengularity.benji.Compat.javaConverters._
 
