@@ -1,10 +1,61 @@
-ceph.s3.host="ceph-host"
-ceph.s3.accessKey="accessKey"
-ceph.s3.secretKey="secretKey"
-ceph.s3.protocol=http
+# S3 Configuration for Benji Tests
+#
+# This file allows you to override the default S3 settings defined in tests.conf.
+#
+# The default configuration in tests.conf uses MinIO (http://localhost:9000) with
+# credentials: minioadmin / minioadmin123
+#
+# Use this file to configure alternative S3 endpoints:
+# - Real AWS S3 credentials
+# - Ceph S3 endpoint
+# - Different MinIO instance
+#
+# Copy this file to local.conf and customize as needed.
 
-aws.s3.host=s3.amazonaws.com
-aws.s3.accessKey="accessKey"
-aws.s3.secretKey="secretKey"
-aws.s3.protocol=https
-aws.s3.region=us-east-1
+# ============================================================================
+# Example 1: MinIO (Local Development - Default)
+# ============================================================================
+# No need to specify anything here; the defaults in tests.conf handle it.
+# Just ensure docker-compose up -d is running in s3/ directory
+
+# ============================================================================
+# Example 2: Real AWS S3 Credentials
+# ============================================================================
+# aws.s3.host=s3.amazonaws.com
+# aws.s3.accessKey="YOUR_AWS_ACCESS_KEY_ID"
+# aws.s3.secretKey="YOUR_AWS_SECRET_ACCESS_KEY"
+# aws.s3.protocol=https
+# aws.s3.region=us-east-1
+#
+# ceph.s3.host=s3.amazonaws.com
+# ceph.s3.accessKey="YOUR_AWS_ACCESS_KEY_ID"
+# ceph.s3.secretKey="YOUR_AWS_SECRET_ACCESS_KEY"
+# ceph.s3.protocol=https
+
+# ============================================================================
+# Example 3: Ceph S3 Endpoint
+# ============================================================================
+# ceph.s3.host="storage.example.com"
+# ceph.s3.accessKey="ceph_access_key"
+# ceph.s3.secretKey="ceph_secret_key"
+# ceph.s3.protocol=https
+#
+# aws.s3.host=s3.amazonaws.com
+# aws.s3.accessKey="YOUR_AWS_ACCESS_KEY_ID"
+# aws.s3.secretKey="YOUR_AWS_SECRET_ACCESS_KEY"
+# aws.s3.protocol=https
+# aws.s3.region=us-east-1
+
+# ============================================================================
+# Example 4: Remote MinIO Instance
+# ============================================================================
+# ceph.s3.host="minio.example.com:9000"
+# ceph.s3.accessKey="your_minio_access_key"
+# ceph.s3.secretKey="your_minio_secret_key"
+# ceph.s3.protocol=https
+#
+# aws.s3.host="minio.example.com:9000"
+# aws.s3.accessKey="your_minio_access_key"
+# aws.s3.secretKey="your_minio_secret_key"
+# aws.s3.protocol=https
+# aws.s3.region=us-east-1

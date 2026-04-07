@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  storage-testbench:
+    build:
+      context: https://github.com/googleapis/storage-testbench.git#v0.62.0
+    container_name: benji-storage-testbench
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "curl", "http://localhost:9000"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+    networks:
+      - benji-test
+
+networks:
+  benji-test:
+    driver: bridge

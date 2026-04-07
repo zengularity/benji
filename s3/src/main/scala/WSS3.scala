@@ -18,9 +18,10 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
+import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
+
 import play.api.libs.ws.{ StandaloneWSRequest, StandaloneWSResponse }
 import play.api.libs.ws.ahc.{ AhcWSClientConfig, StandaloneAhcWSClient }
-import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 
 import com.zengularity.benji.{ Bucket, Compat, ObjectStorage, URIProvider }
 
@@ -229,7 +230,9 @@ object S3 {
       provider: URIProvider[T]
     ): Try[WSS3] = {
     def fromUri(uri: URI, accessKey: String, secretKey: String): Try[WSS3] = {
-      val host = uri.getHost
+      val host = if (uri.getPort > 0) {
+        s"${uri.getHost}:${uri.getPort.toString}"
+      } else uri.getHost
       val scheme = uri.getScheme
       val params = parseQuery(uri)
 
