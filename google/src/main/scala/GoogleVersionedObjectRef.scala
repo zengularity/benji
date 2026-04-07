@@ -109,7 +109,10 @@ final class GoogleVersionedObjectRef(
       ec: ExecutionContext
     ): Future[Map[String, Seq[String]]] = headers().map { headers =>
     headers.collect {
-      case (key, value) if key.startsWith("metadata") =>
+      case (key, value)
+          if key.startsWith("metadata") &&
+            !key.startsWith("metadata.x_emulator_") &&
+            !key.startsWith("metadata.x_testbench_") =>
         key.stripPrefix("metadata.") -> value
     }
   }
