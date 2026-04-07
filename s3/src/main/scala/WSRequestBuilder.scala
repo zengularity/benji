@@ -122,6 +122,7 @@ private[s3] object WSRequestBuilder {
 
     url
   }
+
 }
 
 /**
