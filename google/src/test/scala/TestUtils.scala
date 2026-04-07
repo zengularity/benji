@@ -39,15 +39,92 @@ object TestUtils {
     org.specs2.concurrent.ExecutionEnv.fromExecutionContext(m.executionContext)
   )
 
+  /**
+   * Initialize storage-testbench if enabled in configuration.
+   * This verifies that testbench is running (it must be started separately).
+   */
+  private def initTestbench(): Unit = {
+    try {
+      val useTestbench = config.getBoolean("google.storage.testbench.enabled")
+      if (useTestbench) {
+        val host = config.getString("google.storage.testbench.host")
+        val port = config.getInt("google.storage.testbench.port")
+
+        logger.info(s"Checking storage-testbench on $host:$port")
+        StorageTestbench
+          .checkReady(host, port, 5000)
+          .get // Will throw if not ready
+      }
+    } catch {
+      case _: com.typesafe.config.ConfigException =>
+        logger.debug("testbench not configured, using default endpoint")
+      case e: Throwable =>
+        logger.error("Failed to connect to testbench", e)
+        throw e
+    }
+  }
+
   lazy val configUri: String = {
+    // Initialize testbench first
+    initTestbench()
+
     val projectId = config.getString("google.storage.projectId")
     val application = s"benji-tests-${System.identityHashCode(this).toString}"
 
-    s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
+    // If testbench is enabled, use its endpoint; otherwise use default GCS
+    val baseUri = if (isTestbenchEnabled) {
+      val host = config.getString("google.storage.testbench.host")
+      val port = config.getInt("google.storage.testbench.port")
+      s"google:classpath://gcs-test.json?application=$application&projectId=$projectId&baseRestUrl=http://$host:$port"
+    } else {
+      s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
+    }
+
+    baseUri
+  }
+
+  def isTestbenchEnabled: Boolean = {
+    try {
+      config.getBoolean("google.storage.testbench.enabled")
+    } catch {
+      case _: Throwable => false
+    }
   }
 
   @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
-  lazy val googleTransport: GoogleTransport = GoogleTransport(configUri).get
+  lazy val googleTransport: GoogleTransport = {
+    if (isTestbenchEnabled) {
+      val host = config.getString("google.storage.testbench.host")
+      val port = config.getInt("google.storage.testbench.port")
+      val projectId = config.getString("google.storage.projectId")
+      val application =
+        s"benji-tests-${System.identityHashCode(this).toString}"
+      val baseRestUrl = s"http://$host:$port"
+
+      // Verify testbench is reachable
+      initTestbench()
+
+      // Mock credential with far-future expiration;
+      // testbench accepts any Bearer token,
+      // so no real Google Auth is needed.
+      val fakeToken = new com.google.auth.oauth2.AccessToken(
+        "testbench-fake-token",
+        new java.util.Date(System.currentTimeMillis() + 86400000L)
+      )
+
+      val credential =
+        com.google.auth.oauth2.GoogleCredentials.create(fakeToken)
+
+      GoogleTransport(
+        credential,
+        projectId,
+        application,
+        baseRestUrl = baseRestUrl
+      )
+    } else {
+      GoogleTransport(configUri).get
+    }
+  }
 
   lazy val google: GoogleStorage = GoogleStorage(googleTransport)
 
@@ -80,6 +157,9 @@ object TestUtils {
     catch {
       case e: Throwable => logger.warn("fails to close WS", e)
     }
+
+    // Stop testbench if it was started
+    StorageTestbench.stop()
   }
 
   Runtime.getRuntime.addShutdownHook(new Thread {

@@ -7,13 +7,13 @@ addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.10.0-RC1")
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.2")
 
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.12.1")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.13.0")
 
-addSbtPlugin("com.github.sbt" % "sbt-unidoc" % "0.5.0")
+addSbtPlugin("com.github.sbt" % "sbt-unidoc" % "0.6.1")
 
 addSbtPlugin("com.github.sbt" % "sbt-findbugs" % "2.0.0")
 
-addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.4")
+addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.5")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.10.0")
 
