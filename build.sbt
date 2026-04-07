@@ -42,7 +42,7 @@ lazy val core = project
       )
     },
     libraryDependencies ++= Seq(
-      "commons-codec" % "commons-codec" % "1.17.1",
+      "commons-codec" % "commons-codec" % "1.17.2",
       Dependencies.slf4jApi % Provided
     ),
     libraryDependencies ~= {
@@ -168,7 +168,7 @@ lazy val vfs = project
       )
     },
     libraryDependencies ++= Seq(
-      "org.apache.commons" % "commons-vfs2" % "2.9.0",
+      "org.apache.commons" % "commons-vfs2" % "2.10.0",
       "com.typesafe.play" %% "play-json" % playJsonVer.value,
       Dependencies.slf4jApi,
       "commons-io" % "commons-io" % "2.7" % Test
