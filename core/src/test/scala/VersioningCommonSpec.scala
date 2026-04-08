@@ -32,6 +32,13 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
   protected def rwConsistencyDuration: FiniteDuration
 
+  /**
+   * Whether the backend supports delete markers for versioned objects.
+   * Emulators like storage-testbench physically remove the latest version
+   * instead of creating a delete marker.
+   */
+  protected def supportsDeleteMarkers: Boolean = true
+
   def commonVersioningTests(
       storage: ObjectStorage,
       sampleVersionId: String
@@ -58,9 +65,9 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
           ({
             bucket must notExistsIn(storage, 1, 3.seconds)
           }) and {
-            bucket.create(failsIfExists = true) must beTypedEqualTo({})
-              .setMessage("created")
-              .await(2, 5.seconds)
+            bucket.create(failsIfExists =
+              true
+            ) must beTypedEqualTo({}).setMessage("created").await(2, 5.seconds)
           } and {
             bucket must existsIn(storage, 3, 3.seconds)
           } and {
@@ -276,8 +283,9 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       "to get the content and metadata of a specific version by reference" in {
         bucket.versioning must beSome[BucketVersioning].which { vbucket =>
           ({
-            bucket.create(failsIfExists = false) must beTypedEqualTo({})
-              .await(2, 5.seconds)
+            bucket.create(failsIfExists =
+              false
+            ) must beTypedEqualTo({}).await(2, 5.seconds)
           }) and {
             bucket must existsIn(storage, 2, 3.seconds)
               .setMessage("bucket before")
@@ -512,6 +520,10 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       }
 
       "to handle properly object deletion" in {
+        if (!supportsDeleteMarkers) {
+          skipped("storage-testbench doesn't support delete markers")
+        }
+
         val obj = bucket.obj(testObjName)
 
         obj.versioning must beSome[ObjectVersioning].which { vobj =>

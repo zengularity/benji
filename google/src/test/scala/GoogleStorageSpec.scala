@@ -30,6 +30,9 @@ final class GoogleStorageSpec(
 
   implicit def materializer: Materializer = TestUtils.materializer
 
+  override protected def supportsDeleteMarkers: Boolean =
+    !TestUtils.isTestbenchEnabled
+
   "Client" should {
     commonTests("google", google, s"benji-test-${random.nextInt().toString}")
     commonVersioningTests(google, sampleVersionId = "7")
@@ -40,8 +43,9 @@ final class GoogleStorageSpec(
     lazy val gbucket = google.bucket(bucketName)
 
     s"Create another bucket $bucketName" in {
-      gbucket.create(failsIfExists = true) must beTypedEqualTo({})
-        .await(0, 5.seconds)
+      gbucket.create(failsIfExists =
+        true
+      ) must beTypedEqualTo({}).await(0, 5.seconds)
     }
 
     val objName = "testfile.txt"

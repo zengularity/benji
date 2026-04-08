@@ -6,7 +6,7 @@ commands:
     parameters:
       sbt_version:
         type: string
-        default: "1.10.1"
+        default: "1.11.4"
     steps:
       - restore_cache:
           keys:
@@ -25,6 +25,46 @@ commands:
           paths:
             - ~/.sbt
           key: *sbt_cache_key
+
+  setup_testbench:
+    description: Install and start storage-testbench
+    parameters:
+      port:
+        type: integer
+        default: 9023
+    steps:
+      - run:
+          name: Install testbench and AWS CLI dependencies
+          command: |
+                    sudo apt-get update
+                    sudo apt-get install -y python3-venv awscli
+
+      - run:
+          name: Start storage-testbench
+          background: true
+          command: |
+                    rm -rf /tmp/storage-testbench
+                    git clone --depth 1 --branch v0.62.0 https://github.com/googleapis/storage-testbench.git /tmp/storage-testbench
+                    cd /tmp/storage-testbench
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    python -m ensurepip --upgrade
+                    python -m pip install --quiet --upgrade pip setuptools wheel
+                    python -m pip install --quiet -e .
+                    python3 testbench_run.py localhost << parameters.port >> 10
+
+      - run:
+          name: Wait for storage-testbench
+          command: |
+                    for i in {1..30}; do
+                      if curl -s http://localhost:<< parameters.port >> 2>/dev/null | grep -q "OK"; then
+                        echo "testbench ready"
+                        exit 0
+                      fi
+                      sleep 1
+                    done
+                    echo "testbench not ready"
+                    exit 1
 
   build_n_test:
     description: Build & Run tests
@@ -104,8 +144,9 @@ commands:
       - run:
           name: Collect test report
           command: |
-                    mkdir test-reports
+                    mkdir -p test-reports
                     find . -path '*/test-reports/*' -name '*.xml' \
+                      -not -path './test-reports/*' \
                       -print -exec cp {} test-reports \;
           when: always
 
@@ -216,10 +257,10 @@ commands:
                       echo "Skipped for non-snapshot version: $V"
                       exit 0
                     fi
-                    
+
                     export PUBLISH_REPO_NAME="Sonatype Nexus Repository Manager"
-                    export PUBLISH_REPO_ID="oss.sonatype.org"
-                    export PUBLISH_REPO_URL="https://oss.sonatype.org/content/repositories/snapshots"
+                    export PUBLISH_REPO_ID="central.sonatype.com"
+                    export PUBLISH_REPO_URL="https://central.sonatype.com/repository/maven-snapshots/"
                     
                     if [ "x$PUBLISH_USER" = "x" -o "x$PUBLISH_PASS" = "x" ]; then
                       echo "Missing publication credentials"
@@ -280,7 +321,7 @@ jobs:
       - test_suite:
           java_version: openjdk9
           modules: core vfs play
-          scala_version: 2.13.14
+          scala_version: 2.13.18
           ws_version: 2.1.2
           play_version: 2.8.0
           play_json_version: 2.8.1
@@ -297,7 +338,7 @@ jobs:
           java_version: openjdk11
           modules: core vfs play
           scala_version: 3.4.3
-          ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
+          ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
           variant: Play 2.9, WS 2.8
@@ -307,10 +348,52 @@ jobs:
   int_scala211_jdk8:
     docker:
       - image: cimg/openjdk:8.0
+      - image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+        environment:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin123
+        command: minio server /data --console-address ":9001"
 
     working_directory: ~/repo
     
+    environment:
+      TESTBENCH_HOST: localhost
+      TESTBENCH_PORT: 9023
+      BENJI_USE_TESTBENCH: 'true'
+      MINIO_ENDPOINT: http://localhost:9000
+      CEPH_HOST: localhost:9000
+      CEPH_ACCESSKEY: minioadmin
+      CEPH_SECRETKEY: minioadmin123
+      CEPH_PROTOCOL: http
+      AWS_HOST: localhost:9000
+      AWS_ACCESSKEY: minioadmin
+      AWS_SECRETKEY: minioadmin123
+      AWS_PROTOCOL: http
+    
     steps:
+      - checkout
+
+      - setup_testbench:
+          port: 9023
+
+      - run:
+          name: "Wait for MinIO"
+          command: |
+            for i in {1..30}; do
+              if curl -f http://localhost:9000/minio/health/live 2>/dev/null; then
+                echo "MinIO ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "MinIO not ready"
+            exit 1
+
+      - run:
+          name: "Initialize MinIO buckets"
+          command: |
+            cd s3 && chmod +x init-buckets.sh && ./init-buckets.sh
+
       - test_suite:
           modules: s3 google
           scala_version: 2.11.12
@@ -319,10 +402,57 @@ jobs:
   int_scala212_play27_jdk8:
     docker:
       - image: cimg/openjdk:8.0
+      - image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+        environment:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin123
+        command: minio server /data --console-address ":9001"
 
     working_directory: ~/repo
+    
+    environment:
+      TESTBENCH_HOST: localhost
+      TESTBENCH_PORT: 9023
+      BENJI_USE_TESTBENCH: 'true'
+      MINIO_ENDPOINT: http://localhost:9000
+      CEPH_HOST: localhost:9000
+      CEPH_ACCESSKEY: minioadmin
+      CEPH_SECRETKEY: minioadmin123
+      CEPH_PROTOCOL: http
+      AWS_HOST: localhost:9000
+      AWS_ACCESSKEY: minioadmin
+      AWS_SECRETKEY: minioadmin123
+      AWS_PROTOCOL: http
 
     steps:
+      - checkout
+
+      - setup_testbench:
+          port: 9023
+
+      - run:
+          name: "Wait for MinIO"
+          command: |
+            for i in {1..30}; do
+              if curl -f http://localhost:9000/minio/health/live 2>/dev/null; then
+                echo "MinIO ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "MinIO not ready"
+            exit 1
+
+      - run:
+          name: "Initialize MinIO buckets"
+          command: |
+            cd s3 && chmod +x init-buckets.sh && ./init-buckets.sh
+
+      - test_suite:
+          modules: s3 google
+          scala_version: 2.12.18
+          variant: Play 2.7, WS 2.1
+
       - test_suite:
           modules: s3 google
           scala_version: 2.12.21
@@ -333,15 +463,57 @@ jobs:
   int_scala3_play29_jdk11:
     docker:
       - image: cimg/openjdk:11.0
+      - image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+        environment:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin123
+        command: minio server /data --console-address ":9001"
 
     working_directory: ~/repo
+    
+    environment:
+      TESTBENCH_HOST: localhost
+      TESTBENCH_PORT: 9023
+      BENJI_USE_TESTBENCH: 'true'
+      MINIO_ENDPOINT: http://localhost:9000
+      CEPH_HOST: localhost:9000
+      CEPH_ACCESSKEY: minioadmin
+      CEPH_SECRETKEY: minioadmin123
+      CEPH_PROTOCOL: http
+      AWS_HOST: localhost:9000
+      AWS_ACCESSKEY: minioadmin
+      AWS_SECRETKEY: minioadmin123
+      AWS_PROTOCOL: http
 
     steps:
+      - checkout
+
+      - setup_testbench:
+          port: 9023
+
+      - run:
+          name: "Wait for MinIO"
+          command: |
+            for i in {1..30}; do
+              if curl -f http://localhost:9000/minio/health/live 2>/dev/null; then
+                echo "MinIO ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "MinIO not ready"
+            exit 1
+
+      - run:
+          name: "Initialize MinIO buckets"
+          command: |
+            cd s3 && chmod +x init-buckets.sh && ./init-buckets.sh
+
       - test_suite:
           java_version: openjdk11
           modules: s3 google
           scala_version: 3.4.3
-          ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
+          ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
           variant: Play 2.9, WS 2.8
@@ -381,11 +553,11 @@ jobs:
           play_version: 2.7.1
           play_json_version: 2.9.1
           ws_version: 2.0.6
-          scala_versions: 2.13.14
+          scala_versions: 2.13.18
 
       - publish_snapshots:
           release_suffix: play29
-          ws_version: 2.2.0-M1+68-da80b259-SNAPSHOT
+          ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
           scala_versions: 3.4.3
@@ -396,7 +568,7 @@ jobs:
           ws_version: 2.1.2
           play_version: 2.8.0
           play_json_version: 2.8.1
-          scala_versions: 2.13.14
+          scala_versions: 2.13.18
 
       - save_cache:
           paths:
@@ -460,4 +632,3 @@ workflows:
                 - master
           requires:
             - publish_snapshots
-

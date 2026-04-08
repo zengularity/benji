@@ -103,7 +103,10 @@ final class GoogleObjectRef private[google] (
       ec: ExecutionContext
     ): Future[Map[String, Seq[String]]] = headers().map { headers =>
     headers.collect {
-      case (key, value) if key.startsWith("metadata") =>
+      case (key, value)
+          if key.startsWith("metadata") &&
+            !key.startsWith("metadata.x_emulator_") &&
+            !key.startsWith("metadata.x_testbench_") =>
         key.stripPrefix("metadata.") -> value
     }
   }
@@ -598,50 +601,66 @@ final class GoogleObjectRef private[google] (
       ): Source[VersionedObject, NotUsed] = {
       implicit val ec: ExecutionContext = m.executionContext
 
-      Source.fromFutureSource(Future {
-        val prepared =
-          gt.client.objects().list(bucket).setVersions(true).setPrefix(name)
-        val maxed = maybeMax.fold(prepared) { prepared.setMaxResults(_) }
+      Source.fromFutureSource(
+        Future {
+          val prepared =
+            gt.client.objects().list(bucket).setVersions(true).setPrefix(name)
+          val maxed = maybeMax.fold(prepared) { prepared.setMaxResults(_) }
 
-        val request =
-          nextToken.fold(maxed.execute()) { maxed.setPageToken(_).execute() }
+          val request =
+            nextToken.fold(maxed.execute()) { maxed.setPageToken(_).execute() }
 
-        val (currentPage, empty) = Option(request.getItems) match {
-          case Some(items) =>
-            val collection = items.asScala.filter(_.getName == name)
-            val source = Source.fromIterator[VersionedObject] { () =>
-              collection.iterator.map { (obj: StorageObject) =>
-                VersionedObject(
-                  obj.getName,
-                  Bytes(obj.getSize.longValue),
-                  LocalDateTime.ofInstant(
-                    Instant.ofEpochMilli(obj.getUpdated.getValue),
-                    ZoneOffset.UTC
-                  ),
-                  obj.getGeneration.toString,
-                  obj.getTimeDeleted == null
-                )
+          val (currentPage, empty) = Option(request.getItems) match {
+            case Some(items) =>
+              val collection = items.asScala.filter(_.getName == name).toList
+
+              // Find the latest generation for this object
+              val latestGen =
+                if (collection.isEmpty) -1L
+                else collection.map(_.getGeneration.longValue).max
+
+              val source = Source.fromIterator[VersionedObject] { () =>
+                collection.iterator.map { (obj: StorageObject) =>
+                  val isLatest = obj.getTimeDeleted == null &&
+                    obj.getGeneration.longValue == latestGen
+
+                  VersionedObject(
+                    obj.getName,
+                    Bytes(obj.getSize.longValue),
+                    LocalDateTime.ofInstant(
+                      Instant.ofEpochMilli(obj.getUpdated.getValue),
+                      ZoneOffset.UTC
+                    ),
+                    obj.getGeneration.toString,
+                    isLatest
+                  )
+                }
               }
-            }
-            (source, collection.isEmpty)
+              (source, collection.isEmpty)
 
-          case _ => (Source.empty[VersionedObject], true)
-        }
+            case _ => (Source.empty[VersionedObject], true)
+          }
 
-        Option(request.getNextPageToken) match {
-          case nextPageToken @ Some(_) =>
-            currentPage ++ apply(
-              nextPageToken,
-              maybeEmpty = maybeEmpty && empty
-            )
+          Option(request.getNextPageToken) match {
+            case nextPageToken @ Some(_) =>
+              currentPage ++ apply(
+                nextPageToken,
+                maybeEmpty = maybeEmpty && empty
+              )
 
-          case _ =>
-            if (maybeEmpty && empty)
-              throw ObjectNotFoundException(ref)
-            else
-              currentPage
-        }
-      }.recoverWith(ErrorHandler.ofObjectToFuture(s"Could not list versions of object $name inside bucket $bucket", ref)))
+            case _ =>
+              if (maybeEmpty && empty)
+                throw ObjectNotFoundException(ref)
+              else
+                currentPage
+          }
+        }.recoverWith(
+          ErrorHandler.ofObjectToFuture(
+            s"Could not list versions of object $name inside bucket $bucket",
+            ref
+          )
+        )
+      )
     }.mapMaterializedValue(_ => NotUsed)
 
     def apply(
