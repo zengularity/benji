@@ -1,7 +1,7 @@
 import sbt._
 import sbt.Keys._
 
-import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
+import sbtheader.HeaderPlugin.autoImport._
 
 import com.typesafe.tools.mima.plugin.MimaKeys.{
   mimaFailOnNoPrevious,

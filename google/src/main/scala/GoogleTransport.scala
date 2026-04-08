@@ -509,7 +509,6 @@ object GoogleTransport {
 
   // ---
 
-  @com.github.ghik.silencer.silent
   private[google] implicit lazy val adminMaterializer: Materializer = {
     val adminSystem = akka.actor.ActorSystem()
 

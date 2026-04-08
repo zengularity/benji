@@ -1,11 +1,11 @@
 ThisBuild / organization := "com.zengularity"
 
-ThisBuild / scalaVersion := "2.12.19"
+ThisBuild / scalaVersion := "2.12.21"
 
 ThisBuild / crossScalaVersions := Seq(
   "2.11.12",
   scalaVersion.value,
-  "2.13.14",
+  "2.13.18",
   "3.4.3"
 )
 
@@ -15,6 +15,8 @@ lazy val core = project
     name := "benji-core",
     Compile / compile / scalacOptions ++= {
       if (scalaBinaryVersion.value startsWith "3") {
+        Seq("-language:higherKinds")
+      } else if (scalaBinaryVersion.value == "2.12") {
         Seq("-language:higherKinds")
       } else {
         Seq(
@@ -171,7 +173,7 @@ lazy val vfs = project
       "org.apache.commons" % "commons-vfs2" % "2.10.0",
       "com.typesafe.play" %% "play-json" % playJsonVer.value,
       Dependencies.slf4jApi,
-      "commons-io" % "commons-io" % "2.7" % Test
+      "commons-io" % "commons-io" % "2.21.0" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")

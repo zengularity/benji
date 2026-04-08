@@ -22,7 +22,6 @@ import play.api.libs.ws.JsonBodyWritables._
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.services.storage.model.StorageObject
 
-import com.github.ghik.silencer.silent
 import com.zengularity.benji.{
   ByteRange,
   Bytes,
@@ -177,7 +176,6 @@ final class GoogleObjectRef private[google] (
   /** A GET request for Google Cloud Storage */
   final class GoogleGetRequest private[google] () extends GetRequest {
 
-    @silent(".*fromFutureSource.*")
     def apply(
         range: Option[ByteRange] = None
       )(implicit
@@ -307,7 +305,6 @@ final class GoogleObjectRef private[google] (
    *
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#simple
    */
-  @silent(".*fromFuture.*")
   private def putSimple[A](
       contentType: Option[String],
       metadata: Map[String, String],
@@ -415,7 +412,6 @@ final class GoogleObjectRef private[google] (
    * @param contentType $contentTypeParam
    * @see https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload#start-resumable
    */
-  @silent(".*fromFuture.*")
   private def initiateUpload(
       contentType: Option[String],
       metadata: Map[String, String]
@@ -592,7 +588,6 @@ final class GoogleObjectRef private[google] (
     @SuppressWarnings(
       Array("org.wartremover.warts.Recursion", "org.wartremover.warts.Throw")
     )
-    @silent(".*fromFutureSource.*")
     private def apply(
         nextToken: Option[String],
         maybeEmpty: Boolean

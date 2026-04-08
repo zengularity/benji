@@ -347,7 +347,6 @@ object S3 {
       materializer: Materializer
     ): StandaloneAhcWSClient = StandaloneAhcWSClient(config)
 
-  @com.github.ghik.silencer.silent(".*fromFuture.*")
   private[s3] def getXml[T](
       req: => StandaloneWSRequest
     )(f: scala.xml.Elem => Source[T, NotUsed],

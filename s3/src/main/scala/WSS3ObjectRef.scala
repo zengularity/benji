@@ -23,7 +23,6 @@ import play.api.libs.ws.{
 import play.api.libs.ws.DefaultBodyWritables._
 import play.api.libs.ws.XMLBodyWritables._
 
-import com.github.ghik.silencer.silent
 import com.zengularity.benji.{
   ByteRange,
   Bytes,
@@ -231,7 +230,6 @@ final class WSS3ObjectRef private[s3] (
    */
   final class RESTGetRequest(val target: ref.type) extends GetRequest {
 
-    @silent(".*fromFutureSource.*")
     def apply(
         range: Option[ByteRange] = None
       )(implicit
@@ -421,7 +419,6 @@ final class WSS3ObjectRef private[s3] (
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
    */
-  @silent(".*fromFuture.*")
   private def putSimple[A](
       contentType: Option[String],
       metadata: Map[String, String],
@@ -503,7 +500,6 @@ final class WSS3ObjectRef private[s3] (
    * Initiates a multi-part upload and returns the upload ID we're supposed to include when uploading parts later on.
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
    */
-  @silent(".*fromFuture.*")
   private def initiateUpload(
       metadata: Map[String, String]
     )(implicit
