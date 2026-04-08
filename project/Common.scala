@@ -66,7 +66,8 @@ object Common extends AutoPlugin {
           "-Wextra-implicit",
           "-Wmacros:after",
           "-Wunused",
-          "-Wconf:cat=deprecation&msg=.*(fromFuture|ActorMaterializer).*:s"
+          "-Wconf:cat=deprecation&msg=.*(fromFuture|ActorMaterializer).*:s",
+          "-Wconf:msg=.*Calls\\ to\\ parameterless.*:s"
         )
       } else {
         Seq(
@@ -76,7 +77,8 @@ object Common extends AutoPlugin {
           "-Wconf:msg=.*deprecated\\ for\\ wildcard\\ arguments.*:s",
           "-Wconf:msg=.*has\\ been\\ deprecated.*\\ uninitialized.*:s",
           "-Wconf:msg=.*should\\ not\\ .*infix\\ operator.*:s",
-          "-Wconf:msg=.*vararg\\ splices.*:s"
+          "-Wconf:msg=.*vararg\\ splices.*:s",
+          "-Wconf:msg=.*Calls\\ to\\ parameterless.*:s"
         )
       }
     },
@@ -104,7 +106,10 @@ object Common extends AutoPlugin {
       }
     },
     libraryDependencies ++= {
-      if (!scalaBinaryVersion.value.startsWith("3") && scalaBinaryVersion.value != "2.12") {
+      if (
+        !scalaBinaryVersion.value
+          .startsWith("3") && scalaBinaryVersion.value != "2.12"
+      ) {
         val silencerVersion = "1.7.19"
 
         Seq(

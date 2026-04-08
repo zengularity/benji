@@ -243,7 +243,7 @@ commands:
     description: Publish artifacts << parameters.release_suffix >> to Snapshots repository
     steps:
       - deploy:
-          name: Publish artifacts to Sonatype Snapshots
+          name: Publish artifacts << parameters.release_suffix >> to Sonatype Snapshots; Scala << parameters.scala_versions >>, Play << parameters.play_version >>, Play-JSON << parameters.play_json_version >>, WS << parameters.ws_version >>
           command: |
                     if [ ! "${CIRCLE_BRANCH}" = "master" ]; then
                       echo "Skipped on branch ${CIRCLE_BRANCH}"

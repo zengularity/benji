@@ -182,6 +182,10 @@ lazy val playTest = Def.setting {
   val ver = {
     if (scalaBinaryVersion.value startsWith "3") {
       "2.8.11"
+    } else if (
+      scalaBinaryVersion.value == "2.13" && playVer.value.startsWith("2.7")
+    ) {
+      "2.8.11"
     } else {
       playVer.value
     }
@@ -256,13 +260,28 @@ lazy val play = project
       }
 
       val playMain = exclude(
-        ("com.typesafe.play" %% "play" % playVer.value)
-          .cross(CrossVersion.for3Use2_13)
+        (
+          if (
+            scalaBinaryVersion.value == "2.13" && playVer.value
+              .startsWith("2.7")
+          ) {
+            "com.typesafe.play" %% "play" % "2.8.11"
+          } else {
+            "com.typesafe.play" %% "play" % playVer.value
+          }
+        ).cross(CrossVersion.for3Use2_13)
       ) % Provided
 
       val playDeps: Seq[ModuleID] = {
         if (playVer.value startsWith "2.6") {
           Seq(playMain)
+        } else if (
+          scalaBinaryVersion.value == "2.13" && playVer.value.startsWith("2.7")
+        ) {
+          Seq(
+            playMain,
+            "com.typesafe.play" % "play-exceptions" % "2.8.11" % Provided
+          )
         } else {
           Seq(
             playMain,
@@ -273,9 +292,18 @@ lazy val play = project
 
       Dependencies.playAhcWS.value ++ playDeps ++ Seq(
         playTest.value,
-        ("com.typesafe.play" %% "play-guice" % playVer.value)
-          .cross(CrossVersion.for3Use2_13)
-          .exclude("com.typesafe.play", "*") % Test,
+        (
+          if (
+            scalaBinaryVersion.value == "2.13" && playVer.value
+              .startsWith("2.7")
+          ) {
+            ("com.typesafe.play" %% "play-guice" % "2.8.11")
+              .cross(CrossVersion.for3Use2_13)
+          } else {
+            ("com.typesafe.play" %% "play-guice" % playVer.value)
+              .cross(CrossVersion.for3Use2_13)
+          }
+        ).exclude("com.typesafe.play", "*") % Test,
         "com.typesafe.akka" %% "akka-actor-typed" % Dependencies.Version.akka.value % Provided
       )
     },
