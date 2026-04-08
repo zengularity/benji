@@ -31,14 +31,32 @@ aws.s3.region=us-east-1
 EOF
 
 # Prepare Google settings
+: ${GOOGLE_PROJECTID:=testbench-project}
 cat > google/src/test/resources/local.conf << EOF
 google.storage.projectId=$GOOGLE_PROJECTID
 EOF
 
-# Only decode GOOGLE_CREDENTIALS if it's set, otherwise skip
+# Prepare gcs-test.json:
+# - decode GOOGLE_CREDENTIALS when available
+# - otherwise provide deterministic dummy credentials so config loading is always valid
 if [ ! "x$GOOGLE_CREDENTIALS" = "x" ]; then
   echo "$GOOGLE_CREDENTIALS" | base64 -d | gzip -dc > \
     google/src/test/resources/gcs-test.json
+else
+  if [ ! "x$BENJI_USE_TESTBENCH" = "xtrue" ]; then
+    cat >> /dev/stdout << EOF
+[WARN] GOOGLE_CREDENTIALS is not set; using dummy google/src/test/resources/gcs-test.json.
+EOF
+  fi
+
+  cat > google/src/test/resources/gcs-test.json << EOF
+{
+  "type": "authorized_user",
+  "client_id": "benji-testbench-client",
+  "client_secret": "benji-testbench-secret",
+  "refresh_token": "benji-testbench-refresh-token"
+}
+EOF
 fi
 
 # Runtime settings

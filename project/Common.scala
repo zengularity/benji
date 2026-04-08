@@ -96,7 +96,7 @@ object Common extends AutoPlugin {
     },
     libraryDependencies ++= {
       if (!scalaBinaryVersion.value.startsWith("3")) {
-        val silencerVersion = "1.7.17"
+        val silencerVersion = "1.7.19"
 
         Seq(
           compilerPlugin(
