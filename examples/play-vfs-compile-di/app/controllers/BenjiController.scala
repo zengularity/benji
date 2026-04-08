@@ -92,8 +92,12 @@ class BenjiController(
   }
 
   def deleteObject(bucketName: String, objectName: String) = Action.async {
-    benji.bucket(bucketName).obj(objectName).delete.ignoreIfNotExists.apply().map {
-      _ => NoContent
-    }
+    benji
+      .bucket(bucketName)
+      .obj(objectName)
+      .delete
+      .ignoreIfNotExists
+      .apply()
+      .map { _ => NoContent }
   }
 }

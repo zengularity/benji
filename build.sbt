@@ -42,7 +42,7 @@ lazy val core = project
       )
     },
     libraryDependencies ++= Seq(
-      "commons-codec" % "commons-codec" % "1.17.2",
+      "commons-codec" % "commons-codec" % "1.21.0",
       Dependencies.slf4jApi % Provided
     ),
     libraryDependencies ~= {
@@ -139,7 +139,7 @@ lazy val google = project
     libraryDependencies ++= Dependencies.playAhcWS.value ++ Seq(
       "com.typesafe.play" %% "play-json" % Dependencies.Version.playJson.value,
       Dependencies.playWSJson.value,
-      "com.google.auth" % "google-auth-library-oauth2-http" % "1.28.0",
+      "com.google.auth" % "google-auth-library-oauth2-http" % "1.43.0",
       "com.google.apis" % "google-api-services-storage" % "v1-rev20210127-1.31.0"
     )
   )
@@ -168,7 +168,7 @@ lazy val vfs = project
       )
     },
     libraryDependencies ++= Seq(
-      "org.apache.commons" % "commons-vfs2" % "2.9.0",
+      "org.apache.commons" % "commons-vfs2" % "2.10.0",
       "com.typesafe.play" %% "play-json" % playJsonVer.value,
       Dependencies.slf4jApi,
       "commons-io" % "commons-io" % "2.7" % Test
