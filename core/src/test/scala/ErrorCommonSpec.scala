@@ -79,8 +79,9 @@ trait ErrorCommonSpec extends BenjiMatchers {
         {
           nonExistingBucket must notExistsIn(storage, 0, 3.seconds)
         } and {
-          existingBucket.create(failsIfExists = true) must beTypedEqualTo({})
-            .await(1, 5.seconds)
+          existingBucket.create(failsIfExists =
+            true
+          ) must beTypedEqualTo({}).await(1, 5.seconds)
 
         } and {
           existingBucket must existsIn(

@@ -218,9 +218,8 @@ final class WSS3VersionedObjectRef(
 
       if (skipMarkers) multiDeleteSimulated(Seq(self))
       else
-        markersToDelete().flatMap(markers =>
-          multiDeleteSimulated(self +: markers)
-        )
+        markersToDelete()
+          .flatMap(markers => multiDeleteSimulated(self +: markers))
     }
 
     def ignoreIfNotExists: WSS3DeleteRequest = copy(ignoreExists = true)
