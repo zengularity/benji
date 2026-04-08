@@ -47,7 +47,11 @@ object StorageTestbench {
   /**
    * Wait for testbench to be ready by checking health endpoint.
    */
-  private def waitForReady(host: String, port: Int, timeout: Long): Try[Unit] = {
+  private def waitForReady(
+      host: String,
+      port: Int,
+      timeout: Long
+    ): Try[Unit] = {
     val deadline = System.currentTimeMillis() + timeout
     val url = s"http://$host:$port"
 

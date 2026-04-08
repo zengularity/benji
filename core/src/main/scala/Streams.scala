@@ -124,7 +124,7 @@ private[benji] object Streams {
         def onPull(): Unit = {
           downstreamWaiting = true
 
-          if (/*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
+          if ( /*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
         }
 
         setHandlers(in, out, this)
@@ -189,7 +189,7 @@ private[benji] object Streams {
         def onPull(): Unit = {
           downstreamWaiting = true
 
-          if (/*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
+          if ( /*outbuf.isEmpty && */ !hasBeenPulled(in)) pull(in)
         }
 
         setHandlers(in, out, this)
