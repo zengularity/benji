@@ -77,7 +77,7 @@ commands:
         default: "openjdk8"
       scala_version:
         type: string
-        default: "2.13.14"
+        default: "2.13"
       ws_version:
         type: string
         default: ""
@@ -162,7 +162,7 @@ commands:
         default: "openjdk8"
       scala_version:
         type: string
-        default: "2.13.14"
+        default: "2.13"
       ws_version:
         type: string
         default: ""
@@ -243,7 +243,7 @@ commands:
     description: Publish artifacts << parameters.release_suffix >> to Snapshots repository
     steps:
       - deploy:
-          name: Publish artifacts to Sonatype Snapshots
+          name: Publish artifacts << parameters.release_suffix >> to Sonatype Snapshots; Scala << parameters.scala_versions >>, Play << parameters.play_version >>, Play-JSON << parameters.play_json_version >>, WS << parameters.ws_version >>
           command: |
                     if [ ! "${CIRCLE_BRANCH}" = "master" ]; then
                       echo "Skipped on branch ${CIRCLE_BRANCH}"
@@ -294,7 +294,7 @@ jobs:
     steps:
       - test_suite:
           modules: core vfs play
-          scala_version: 2.11.12
+          scala_version: "2.11"
           variant: Play 2.6, WS 1.1
 
   common_scala212_play27_jdk8:
@@ -306,7 +306,7 @@ jobs:
     steps:
       - test_suite:
           modules: core vfs play
-          scala_version: 2.12.19
+          scala_version: "2.12"
           ws_version: 2.0.6
           play_version: 2.7.1
           variant: Play 2.7, WS 2.0
@@ -321,21 +321,21 @@ jobs:
       - test_suite:
           java_version: openjdk9
           modules: core vfs play
-          scala_version: 2.13.18
+          scala_version: "2.13"
           ws_version: 2.1.2
           play_version: 2.8.0
           play_json_version: 2.8.1
           variant: Play 2.8, WS 2.1
 
-  common_scala3_play29_jdk11:
+  common_scala3_play29_jdk17:
     docker:
-      - image: cimg/openjdk:11.0
+      - image: cimg/openjdk:17.0
 
     working_directory: ~/repo
 
     steps:
       - test_suite:
-          java_version: openjdk11
+          java_version: openjdk17
           modules: core vfs play
           scala_version: 3.4.3
           ws_version: 2.2.11
@@ -396,7 +396,7 @@ jobs:
 
       - test_suite:
           modules: s3 google
-          scala_version: 2.11.12
+          scala_version: "2.11"
           variant: Play 2.6, WS 1.1
 
   int_scala212_play27_jdk8:
@@ -450,19 +450,19 @@ jobs:
 
       - test_suite:
           modules: s3 google
-          scala_version: 2.12.18
+          scala_version: "2.12"
           variant: Play 2.7, WS 2.1
 
       - test_suite:
           modules: s3 google
-          scala_version: 2.12.19
+          scala_version: "2.12"
           ws_version: 2.0.6
           play_version: 2.7.1
           variant: Play 2.7, WS 2.0
 
-  int_scala3_play29_jdk11:
+  int_scala3_play29_jdk17:
     docker:
-      - image: cimg/openjdk:11.0
+      - image: cimg/openjdk:17.0
       - image: minio/minio:RELEASE.2024-11-07T00-52-20Z
         environment:
           MINIO_ROOT_USER: minioadmin
@@ -510,7 +510,7 @@ jobs:
             cd s3 && chmod +x init-buckets.sh && ./init-buckets.sh
 
       - test_suite:
-          java_version: openjdk11
+          java_version: openjdk17
           modules: s3 google
           scala_version: 3.4.3
           ws_version: 2.2.11
@@ -539,28 +539,28 @@ jobs:
           play_version: 2.6.7
           play_json_version: 2.6.7
           ws_version: 1.1.6
-          scala_versions: 2.11.12 2.12.19
+          scala_versions: 2.11 2.12
 
       - publish_snapshots:
           release_suffix: play27
           play_version: 2.7.1
           play_json_version: 2.9.1
           ws_version: 2.0.6
-          scala_versions: 2.12.19
+          scala_versions: "2.12"
 
       - publish_snapshots:
           release_suffix: play27
           play_version: 2.7.1
           play_json_version: 2.9.1
           ws_version: 2.0.6
-          scala_versions: 2.13.18
+          scala_versions: "2.13"
 
       - publish_snapshots:
           release_suffix: play29
           ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
-          scala_versions: 3.4.3
+          scala_versions: "3.4.3"
       # TODO: play29
 
       - publish_snapshots:
@@ -568,7 +568,7 @@ jobs:
           ws_version: 2.1.2
           play_version: 2.8.0
           play_json_version: 2.8.1
-          scala_versions: 2.13.18
+          scala_versions: "2.13"
 
       - save_cache:
           paths:
@@ -599,7 +599,7 @@ workflows:
       - common_scala211_jdk8
       - common_scala212_play27_jdk8
       - common_scala213_play28_jdk9
-      - common_scala3_play29_jdk11
+      - common_scala3_play29_jdk17
 
       # S3/Google
       - int_scala211_jdk8:
@@ -609,9 +609,9 @@ workflows:
           requires:
             - common_scala212_play27_jdk8
             - int_scala211_jdk8
-      - int_scala3_play29_jdk11:
+      - int_scala3_play29_jdk17:
           requires:
-            - common_scala3_play29_jdk11
+            - common_scala3_play29_jdk17
             - int_scala212_play27_jdk8
 
       # Master
@@ -623,7 +623,7 @@ workflows:
           requires:
             - int_scala211_jdk8
             - int_scala212_play27_jdk8
-            - int_scala3_play29_jdk11
+            - int_scala3_play29_jdk17
 
       - examples:
           filters:

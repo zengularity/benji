@@ -1,11 +1,11 @@
 ThisBuild / organization := "com.zengularity"
 
-ThisBuild / scalaVersion := "2.12.19"
+ThisBuild / scalaVersion := "2.12.21"
 
 ThisBuild / crossScalaVersions := Seq(
   "2.11.12",
   scalaVersion.value,
-  "2.13.14",
+  "2.13.18",
   "3.4.3"
 )
 
@@ -15,6 +15,8 @@ lazy val core = project
     name := "benji-core",
     Compile / compile / scalacOptions ++= {
       if (scalaBinaryVersion.value startsWith "3") {
+        Seq("-language:higherKinds")
+      } else if (scalaBinaryVersion.value == "2.12") {
         Seq("-language:higherKinds")
       } else {
         Seq(
@@ -171,7 +173,7 @@ lazy val vfs = project
       "org.apache.commons" % "commons-vfs2" % "2.10.0",
       "com.typesafe.play" %% "play-json" % playJsonVer.value,
       Dependencies.slf4jApi,
-      "commons-io" % "commons-io" % "2.7" % Test
+      "commons-io" % "commons-io" % "2.21.0" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")
@@ -179,6 +181,10 @@ lazy val vfs = project
 lazy val playTest = Def.setting {
   val ver = {
     if (scalaBinaryVersion.value startsWith "3") {
+      "2.8.11"
+    } else if (
+      scalaBinaryVersion.value == "2.13" && playVer.value.startsWith("2.7")
+    ) {
       "2.8.11"
     } else {
       playVer.value
@@ -254,13 +260,28 @@ lazy val play = project
       }
 
       val playMain = exclude(
-        ("com.typesafe.play" %% "play" % playVer.value)
-          .cross(CrossVersion.for3Use2_13)
+        (
+          if (
+            scalaBinaryVersion.value == "2.13" && playVer.value
+              .startsWith("2.7")
+          ) {
+            "com.typesafe.play" %% "play" % "2.8.11"
+          } else {
+            "com.typesafe.play" %% "play" % playVer.value
+          }
+        ).cross(CrossVersion.for3Use2_13)
       ) % Provided
 
       val playDeps: Seq[ModuleID] = {
         if (playVer.value startsWith "2.6") {
           Seq(playMain)
+        } else if (
+          scalaBinaryVersion.value == "2.13" && playVer.value.startsWith("2.7")
+        ) {
+          Seq(
+            playMain,
+            "com.typesafe.play" % "play-exceptions" % "2.8.11" % Provided
+          )
         } else {
           Seq(
             playMain,
@@ -271,9 +292,18 @@ lazy val play = project
 
       Dependencies.playAhcWS.value ++ playDeps ++ Seq(
         playTest.value,
-        ("com.typesafe.play" %% "play-guice" % playVer.value)
-          .cross(CrossVersion.for3Use2_13)
-          .exclude("com.typesafe.play", "*") % Test,
+        (
+          if (
+            scalaBinaryVersion.value == "2.13" && playVer.value
+              .startsWith("2.7")
+          ) {
+            ("com.typesafe.play" %% "play-guice" % "2.8.11")
+              .cross(CrossVersion.for3Use2_13)
+          } else {
+            ("com.typesafe.play" %% "play-guice" % playVer.value)
+              .cross(CrossVersion.for3Use2_13)
+          }
+        ).exclude("com.typesafe.play", "*") % Test,
         "com.typesafe.akka" %% "akka-actor-typed" % Dependencies.Version.akka.value % Provided
       )
     },

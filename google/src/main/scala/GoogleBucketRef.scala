@@ -17,7 +17,6 @@ import play.api.libs.json.{ JsBoolean, JsDefined, JsObject, JsUndefined, Json }
 
 import com.google.api.services.storage.model
 
-import com.github.ghik.silencer.silent
 import com.zengularity.benji.{
   BucketRef,
   BucketVersioning,
@@ -56,7 +55,6 @@ final class GoogleBucketRef private[google] (
       ): Source[Object, NotUsed] = list(None)
 
     @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
-    @silent(".*fromFutureSource.*")
     private def list(
         nextToken: Option[String]
       )(implicit
@@ -307,7 +305,6 @@ final class GoogleBucketRef private[google] (
       list(None)
 
     @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
-    @silent(".*fromFutureSource.*")
     private def list(
         nextToken: Option[String]
       )(implicit

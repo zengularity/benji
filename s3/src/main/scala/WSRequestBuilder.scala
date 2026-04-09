@@ -12,8 +12,6 @@ import play.api.libs.ws.{
   WSSignatureCalculator
 }
 
-import com.github.ghik.silencer.silent
-
 private[s3] sealed trait WSRequestBuilder
     extends (
         (StandaloneWSClient,
@@ -136,7 +134,6 @@ private[s3] final class PathStyleWSRequestBuilder private[s3] (
     s3Url: URL)
     extends WSRequestBuilder {
 
-  @silent(".*match\\ may\\ not\\ be\\ exhaustive.*")
   def apply(
       ws: StandaloneWSClient,
       bucketName: Option[String],
@@ -174,7 +171,6 @@ private[s3] final class VirtualHostWSRequestBuilder private[s3] (
     s3Url: URL)
     extends WSRequestBuilder {
 
-  @silent(".*match\\ may\\ not\\ be\\ exhaustive.*")
   def apply(
       ws: StandaloneWSClient,
       bucketName: Option[String],

@@ -232,7 +232,6 @@ final class WSS3VersionedObjectRef(
    */
   private object RESTGetRequest extends GetRequest {
 
-    @com.github.ghik.silencer.silent(".*fromFutureSource.*")
     def apply(
         range: Option[ByteRange] = None
       )(implicit

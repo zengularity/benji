@@ -29,6 +29,7 @@ object Dependencies {
 
     val akka = Def.setting[String] {
       if (scalaBinaryVersion.value startsWith "3") "2.6.19"
+      else if (scalaBinaryVersion.value == "2.13") "2.6.1"
       else if (play.value startsWith "2.8.") "2.6.1"
       else "2.5.21"
     }

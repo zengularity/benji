@@ -25,7 +25,6 @@ import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
 import play.api.libs.json.Json
 import play.api.libs.ws.BodyWritable
 
-import com.github.ghik.silencer.silent
 import com.zengularity.benji.{
   ByteRange,
   Bytes,
@@ -195,7 +194,6 @@ final class VFSObjectRef private[vfs] (
 
   private[vfs] final class VFSGetRequest() extends GetRequest {
 
-    @silent(".*fromFuture.*")
     def apply(
         range: Option[ByteRange] = None
       )(implicit
@@ -239,7 +237,6 @@ final class VFSObjectRef private[vfs] (
 
   private[vfs] final class VFSPutRequest[E, A]() extends ref.PutRequest[E, A] {
 
-    @silent(".*fromFuture.*")
     def apply(
         z: => A,
         threshold: Bytes = defaultThreshold,
