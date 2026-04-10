@@ -415,7 +415,7 @@ private[s3] object WSS3BucketRef {
 
         whenEmpty match {
           case Some(throwable) if parsed.isEmpty => Source.failed[T](throwable)
-          case _ =>
+          case _                                 =>
             def currentPage = Source(parsed)
 
             parsed.lastOption.map(marker) match {
