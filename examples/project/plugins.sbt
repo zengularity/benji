@@ -1,2 +1,2 @@
-addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.7.0" exclude("org.scala-lang.modules", "scala-xml_2.12"))
-
+addSbtPlugin("com.github.sbt" % "sbt-dynver" % "5.1.1")
+addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.6.25")

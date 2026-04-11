@@ -2,7 +2,11 @@ ThisBuild / organization := "com.zengularity"
 
 ThisBuild / scalaVersion := "2.12.11"
 
-ThisBuild / crossScalaVersions := Seq("2.11.12", scalaVersion.value)
+ThisBuild / libraryDependencySchemes ++= Seq(
+  "org.scala-lang.modules" %% "scala-xml" % "early-semver"
+)
+
+ThisBuild / evictionErrorLevel := Level.Warn
 
 ThisBuild / scalacOptions ++= Seq(
   "-encoding",
@@ -23,7 +27,41 @@ ThisBuild / scalacOptions ++= Seq(
   "-opt:_"
 )
 
-ThisBuild / version := "2.3.0-67fd4f9b-SNAPSHOT"
+ThisBuild / dynverVTagPrefix := false
+
+ThisBuild / version := {
+  val Stable = """([0-9]+)\.([0-9]+)\.([0-9]+)""".r
+
+  (ThisBuild / dynverGitDescribeOutput).value match {
+    case Some(descr) => {
+      if ((ThisBuild / isSnapshot).value) {
+        (ThisBuild / previousStableVersion).value match {
+          case Some(previousVer) => {
+            val current = (for {
+              Seq(maj, min, _) <- Stable.unapplySeq(previousVer)
+              nextMinor <- scala.util.Try(min.toInt).map(_ + 1).toOption
+            } yield {
+              val suffix = descr.commitSuffix.sha
+              s"${maj}.${nextMinor}.0-${suffix}-SNAPSHOT"
+            }).getOrElse {
+              sys.error("Fails to determine qualified snapshot version")
+            }
+
+            current
+          }
+
+          case _ =>
+            sys.error("Fails to determine previous stable version")
+        }
+      } else {
+        descr.ref.value
+      }
+    }
+
+    case _ =>
+      sys.error("Fails to resolve Git information")
+  }
+}
 
 val playVer = Def.setting[String] {
   if ((ThisBuild / version).value endsWith "-SNAPSHOT") {
@@ -40,6 +78,7 @@ lazy val playS3 = project
     name := "benji-s3-play-demo",
     libraryDependencies ++= Seq(
       guice,
+      "com.typesafe.play" %% "play-ws-standalone" % "2.0.8",
       "com.zengularity" %% "benji-s3" % version.value,
       "com.zengularity" %% "benji-play" % playVer.value
     )
@@ -51,6 +90,7 @@ lazy val playVfs = project
   .settings(
     name := "benji-vfs-play-demo",
     libraryDependencies ++= Seq(
+      "com.typesafe.play" %% "play-ws-standalone" % "2.0.8",
       "com.zengularity" %% "benji-vfs" % version.value,
       "com.zengularity" %% "benji-play" % playVer.value
     )
