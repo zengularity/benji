@@ -1,20 +1,22 @@
-# Benji S3 usage
+# S3 Storage with Benji
 
-Usage of the Benji module for S3 Storage;
-e.g. [Amazon S3](https://aws.amazon.com/s3/) (compatible update to V4), [CEPH](https://ceph.com/).
+This guide covers using Benji with Amazon S3 and S3-compatible services like CEPH and MinIO.
 
-The first step is a add the dependency in your `build.sbt`.
+## Setup
+
+Add the S3 module and Play WS to your `build.sbt`:
 
 ```ocaml
 libraryDependencies += "com.zengularity" %% "benji-s3" % "{{site.latest_release}}"
 
-// If Play WS is not yet provided:
+// Play WS standalone
 libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play-ahc-ws-standalone" % "1.1.3",
-  "com.typesafe.play" %% "play-ws-standalone-xml" % "1.1.3")
+  "com.typesafe.play" %% "play-ahc-ws-standalone" % "2.2.6",
+  "com.typesafe.play" %% "play-ws-standalone-xml" % "2.2.6"
+)
 ```
 
-Then, the S3 client can be used as following in your code.
+## Basic usage
 
 ```scala
 import java.nio.file.Paths
@@ -79,30 +81,33 @@ def sample1(implicit m: Materializer): Unit = {
 }
 ```
 
-## Tests
+## Testing
 
-To run the compliance tests for this module, you have to go through the following steps.
+To run the compliance tests for this module, follow these steps.
 
-*#1* Copy the file [`src/test/resources/local.conf.sample`](src/test/resources/local.conf.sample) as `src/test/resources/local.conf`.
+**Step 1:** Copy the sample config:
 
-*#2* Edit the settings in this `src/test/resources/local.conf` to match your environment:
+```bash
+cp src/test/resources/local.conf.sample src/test/resources/local.conf
+```
 
-- `ceph.s3.host`: The host name or inet address of the S3 gateway for CEPH
-- `ceph.s3.accessKey`: The S3 access key (ID) for the CEPH service
-- `ceph.s3.secretKey`: The S3 secret key for the CEPH service
-- `ceph.s3.protocol`: Either `http` or `https`
-- `aws.s3.accessKey`: The access key (ID) for Amazon S3
-- `aws.s3.secretKey`: The secret key for Amazon S3
+**Step 2:** Edit `src/test/resources/local.conf` with your test environment details:
 
-*#3* Make sure a Google Cloud credential is available as JSON in `src/test/resources/gcs-test.json`. Also edit `src/test/resources/local.conf` to set the project ID as `google.storage.projectId`.
+- `ceph.s3.host`, `ceph.s3.accessKey`, `ceph.s3.secretKey`, `ceph.s3.protocol` — for CEPH
+- `aws.s3.accessKey`, `aws.s3.secretKey` — for Amazon S3
+- `google.storage.projectId` — for Google Cloud Storage
 
-*#4* Finally the test suite can be execute using SBT.
+**Step 3:** Provide Google Cloud credentials at `src/test/resources/gcs-test.json`
 
-    sbt test
+**Step 4:** Run tests via SBT:
+
+```bash
+sbt test
+```
 
 ## S3 client configuration
 
-There are several factories to create a S3 `ObjectStorage` client, either passing parameters separately, or using a configuration URI.
+Several factory methods create an S3 `ObjectStorage`, either with explicit parameters or using a configuration URI:
 
 ```scala
 import akka.stream.Materializer
@@ -139,35 +144,59 @@ def sample2(implicit m: Materializer): Unit = {
 
 The main settings are:
 
-- *accessKey*: The unique identifier for the S3 account (e.g. `905C97B16AA34C7D8E97`, [for AWS](https://aws.amazon.com/blogs/security/wheres-my-secret-access-key/)).
-- *secretKey*: The secret key associated with the *accessKey* for authentication.
-- *httpProto*: The HTTP protocol to be used, either plain `http` or `https` .
-- *hostAndPort*: The HTTP host and optional port (otherwise defaulted according the `httpProto`; e.g. `s3.amazonaws.com`).
-- *style*: It represents how request URLs are created, either `path` style and [`virtualHost`](https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html).
-- *awsRegion*: Optional parameter to specify the [AWS/S3 region](https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region), that must be known for [AWS signature V4](https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html). If given, the `style` must be `virtualHost`.
+- **accessKey**: The S3 account identifier (e.g., AWS access key ID)
+- **secretKey**: The secret associated with the access key for authentication
+- **httpProto**: HTTP protocol: `http` or `https`
+- **hostAndPort**: Server address and port (defaults based on protocol; e.g., `s3.amazonaws.com`)
+- **style**: URL path style: `path` or [`virtualHost`](https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html)
+- **awsRegion**: AWS region for [signature V4](https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html) (required when style is `virtualHost`)
 
-> Even when provided in URI, the `accessKet` and `secretKey` must be provided as-is (not URI encoded).
+> Both `accessKey` and `secretKey` must be provided as-is in URIs (not URI-encoded).
 
-The format for the configuration URIs is the following:
+URI configuration format:
 
-    s3:${httpProto}://${accessKey}:${secretKey}@${hostAndPort}/?style=${style}
+```
+s3://${httpProto}://${accessKey}:${secretKey}@${hostAndPort}/?style=${style}
+```
 
-The optional parameter `requestTimeout` can also be specified in the query string of such URI:
+Optional query parameters:
 
-    ...?style=${style}&requestTimeout=${timeInMilliseconds}
+- `requestTimeout` — Request timeout in milliseconds (e.g., `&requestTimeout=30000`)
 
-## FAQ
+## Troubleshooting
 
-When using with AWS, the style `virtualHost` is recommended. Without (according your AWS settings), you can get the following error if using the `path` style.
+### NullPointerException with path-style URLs
 
-    java.lang.NullPointerException: originalUrl
-    at com.ning.http.client.uri.UriParser.parse(UriParser.java:X)
+When using AWS S3 with `path` style, you may see this error:
 
-**Jet lag:** A S3 client must be configured with the appropriate system time. Otherwise with S3, the `RequestTimeTooSkewed` error can occur.
+```
+java.lang.NullPointerException: originalUrl
+at com.ning.http.client.uri.UriParser.parse(UriParser.java:X)
+```
 
-    java.lang.IllegalStateException: Could not update the contents of the object [...]. Response (403 / Forbidden): <?xml version="1.0" encoding="UTF-8"?><Error><Code>RequestTimeTooSkewed</Code></Error>
+Solution: Use `virtualHost` style instead (recommended for AWS).
 
-**Versioning:** When using versioning with S3, you may obtain version id `"null"` (not `null`), this is the version assigned to objects on non-versioned buckets.
-See [Managing Objects in a Versioning-Enabled Bucket](https://docs.aws.amazon.com/AmazonS3/latest/dev/manage-objects-versioned-bucket.html) S3 documentation for more details.
+### RequestTimeTooSkewed error
 
-**Naming Restrictions:** S3 [bucket naming restriction](https://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html) applies (3-63 characters long, only lower cases, numbers and hyphens, etc.), it's recommended to use DNS-compliant bucket names.
+S3 requires accurate system time. This error indicates a time mismatch:
+
+```
+java.lang.IllegalStateException: Could not update the contents of the object [...]. 
+Response (403 / Forbidden): <?xml version="1.0" encoding="UTF-8"?>
+<Error><Code>RequestTimeTooSkewed</Code></Error>
+```
+
+Solution: Synchronize your system clock with an NTP server.
+
+### Null version IDs on non-versioned buckets
+
+When using versioning, non-versioned buckets return version ID as the string `"null"` (not `null`).
+
+See [AWS S3 Versioning documentation](https://docs.aws.amazon.com/AmazonS3/latest/dev/manage-objects-versioned-bucket.html) for details.
+
+### S3 bucket naming restrictions
+
+Follow [AWS bucket naming rules](https://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html):
+- 3–63 characters
+- Lowercase letters, numbers, and hyphens only
+- DNS-compliant names recommended

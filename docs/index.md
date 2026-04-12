@@ -4,45 +4,52 @@ layout: default
 
 # QuickStart
 
-This guide is how to easily start using Benji in your project.
+This guide helps you get started with Benji in your project.
 
-*See also: [API](https://zengularity.github.io/benji/api/)*
+*See also: [API Documentation](https://zengularity.github.io/benji/api/)*
 
-## Bucket operations
+## Choosing your backend
 
-According your Object Storage, the following modules are available.
+Benji supports multiple object storage backends. Select the module that matches your storage provider:
 
-- [S3](./s3/usage.md) for Amazon S3 (or compliant Object Storage, like CEPH).
-- [Google Cloud Storage](./google/usage.md).
-- [Apache VFS](./vfs/usage.md)
+- [S3](./s3/usage.md) — Amazon S3 and compatible services (CEPH, MinIO, etc.)
+- [Google Cloud Storage](./google/usage.md) — Google Cloud Storage
+- [Apache VFS](./vfs/usage.md) — Local and remote filesystems via Apache Commons VFS
 
-These modules can be configured as dependencies in your `build.sbt`.
+## Adding Benji to your project
+
+Add the desired storage module to your `build.sbt`:
 
 ```ocaml
 val benjiVer = "{{site.latest_release}}"
 
+// For S3
 libraryDependencies += "com.zengularity" %% "benji-s3" % benjiVer
 
+// For Google Cloud Storage
 libraryDependencies += "com.zengularity" %% "benji-google" % benjiVer
 
-// If Play WS is not yet provided:
-libraryDependencies += "com.typesafe.play" %% "play-ws-standalone" % "1.1.3"
+// For VFS (filesystem)
+libraryDependencies += "com.zengularity" %% "benji-vfs" % benjiVer
+
+// If Play WS is not already in your dependencies:
+libraryDependencies += "com.typesafe.play" %% "play-ws-standalone" % "2.2.6"
 ```
 
-Then the storage operations can be called according the DSL from your `ObjectStorage` instance.
+For Play Framework integration, see the [Play integration guide](play/integration.md).
 
-> Generally, these operations must be applied in a scope providing an `Materializer` and a transport instance (whose type is according the `ObjectStorage` instance; e.g. `play.api.libs.ws.WSClient` for S3).
+## Core concepts
 
-The Benji modules can also be easily integration with [Play Framework](https://www.playframework.com/); *See document about the [Play integration](play/integration.md)*.
+All storage operations are performed through an `ObjectStorage` instance, which provides a unified API regardless of backend. Operations require an implicit `Materializer` (for Akka Streams) and a transport instance (e.g., `WSClient` for S3/Google).
 
-### Listing the storage buckets
+### Listing buckets
 
-Several operations allow to list the buckets available in your storage. 
+Retrieve all available buckets: 
 
-- `ObjectStorage.buckets(): Source[Bucket, NotUsed]` (note the final `()`); Can be processed reactively using an `Sink[Bucket, _]`.
-- `ObjectStorage.buckets.collect[M]: Future[M[Bucket]]` (when `CanBuildFrom[M[_], Bucket, M[Bucket]]`)
+- `ObjectStorage.buckets()` — Returns a reactive stream of buckets
+- `ObjectStorage.buckets.collect[M]` — Collects all buckets into a collection (requires `CanBuildFrom`)
 
-These operations provided `Bucket`s, as metadata (not remote reference).
+These operations return `Bucket` metadata (read-only).
 
 ```scala
 import scala.concurrent.Future
@@ -61,9 +68,9 @@ def listBuckets(s3: WSS3)(implicit m: Materializer): Future[List[Bucket]] =
 def enumerateBucket(gcs: GoogleStorage)(implicit m: Materializer): Source[Bucket, NotUsed] = gcs.buckets()
 ```
 
-### Resolve a bucket reference
+### Getting a bucket reference
 
-In order to update a bucket, a `BucketRef` must be obtained (rather than the read-only metadata `Bucket`).
+To create or delete a bucket, you need a `BucketRef` (mutable reference) rather than the read-only `Bucket` metadata:
 
 - `ObjectStorage.bucket(String): BucketRef`
 
@@ -77,12 +84,12 @@ def obtainRef(storage: ObjectStorage, name: String): BucketRef = storage.bucket(
 
 The operations to manage the objects are available on the `ObjectStorage` instance, using `ObjectRef` (remote references).
 
-### Listing the objects
+### Listing objects in a bucket
 
-The objects can be listed from the parent `BucketRef`.
+Get all objects from a `BucketRef`:
 
-- `BucketRef.objects()` (note the final `()`); Can be processed using an `Sink[Object, _]`.
-- `BucketRef.objects.collect[M[Object]]` (when `CanBuildFrom[M[_], Object, M[Object]]`)
+- `BucketRef.objects()` — Returns a reactive stream of objects
+- `BucketRef.objects.collect[M]` — Collects all objects into a collection
 
 ```scala
 import scala.collection.immutable.Set
@@ -101,9 +108,9 @@ def objectSet(bucket: WSS3BucketRef)(implicit m: Materializer): Future[Set[Objec
 def enumerateObjects(bucket: BucketRef)(implicit m: Materializer): Source[Object, NotUsed] = bucket.objects()
 ```
 
-### Resolve an object reference
+### Getting an object reference
 
-In order to manage an object, an `ObjectRef` must be obtained (rather than the read-only metadata `Object`).
+To read, write, or delete an object, you need an `ObjectRef` (mutable reference) rather than the read-only `Object` metadata:
 
 - `BucketRef.obj(String): ObjectRef`
 
@@ -113,13 +120,13 @@ import com.zengularity.benji.{ BucketRef, ObjectRef }
 def obtainRef(bucket: BucketRef, name: String): ObjectRef = bucket.obj(name)
 ```
 
-### Upload data
+### Uploading data
 
-To upload data to a previously obtained `ObjectRef`, the `put` functions can be used.
+Write data to an object via the `put` functions:
 
-- `ObjectRef.put[E : Writer]: Sink[E, NotUsed]`
-- `ObjectRef.put[E : Writer](size: Long): Sink[E, NotUsed]`
-- `ObjectRef.put[E : Writer, A](z: => A, threshold: Bytes, size: Option[Long])(f: (A, Chunk) => A): Sink[E, NotUsed]`
+- `ObjectRef.put[E : Writer]` — Streams data into an object
+- `ObjectRef.put[E : Writer](size: Long)` — Streams with a known size hint
+- `ObjectRef.put[E : Writer, A](z: => A, threshold: Bytes, size: Option[Long])(f: (A, Chunk) => A)` — Streams with custom accumulation logic
 
 ```scala
 import scala.concurrent.{ ExecutionContext, Future }
@@ -132,38 +139,39 @@ import play.api.libs.ws.BodyWritable
 
 import com.zengularity.benji.BucketRef
 
-// Upload with any ObjectStorage instance
-def upload(bucket: BucketRef, objName: String, data: => Source[Array[Byte], NotUsed])(implicit m: Materializer, w: BodyWritable[Array[Byte]]): Future[(String, Long)] = {
+// Generic upload function
+def upload(bucket: BucketRef, objName: String, data: Source[Array[Byte], NotUsed])(
+  implicit m: Materializer, w: BodyWritable[Array[Byte]]
+): Future[(String, Long)] = {
   implicit def ec: ExecutionContext = m.executionContext
 
   val storeObj = bucket.obj(objName)
 
   val to: Sink[Array[Byte], Future[Long]] =
     storeObj.put[Array[Byte], Long](0L) { (acc, chunk) =>
-      println(
-        s"uploading ${chunk.size.toString} bytes of $objName @ ${acc.toString}")
-
+      println(s"uploading ${chunk.size} bytes of $objName (total: $acc)")
       Future.successful(acc + chunk.size)
     }
 
   (data runWith to).transform({ (size: Long) =>
-    println(
-      s"Object uploaded to ${bucket.name}/$objName (size = ${size.toString})")
-
+    println(s"Object uploaded to ${bucket.name}/$objName (size = $size)")
     objName -> size
   }, { err =>
-    println(s"fails to upload the object $objName: ${err.getMessage}")
+    println(s"Failed to upload object $objName: ${err.getMessage}")
     err
   })
 }
 
+// S3-specific upload with bucket creation
 import com.zengularity.benji.s3.WSS3
 
-def putToS3[A : BodyWritable](storage: WSS3, bucketName: String, objName: String, data: => Source[A, NotUsed])(implicit m: Materializer): Future[Unit] = {
+def putToS3[A : BodyWritable](storage: WSS3, bucketName: String, objName: String, data: Source[A, NotUsed])(
+  implicit m: Materializer
+): Future[Unit] = {
   implicit def ec: ExecutionContext = m.executionContext
 
   for {
-    bucketRef <- { // get-or-create
+    bucketRef <- {
       val ref = storage.bucket(bucketName)
       ref.create(failsIfExists = true).map(_ => ref)
     }
