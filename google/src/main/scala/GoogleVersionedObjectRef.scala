@@ -43,7 +43,8 @@ final class GoogleVersionedObjectRef(
           .objects()
           .delete(bucket, name)
           .setGeneration(generation)
-          .execute(); ()
+          .execute();
+        ()
       }
       val result = rawResult.recoverWith(
         ErrorHandler.ofVersionToFuture(

@@ -218,7 +218,7 @@ private[s3] class SignatureCalculatorV1(
 
     style match {
       case PathRequest => path
-      case _ => {
+      case _           => {
         val requestHost = url.getHost
         val canonicalHost = host.split(':').headOption.getOrElse(host)
         val suffix = s".$canonicalHost"
