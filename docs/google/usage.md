@@ -1,19 +1,22 @@
-# Benji Google usage
+# Google Cloud Storage with Benji
 
-Usage of the Benji module for [Google Cloud Storage](https://cloud.google.com/products/storage/).
+This guide covers using Benji with [Google Cloud Storage](https://cloud.google.com/products/storage/).
 
-The first step is a add the dependency in your `build.sbt`.
+## Setup
+
+Add the Google Cloud Storage module and Play WS to your `build.sbt`:
 
 ```ocaml
 libraryDependencies += "com.zengularity" %% "benji-google" % "{{site.latest_release}}"
 
-// If Play WS is not yet provided:
+// Play WS standalone
 libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play-ahc-ws-standalone" % "1.1.3",
-  "com.typesafe.play" %% "play-ws-standalone-json" % "1.1.3")
+  "com.typesafe.play" %% "play-ahc-ws-standalone" % "2.2.6",
+  "com.typesafe.play" %% "play-ws-standalone-json" % "2.2.6"
+)
 ```
 
-Then, the Google Storage client can be used as following in your code.
+## Basic usage
 
 ```scala
 import scala.concurrent.{ ExecutionContext, Future }
@@ -64,9 +67,9 @@ def sample1(implicit m: Materializer): Future[Unit] = {
 }
 ```
 
-## Google client configuration
+## Google Cloud Storage client configuration
 
-There are several factories to create a Google `ObjectStorage` client, either passing parameters separately, or using a configuration URI.
+There are several factory methods to create a Google `ObjectStorage`, either with explicit parameters or using a configuration URI:
 
 ```scala
 import akka.stream.Materializer
@@ -103,26 +106,39 @@ def sample2b(implicit m: Materializer): GoogleStorage = {
 }
 ```
 
-The main settings are:
+The main configuration parameters are:
 
-- *credentials*: An URI to a JSON file representing the [credentials to access Google Cloud Storage](https://cloud.google.com/storage/docs/authentication#generating-a-private-key). To use resource accessible through the application classpath, the scheme `classpath:` can be used (e.g. `classpath://foo.json` will try to load the credentials with `getResource("foo.json")`). For credentials stored in a file outside the JVM, the scheme `file:` is useful.
-- *application*: The name of application.
-- *projectId*: The unique ID for which the credentials are registered in the Google Cloud.
+- **credentials** — URI to a JSON credentials file (see [Google Cloud authentication](https://cloud.google.com/storage/docs/authentication#generating-a-private-key))
+  - Use `classpath://` for resources in your classpath (e.g., `classpath://creds.json`)
+  - Use `file://` for files on disk
+- **application** — Your application name
+- **projectId** — Your Google Cloud project ID
 
-The format for the configuration URIs is the following:
+URI configuration format:
 
-    google:${credentialUri}?application=${application}&projectId=${projectId}
+```
+google://${credentialUri}?application=${application}&projectId=${projectId}
+```
 
-The optional parameters `requestTimeout` and `disableGZip` can also be specified in the query string of such URI:
+Optional query parameters:
 
-    ...&projectId=${projectId}&requestTimeout=${timeInMilliseconds}&disableGZip=${falseByDefault}
+- `requestTimeout` — Request timeout in milliseconds
+- `disableGZip` — Disable gzip compression (default: false)
 
-## Troubleshoot
+## Troubleshooting
 
-    Invalid JWT: Token must be a short-lived token and in a reasonable timeframe
+### Invalid JWT token error
 
-The date/time on the client side is [out of sync](http://stackoverflow.com/a/36201957/3347384).
+```
+Invalid JWT: Token must be a short-lived token and in a reasonable timeframe
+```
 
-## FAQ
+This indicates your client's date/time is out of sync. Solution: Synchronize your system clock with an NTP server.
 
-**Naming Restrictions:** Google Cloud [bucket naming restriction](https://cloud.google.com/storage/docs/naming) applies (3-63 characters long, only lower cases, numbers, underscores, dots and dashes, etc.), it's recommended to use DNS-compliant bucket names.
+### Bucket naming restrictions
+
+Google Cloud Storage [bucket naming rules](https://cloud.google.com/storage/docs/naming):
+
+- 3–63 characters
+- Lowercase letters, numbers, underscores, dots, and dashes only
+- DNS-compliant names recommended
