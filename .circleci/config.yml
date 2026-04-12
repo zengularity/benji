@@ -579,7 +579,7 @@ jobs:
 
   examples:
     docker:
-      - image: cimg/openjdk:8.0
+      - image: cimg/openjdk:11.0
 
     working_directory: ~/repo
 
