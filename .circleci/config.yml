@@ -10,7 +10,7 @@ commands:
     steps:
       - restore_cache:
           keys:
-          - &sbt_cache_key sbt-{{ checksum "project/build.properties" }}
+          - &sbt_cache_key sbt-v2-{{ arch }}-<< parameters.sbt_version >>-{{ checksum "project/build.properties" }}
 
       - run:
           name: Setup SBT
@@ -210,7 +210,7 @@ commands:
 
       - restore_cache:
           keys:
-          - *scala_cache_key
+          - &examples_scala_cache_key examples-scala-v2-{{ checksum "examples/version.sbt" }}-{{ checksum "examples/build.sbt" }}-{{ checksum "examples/project/plugins.sbt" }}
 
       - run:
           name: Build example << parameters.module >>
@@ -221,7 +221,7 @@ commands:
             - ~/.ivy2
             - ~/.sbt
             - ~/.coursier/cache
-          key: *scala_cache_key
+          key: *examples_scala_cache_key
 
   publish_snapshots:
     parameters:
