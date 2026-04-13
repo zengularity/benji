@@ -204,7 +204,7 @@ final class WSS3ObjectRef private[s3] (
     source.foreach {
       case '/'                  => encoded.append('/')
       case c if isUnreserved(c) => encoded.append(c)
-      case c =>
+      case c                    =>
         val bytes = c.toString.getBytes(java.nio.charset.StandardCharsets.UTF_8)
         bytes.foreach { b =>
           encoded.append('%')
