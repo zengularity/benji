@@ -295,6 +295,9 @@ jobs:
       - test_suite:
           modules: core vfs play
           scala_version: "2.11"
+          ws_version: 1.1.6
+          play_version: 2.6.7
+          play_json_version: 2.6.7
           variant: Play 2.6, WS 1.1
 
   common_scala212_play27_jdk8:
@@ -307,8 +310,17 @@ jobs:
       - test_suite:
           modules: core vfs play
           scala_version: "2.12"
+          ws_version: 1.1.6
+          play_version: 2.6.7
+          play_json_version: 2.6.7
+          variant: Play 2.6, WS 1.1
+
+      - test_suite:
+          modules: core vfs play
+          scala_version: "2.12"
           ws_version: 2.0.6
           play_version: 2.7.1
+          play_json_version: 2.9.1
           variant: Play 2.7, WS 2.0
 
   common_scala213_play28_jdk9:
@@ -318,6 +330,15 @@ jobs:
     working_directory: ~/repo
 
     steps:
+      - test_suite:
+          java_version: openjdk9
+          modules: core vfs play
+          scala_version: "2.13"
+          ws_version: 2.0.6
+          play_version: 2.7.1
+          play_json_version: 2.9.1
+          variant: Play 2.7, WS 2.0
+
       - test_suite:
           java_version: openjdk9
           modules: core vfs play
@@ -341,7 +362,7 @@ jobs:
           ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
-          variant: Play 2.9, WS 2.8
+          variant: Play 2.9, WS 2.2
 
   # --- Integration: S3/Google --- #
 
@@ -397,6 +418,9 @@ jobs:
       - test_suite:
           modules: s3 google
           scala_version: "2.11"
+          ws_version: 1.1.6
+          play_version: 2.6.7
+          play_json_version: 2.6.7
           variant: Play 2.6, WS 1.1
 
   int_scala212_play27_jdk8:
@@ -451,13 +475,17 @@ jobs:
       - test_suite:
           modules: s3 google
           scala_version: "2.12"
-          variant: Play 2.7, WS 2.1
+          ws_version: 1.1.6
+          play_version: 2.6.7
+          play_json_version: 2.6.7
+          variant: Play 2.6, WS 1.1
 
       - test_suite:
           modules: s3 google
           scala_version: "2.12"
           ws_version: 2.0.6
           play_version: 2.7.1
+          play_json_version: 2.9.1
           variant: Play 2.7, WS 2.0
 
   int_scala3_play29_jdk17:
@@ -516,7 +544,7 @@ jobs:
           ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
-          variant: Play 2.9, WS 2.8
+          variant: Play 2.9, WS 2.2
 
   # --- Master jobs --- #
 
