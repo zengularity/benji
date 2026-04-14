@@ -1,6 +1,8 @@
 #! /bin/sh
 
-REPO="https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+# curl -D - -X POST -u '...' "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/com.zengularity"
+
+REPO="https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
 
 if [ $# -lt 2 ]; then
     echo "Usage $0 version gpg-key"
