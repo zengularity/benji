@@ -66,5 +66,4 @@ lazy val playVfs = project
     )
   )
 
-lazy val examples = (project in file("."))
-  .aggregate(playS3, playVfs)
+lazy val examples = (project in file(".")).aggregate(playS3, playVfs)
