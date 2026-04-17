@@ -4,9 +4,10 @@
 
 package com.zengularity.benji.gridfs
 
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Try
 
-import reactivemongo.api.AsyncDriver
+import reactivemongo.api.{ AsyncDriver, DB, MongoConnection }
 
 import com.zengularity.benji.URIProvider
 
@@ -15,17 +16,28 @@ import com.zengularity.benji.URIProvider
  *
  * @param driver the ReactiveMongo async driver
  * @param db the database name
+ * @param connectionFuture Future of MongoDB connection
  * @param _close cleanup function
  */
 final class GridFSTransport(
     val driver: AsyncDriver,
     val db: String,
+    val connectionFuture: Future[MongoConnection],
     _close: () => Unit = () => ())
     extends java.io.Closeable {
 
   def close(): Unit = {
     _close()
   }
+
+  def getDatabase(
+      implicit
+      ec: ExecutionContext
+    ): Future[DB] =
+    for {
+      conn <- connectionFuture
+      database <- conn.database(db)
+    } yield database
 }
 
 /** GridFS transport factory. */
@@ -64,11 +76,27 @@ object GridFSTransport {
 
       logger.info(s"GridFS transport configured for database: $dbName")
 
+      // Rebuild the URI without the scheme prefix for MongoDB connection
+      val mongoUri = {
+        val scheme = builtUri.getScheme.replace("gridfs", "mongodb")
+        val authority = builtUri.getAuthority
+        val path = builtUri.getPath
+        s"$scheme://$authority$path"
+      }
+
+      logger.debug(s"MongoDB connection URI: $mongoUri")
+
       Try {
         val driver = new AsyncDriver()
+
+        // Note: Connection string parsing and connection establishment is done lazily
+        // This minimizes blocking operations at transport creation time
+        val connectionFuture = driver.connect(mongoUri)
+
         new GridFSTransport(
           driver,
           dbName,
+          connectionFuture,
           () => {
             logger.debug("Closing GridFS driver...")
             @SuppressWarnings(
