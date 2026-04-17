@@ -30,6 +30,7 @@ The simplest way to get started is with the [QuickStart guide](https://zengulari
 - [S3](docs/s3/usage.md) — Amazon S3 and compatible services (CEPH, MinIO, etc.)
 - [Google Cloud Storage](docs/google/usage.md) — Google's cloud storage service
 - [Apache VFS](docs/vfs/usage.md) — Local and remote filesystems
+- [MongoDB GridFS](docs/gridfs/usage.md) — MongoDB GridFS for distributed file storage
 
 ## Documentation
 
