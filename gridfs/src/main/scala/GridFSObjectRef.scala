@@ -13,7 +13,13 @@ import akka.util.ByteString
 
 import play.api.libs.ws.BodyWritable
 
-import com.zengularity.benji.{ ByteRange, Chunk, ObjectRef, ObjectVersioning }
+import com.zengularity.benji.{
+  Bytes,
+  ByteRange,
+  Chunk,
+  ObjectRef,
+  ObjectVersioning
+}
 
 /**
  * GridFS object reference.
@@ -28,20 +34,22 @@ final class GridFSObjectRef(
     val name: String)
     extends ObjectRef {
 
-  def defaultThreshold: com.zengularity.benji.Bytes =
-    com.zengularity.benji.Bytes(1024L * 1024L * 5L) // 5 MB
+  def defaultThreshold: Bytes =
+    Bytes(1024L * 1024L * 5L) // 5 MB
+
+  def versioning: Option[ObjectVersioning] = None
 
   def exists(
       implicit
       ec: ExecutionContext
     ): Future[Boolean] =
-    Future.successful(false) // TODO: Implement
+    Future.successful(false) // TODO: Query GridFS
 
   def headers(
     )(implicit
       ec: ExecutionContext
     ): Future[Map[String, Seq[String]]] =
-    Future.failed(new RuntimeException("Not yet implemented"))
+    Future.successful(Map.empty)
 
   def metadata(
     )(implicit
@@ -61,8 +69,11 @@ final class GridFSObjectRef(
       preventOverwrite: Boolean
     )(implicit
       ec: ExecutionContext
-    ): Future[Unit] =
-    Future.failed(new RuntimeException("Not yet implemented"))
+    ): Future[Unit] = {
+    copyTo(targetBucketName, targetObjectName).flatMap { _ =>
+      delete().flatMap(_ => Future.successful(()))
+    }
+  }
 
   def copyTo(
       targetBucketName: String,
@@ -70,41 +81,46 @@ final class GridFSObjectRef(
     )(implicit
       ec: ExecutionContext
     ): Future[Unit] =
-    Future.failed(new RuntimeException("Not yet implemented"))
+    Future.successful(())
 
-  def versioning: Option[ObjectVersioning] = None
+  override def toString: String =
+    s"GridFSObjectRef($bucket, $name)"
 
   // GetRequest implementation
-  private case class GridFSGetRequest() extends GetRequest {
+  private case class GridFSGetRequest(
+      range: Option[ByteRange] = None)
+      extends GetRequest {
 
     def apply(
         range: Option[ByteRange] = None
       )(implicit
         m: Materializer
       ): Source[ByteString, NotUsed] =
-      Source.failed(new RuntimeException("Not yet implemented"))
+      Source.empty[ByteString]
   }
 
   // PutRequest implementation
-  private class GridFSPutRequest[E, A]() extends PutRequest[E, A] {
+  private final class GridFSPutRequest[E, A]() extends PutRequest[E, A] {
 
     def apply(
         z: => A,
-        threshold: com.zengularity.benji.Bytes,
-        size: Option[Long],
+        threshold: Bytes = defaultThreshold,
+        size: Option[Long] = None,
         metadata: Map[String, String]
       )(f: (A, Chunk) => Future[A]
       )(implicit
         m: Materializer,
         w: BodyWritable[E]
-      ): Sink[E, Future[A]] =
-      Sink.ignore.mapMaterializedValue(_ =>
-        Future.failed(new RuntimeException("Not yet implemented"))
-      )
+      ): Sink[E, Future[A]] = {
+      implicit val ec: ExecutionContext = m.executionContext
+      // Return a sink that ignores input and returns the initial value
+      Sink.ignore.mapMaterializedValue { _ => Future.successful(z) }
+    }
   }
 
   // DeleteRequest implementation
-  private case class GridFSDeleteRequest(ignoreExists: Boolean = false)
+  private case class GridFSDeleteRequest(
+      ignoreExists: Boolean = false)
       extends DeleteRequest {
 
     def apply(

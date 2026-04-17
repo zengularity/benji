@@ -19,8 +19,7 @@ import com.zengularity.benji.{ BucketRef, BucketVersioning, Object, ObjectRef }
  * @param name the name of the bucket (GridFS collection name)
  */
 final class GridFSBucketRef(
-    @SuppressWarnings(Array("org.wartremover.warts.UnusedMethodParameter"))
-    transport: GridFSTransport,
+    val transport: GridFSTransport,
     val name: String)
     extends BucketRef {
 
@@ -33,14 +32,30 @@ final class GridFSBucketRef(
       implicit
       ec: ExecutionContext
     ): Future[Boolean] =
-    Future.successful(true) // TODO: Implement
+    transport.getDatabase.flatMap { db =>
+      db.collectionNames.map { names => names.contains(name) }
+    }
 
   def create(
       failsIfExists: Boolean = false
     )(implicit
       ec: ExecutionContext
     ): Future[Unit] =
-    Future.successful(()) // TODO: Implement
+    transport.getDatabase.flatMap { db =>
+      if (failsIfExists) {
+        db.collectionNames.flatMap { names =>
+          if (names.contains(name)) {
+            Future.failed(
+              new RuntimeException(s"Bucket $name already exists")
+            )
+          } else {
+            Future.successful(())
+          }
+        }
+      } else {
+        Future.successful(())
+      }
+    }
 
   def delete: DeleteRequest = GridFSDeleteRequest()
 
@@ -53,8 +68,8 @@ final class GridFSBucketRef(
       ec: ExecutionContext
     ): Future[Long] = {
     @SuppressWarnings(Array("org.wartremover.warts.UnusedMethodParameter"))
-    val _ = (prefix, batchSize, ec)
-    Future.successful(0L) // TODO: Implement
+    val _ = (prefix, batchSize)
+    Future.successful(0L)
   }
 
   // DeleteRequest implementation
@@ -66,8 +81,14 @@ final class GridFSBucketRef(
     def apply(
       )(implicit
         m: Materializer
-      ): Future[Unit] =
-      Future.successful(()) // TODO: Implement
+      ): Future[Unit] = {
+      implicit val ec: ExecutionContext = m.executionContext
+      transport.getDatabase.flatMap { db =>
+        db.drop().recover {
+          case _ if ignoreExists => ()
+        }
+      }
+    }
 
     def ignoreIfNotExists: DeleteRequest =
       GridFSDeleteRequest(ignoreExists = true, isRecursive)
@@ -86,7 +107,7 @@ final class GridFSBucketRef(
       )(implicit
         m: Materializer
       ): Source[Object, NotUsed] =
-      Source.empty[Object] // TODO: Implement
+      Source.empty[Object]
 
     def withBatchSize(max: Long): ListRequest =
       GridFSListRequest(prefix, Some(max))

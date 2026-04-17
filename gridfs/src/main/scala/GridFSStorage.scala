@@ -4,6 +4,8 @@
 
 package com.zengularity.benji.gridfs
 
+import scala.concurrent.{ ExecutionContext, Future }
+
 import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
@@ -30,8 +32,23 @@ final class GridFSStorage(val transport: GridFSTransport)
     def apply(
       )(implicit
         m: Materializer
-      ): Source[Bucket, NotUsed] =
-      Source.empty[Bucket] // TODO: Implement
+      ): Source[Bucket, NotUsed] = {
+      implicit val ec: ExecutionContext = m.executionContext
+
+      Source
+        .fromFuture(transport.getDatabase)
+        .flatMapConcat { db =>
+          Source.fromFuture(db.collectionNames).flatMapConcat { names =>
+            // Filter out system and GridFS internal collections
+            val bucketNames = names.filter { name =>
+              !name.startsWith("system.") && !name.endsWith(".files") && !name
+                .endsWith(".chunks")
+            }
+            Source(bucketNames)
+          }
+        }
+        .map { name => Bucket(name, java.time.LocalDateTime.now()) }
+    }
   }
 }
 
