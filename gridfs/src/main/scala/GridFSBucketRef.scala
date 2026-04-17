@@ -51,8 +51,11 @@ final class GridFSBucketRef(
       batchSize: Option[Int] = None
     )(implicit
       ec: ExecutionContext
-    ): Future[Long] =
+    ): Future[Long] = {
+    @SuppressWarnings(Array("org.wartremover.warts.UnusedMethodParameter"))
+    val _ = (prefix, batchSize, ec)
     Future.successful(0L) // TODO: Implement
+  }
 
   // DeleteRequest implementation
   private case class GridFSDeleteRequest(

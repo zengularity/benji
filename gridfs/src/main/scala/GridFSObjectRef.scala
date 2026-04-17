@@ -23,8 +23,7 @@ import com.zengularity.benji.{ ByteRange, Chunk, ObjectRef, ObjectVersioning }
  * @param name the object name
  */
 final class GridFSObjectRef(
-    @SuppressWarnings(Array("org.wartremover.warts.UnusedMethodParameter"))
-    transport: GridFSTransport,
+    val transport: GridFSTransport,
     val bucket: String,
     val name: String)
     extends ObjectRef {
