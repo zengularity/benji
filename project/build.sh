@@ -30,3 +30,8 @@ sbt ++${S2_13} makePom packageBin packageSrc packageDoc
 # Scala 3
 export PLAY_VERSION=2.9.5 PLAY_JSON_VERSION=2.10.6 WS_VERSION=2.2.11
 sbt ++${S3} makePom packageBin packageSrc packageDoc
+
+# GridFS (tested on Scala 2.12/2.13)
+export PLAY_VERSION=2.7.1 PLAY_JSON_VERSION=2.9.1 WS_VERSION=2.0.6
+sbt ++${S2_12} gridfs/makePom gridfs/packageBin gridfs/packageSrc gridfs/packageDoc
+sbt ++${S2_13} gridfs/makePom gridfs/packageBin gridfs/packageSrc gridfs/packageDoc
