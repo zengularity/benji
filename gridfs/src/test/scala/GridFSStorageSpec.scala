@@ -4,11 +4,17 @@
 
 package tests.benji.gridfs
 
-import akka.stream.Materializer
+import scala.concurrent.duration._
 
+import akka.stream.Materializer
+import akka.stream.scaladsl.Sink
+
+import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AfterAll
 
-final class GridFSStorageSpec
+final class GridFSStorageSpec(
+    implicit
+    ee: ExecutionEnv)
     extends org.specs2.mutable.Specification
     with AfterAll {
 
@@ -27,12 +33,16 @@ final class GridFSStorageSpec
 
     "list buckets" in {
       val storage = TestUtils.gridfs
-      // Just call buckets to ensure no runtime error
-      val bucketStream = storage.buckets()
-
-      bucketStream must not be null
+      (storage
+        .buckets())
+        .runWith(
+          Sink.seq
+        )
+        .map(_.size) must beEqualTo(0).await(1, 10.seconds)
     }
   }
 
-  def afterAll(): Unit = TestUtils.close()
+  def afterAll(): Unit = {
+    TestUtils.close()
+  }
 }
