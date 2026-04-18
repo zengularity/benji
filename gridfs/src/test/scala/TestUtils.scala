@@ -4,10 +4,11 @@
 
 package tests.benji.gridfs
 
-import akka.actor.ActorSystem
-import akka.stream.{ ActorMaterializer, Materializer }
-
 import com.typesafe.config.ConfigFactory
+
+import akka.actor.ActorSystem
+
+import akka.stream.{ ActorMaterializer, Materializer }
 
 import com.zengularity.benji.gridfs.{ GridFSFactory, GridFSStorage }
 

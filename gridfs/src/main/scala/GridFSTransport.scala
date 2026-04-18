@@ -4,12 +4,12 @@
 
 package com.zengularity.benji.gridfs
 
-import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Try
 
-import reactivemongo.api.{ AsyncDriver, DB, MongoConnection }
+import scala.concurrent.{ ExecutionContext, Future }
 
 import com.zengularity.benji.URIProvider
+import reactivemongo.api.{ AsyncDriver, DB, MongoConnection }
 
 /**
  * GridFS transport for managing MongoDB connections.

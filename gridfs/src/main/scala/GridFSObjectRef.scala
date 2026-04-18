@@ -7,15 +7,16 @@ package com.zengularity.benji.gridfs
 import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
+import akka.util.ByteString
+
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Sink, Source }
-import akka.util.ByteString
 
 import play.api.libs.ws.BodyWritable
 
 import com.zengularity.benji.{
-  Bytes,
   ByteRange,
+  Bytes,
   Chunk,
   ObjectRef,
   ObjectVersioning

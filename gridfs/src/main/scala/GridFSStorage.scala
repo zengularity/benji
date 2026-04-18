@@ -7,10 +7,11 @@ package com.zengularity.benji.gridfs
 import scala.concurrent.ExecutionContext
 
 import akka.NotUsed
+
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
-import com.zengularity.benji.{ BucketRef, Bucket, ObjectStorage }
+import com.zengularity.benji.{ Bucket, BucketRef, ObjectStorage }
 
 /**
  * GridFS storage backend for Benji.
