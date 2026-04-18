@@ -10,6 +10,8 @@ import java.util.Locale
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
+import scala.collection.mutable.Buffer
+
 import org.apache.commons.codec.binary.Hex
 import org.apache.commons.codec.digest.DigestUtils
 
@@ -164,12 +166,12 @@ private[s3] final class SignatureCalculatorV4(
     ): (String, String) = {
     val headers: HttpHeaders = request.getHeaders
 
-    val it: scala.collection.mutable.Buffer[(String, String)] = {
+    val it: Buffer[(String, String)] = {
       val hs = headers.entries.asScala.map { entry =>
         entry.getKey.toLowerCase(Locale.US) -> entry.getValue
       }
 
-      val withEnsuredDateHeader: scala.collection.mutable.Buffer[(String, String)] = {
+      val withEnsuredDateHeader: Buffer[(String, String)] = {
         if (headers.get("x-amz-date") == null) {
           (("x-amz-date" -> awsDate) +: hs)
         } else {
