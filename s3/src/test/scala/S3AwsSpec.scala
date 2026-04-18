@@ -51,7 +51,7 @@ sealed trait AwsTests
   import TestUtils.withMatEx
   import org.specs2.specification.core.Fragment
 
-  final override protected def rwConsistencyRetry: Int = 40
+  final override protected def rwConsistencyRetry = 40
 
   final override protected def rwConsistencyDuration =
     scala.concurrent.duration.FiniteDuration(5, "seconds")
@@ -77,6 +77,7 @@ sealed trait AwsTests
 
     withMatEx { implicit ee: EE =>
       commonTests("aws", s3f, bucketName)
+
       commonVersioningTests(
         s3f,
         sampleVersionId = "t1Uelqn.uwzanWblaNOrIWpgWapViNXY"

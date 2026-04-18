@@ -230,9 +230,14 @@ object S3 {
       provider: URIProvider[T]
     ): Try[WSS3] = {
     def fromUri(uri: URI, accessKey: String, secretKey: String): Try[WSS3] = {
-      val host = if (uri.getPort > 0) {
-        s"${uri.getHost}:${uri.getPort.toString}"
-      } else uri.getHost
+      val host = {
+        if (uri.getPort > 0) {
+          s"${uri.getHost}:${uri.getPort.toString}"
+        } else {
+          uri.getHost
+
+        }
+      }
       val scheme = uri.getScheme
       val params = parseQuery(uri)
 
@@ -366,11 +371,11 @@ object S3 {
               .fold(new StringBuilder) {
                 _ ++= _.utf8String
               }
-              .flatMapConcat { buf =>
-                f(scala.xml.XML.loadString(buf.result()))
-              }
+              .flatMapConcat { buf => f(scala.xml.XML loadString buf.result()) }
           )
-        } else Future.failed[Source[T, NotUsed]](err(response))
+        } else {
+          Future.failed[Source[T, NotUsed]](err(response))
+        }
       })
       .flatMapConcat(identity)
   }

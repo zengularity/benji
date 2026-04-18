@@ -27,6 +27,7 @@ object GridFSFactory {
    */
   def create(uriString: String): Try[GridFSStorage] = {
     implicit val provider = URIProvider.fromStringInstance
+
     GridFSTransport[String](uriString).map(GridFSStorage.apply)
   }
 }

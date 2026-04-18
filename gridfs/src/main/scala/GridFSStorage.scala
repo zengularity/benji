@@ -54,6 +54,7 @@ final class GridFSStorage(val transport: GridFSTransport)
         !name.startsWith("system.") && !name.endsWith(".files") && !name
           .endsWith(".chunks")
       }
+
       Source(bucketNames)
     }
 }

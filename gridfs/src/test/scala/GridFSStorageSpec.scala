@@ -27,6 +27,7 @@ final class GridFSStorageSpec(
   "GridFS client" should {
     "initialize storage" in {
       val storage = TestUtils.gridfs
+
       storage must not be null
     }
 
@@ -34,11 +35,10 @@ final class GridFSStorageSpec(
       val storage = TestUtils.gridfs
       // Just call buckets to ensure no runtime error
       val bucketStream = storage.buckets()
+
       bucketStream must not be null
     }
   }
 
-  def afterAll(): Unit = {
-    TestUtils.close()
-  }
+  def afterAll(): Unit = TestUtils.close()
 }

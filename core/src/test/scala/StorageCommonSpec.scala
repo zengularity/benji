@@ -25,7 +25,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
   // e.g. S3 doesn't guarantee that right after write operation,
   // the result is available (to read operation) on all the cluster
-  protected def rwConsistencyRetry: Int = 5
+  protected def rwConsistencyRetry = 5
 
   protected def rwConsistencyDuration: FiniteDuration = 3.seconds
 
@@ -70,9 +70,11 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val filename = "testfile.txt"
       val filetest = bucket.obj(filename)
       val put = filetest.put[Array[Byte], Long]
+
       val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) =>
         Future.successful(sz + chunk.size)
       }
+
       val body =
         List.fill(1000)("hello world !!!").mkString(" ").getBytes("UTF-8")
 
@@ -155,9 +157,11 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       } and {
         // uploading file to bucket
         val put = filetest.put[Array[Byte], Long]
+
         val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) =>
           Future.successful(sz + chunk.size)
         }
+
         val body = "hello world".getBytes("UTF-8")
 
         Source.single(body).runWith(upload) must beTypedEqualTo(
@@ -442,9 +446,11 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       def createFile(name: String) = {
         val file = bucket.obj(name)
         val put = file.put[Array[Byte], Long]
+
         val upload = put(0L) { (sz, chunk) =>
           Future.successful(sz + chunk.size)
         }
+
         val body = List.fill(10)("hello world !!!").mkString(" ")
 
         repeat(10)(body getBytes "UTF-8") runWith upload
@@ -532,6 +538,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
     "Versioning feature should be consistent between buckets and objects" in {
       val bucket = defaultBucketRef
+
       val obj =
         bucket.obj(s"benji-test-versioning-obj-${random.nextInt().toString}")
 

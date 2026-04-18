@@ -45,7 +45,7 @@ class VFSStorage(
       Source
         .fromFuture(Future {
           lazy val root = transport.fsManager.resolveFile(rootBaseFile.getURL)
-          lazy val items = Option(root.findFiles(selector))
+          lazy val items = Option(root findFiles selector)
 
           Source.fromIterator[Bucket] { () =>
             items match {
@@ -66,6 +66,7 @@ class VFSStorage(
                     )
                   }
                   .iterator
+
               case _ => Iterator.empty
             }
           }

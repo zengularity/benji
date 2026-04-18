@@ -14,6 +14,7 @@ package object benji {
     def unapply(value: String): Option[Long] =
       try {
         def i = value.toLong
+
         Some(i)
       } catch {
         case NonFatal(_) => Option.empty[Long]

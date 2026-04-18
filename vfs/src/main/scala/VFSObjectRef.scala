@@ -123,8 +123,9 @@ final class VFSObjectRef private[vfs] (
 
     for {
       _ <- {
-        if (!preventOverwrite) Future.successful({})
-        else
+        if (!preventOverwrite) {
+          Future.successful({})
+        } else {
           targetObj.exists.flatMap {
             case true =>
               Future.failed[Unit](
@@ -135,11 +136,14 @@ final class VFSObjectRef private[vfs] (
 
             case _ => Future.successful({})
           }
+        }
       }
       _ <- Future {
         file.moveTo(target)
-        if (targetMetadata.exists())
+
+        if (targetMetadata.exists()) {
           metadataFile.moveTo(targetMetadata)
+        }
       }
     } yield ()
   }
@@ -161,8 +165,10 @@ final class VFSObjectRef private[vfs] (
 
     Future {
       target.copyFrom(file, copySelector)
-      if (targetMetadata.exists())
+
+      if (targetMetadata.exists()) {
         targetMetadata.copyFrom(metadataFile, copySelector)
+      }
     }
   }
 
@@ -300,7 +306,9 @@ final class VFSObjectRef private[vfs] (
           })
           .map { a =>
             of.close()
+
             closed = true
+
             a
           }
           .recoverWithRetries(
@@ -323,6 +331,7 @@ final class VFSObjectRef private[vfs] (
         }
       }.via(upload).map { current =>
         writeMetadata()
+
         current
       }
 
@@ -330,7 +339,7 @@ final class VFSObjectRef private[vfs] (
     }
   }
 
-  private case class VFSDeleteRequest(ignoreExists: Boolean = false)
+  final private case class VFSDeleteRequest(ignoreExists: Boolean = false)
       extends DeleteRequest {
 
     def apply(

@@ -26,9 +26,7 @@ final class GridFSTransport(
     _close: () => Unit = () => ())
     extends java.io.Closeable {
 
-  def close(): Unit = {
-    _close()
-  }
+  def close(): Unit = _close()
 
   def getDatabase(
       implicit
@@ -67,6 +65,7 @@ object GridFSTransport {
       // Extract database name from path or default to "benji"
       val dbName = {
         val path = builtUri.getPath
+
         if (path != null && path.nonEmpty && path != "/") {
           path.replaceAll("^/+", "").replaceAll("/+$", "")
         } else {
@@ -81,6 +80,7 @@ object GridFSTransport {
         val scheme = builtUri.getScheme.replace("gridfs", "mongodb")
         val authority = builtUri.getAuthority
         val path = builtUri.getPath
+
         s"$scheme://$authority$path"
       }
 
@@ -99,11 +99,13 @@ object GridFSTransport {
           connectionFuture,
           () => {
             logger.debug("Closing GridFS driver...")
+
             @SuppressWarnings(
               Array("org.wartremover.warts.UnusedMethodParameter")
             )
             val _ =
               driver.close()(scala.concurrent.ExecutionContext.global)
+
             logger.debug("GridFS driver close initiated.")
           }
         )

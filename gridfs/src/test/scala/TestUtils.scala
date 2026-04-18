@@ -26,13 +26,16 @@ object TestUtils {
     storageOpt.getOrElse {
       val uri = conf.getString("mongodb.uri")
       val storage = GridFSFactory.create(uri).get
+
       storageOpt = Some(storage)
+
       storage
     }
   }
 
   def close(): Unit = {
     storageOpt.foreach { storage => storage.transport.close() }
+
     @SuppressWarnings(Array("org.wartremover.warts.UnusedMethodParameter"))
     val _ = system.terminate()
   }

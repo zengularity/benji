@@ -60,13 +60,16 @@ final class WSS3BucketRef private[s3] (
     )(implicit
       ec: ExecutionContext
     ): Future[Unit] = {
-    val before = if (failsIfExists) {
-      exists.flatMap {
-        case true  => Future.failed[Unit](BucketAlreadyExistsException(name))
-        case false => Future.successful({})
+    val before = {
+      if (failsIfExists) {
+        exists.flatMap {
+          case true  => Future.failed[Unit](BucketAlreadyExistsException(name))
+          case false => Future.successful({})
+        }
+      } else {
+        Future.successful({})
       }
-    } else {
-      Future.successful({})
+
     }
     before.flatMap(_ => createNew(failsIfExists))
   }
@@ -93,6 +96,7 @@ final class WSS3BucketRef private[s3] (
           ) match {
             case BucketAlreadyExistsException(_) if !failsIfExists =>
               Future.successful({})
+
             case throwable => Future.failed[Unit](throwable)
           }
       }
@@ -179,12 +183,14 @@ final class WSS3BucketRef private[s3] (
       case Successful(_) =>
         isVersioned.map(_ => {})
 
-      case response =>
+      case response => {
         val error = ErrorHandler.ofBucket(
           s"Could not change versionning of the bucket $name",
           ref
         )(response)
+
         Future.failed[Unit](error)
+      }
     }
   }
 
@@ -193,7 +199,7 @@ final class WSS3BucketRef private[s3] (
   def obj(objectName: String, versionId: String): WSS3VersionedObjectRef =
     new WSS3VersionedObjectRef(storage, name, objectName, versionId)
 
-  override val toString: String = s"WSS3BucketRef($name)"
+  override val toString = s"WSS3BucketRef($name)"
 
   override def equals(that: Any): Boolean = that match {
     case other: WSS3BucketRef =>
@@ -209,7 +215,7 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html RESTBucketGET]]
    */
-  private case class Objects(
+  final private case class Objects(
       maybePrefix: Option[String],
       maybeMax: Option[Long])
       extends ref.ListRequest {
@@ -264,7 +270,7 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
    */
-  private case class WSS3DeleteRequest(
+  final private case class WSS3DeleteRequest(
       isRecursive: Boolean = false,
       ignoreExists: Boolean = false)
       extends DeleteRequest {
@@ -294,6 +300,7 @@ final class WSS3BucketRef private[s3] (
                     s"Bucket $name was not found when deleting. (Success)"
                   )
                 )
+
               case throwable => Future.failed[Unit](throwable)
             }
         }
@@ -317,7 +324,7 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
-  private case class ObjectVersions(
+  final private case class ObjectVersions(
       maybePrefix: Option[String] = None,
       maybeMax: Option[Long] = None,
       includeDeleteMarkers: Boolean = false)
@@ -415,7 +422,7 @@ private[s3] object WSS3BucketRef {
 
         whenEmpty match {
           case Some(throwable) if parsed.isEmpty => Source.failed[T](throwable)
-          case _                                 =>
+          case _                                 => {
             def currentPage = Source(parsed)
 
             parsed.lastOption.map(marker) match {
@@ -424,6 +431,7 @@ private[s3] object WSS3BucketRef {
 
               case _ => currentPage
             }
+          }
         }
       },
       errorHandler

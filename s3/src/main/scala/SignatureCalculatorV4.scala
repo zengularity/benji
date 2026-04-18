@@ -51,7 +51,7 @@ private[s3] final class SignatureCalculatorV4(
       requestBuilder: RequestBuilderBase[_]
     ): Unit = {
     @inline def header(name: String): Option[String] =
-      Option(request.getHeaders.get(name))
+      Option(request.getHeaders get name)
 
     val awsDate = header("x-amz-date")
       .orElse(header("Date").map { rfcDate =>
@@ -148,6 +148,7 @@ private[s3] final class SignatureCalculatorV4(
           s"${param.getName}="
         } else {
           val v = value.replaceAll("\\+", "%20") // See QueryParameters
+
           s"${param.getName}=$v"
         }
       }
@@ -162,15 +163,18 @@ private[s3] final class SignatureCalculatorV4(
       hashedPayload: String
     ): (String, String) = {
     val headers: HttpHeaders = request.getHeaders
+
     val it = {
       val hs = headers.entries.asScala.map { entry =>
         entry.getKey.toLowerCase(Locale.US) -> entry.getValue
       }
 
-      val withEnsuredDateHeader = if (headers.get("x-amz-date") == null) {
-        (("x-amz-date" -> awsDate) +: hs)
-      } else {
-        hs
+      val withEnsuredDateHeader = {
+        if (headers.get("x-amz-date") == null) {
+          (("x-amz-date" -> awsDate) +: hs)
+        } else {
+          hs
+        }
       }
 
       if (headers.get("x-amz-content-sha256") == null) {
@@ -181,6 +185,7 @@ private[s3] final class SignatureCalculatorV4(
     }
 
     val signed = List.newBuilder[String]
+
     val canonical = it
       .sortBy(_._1)
       .map {
@@ -225,7 +230,7 @@ private[s3] final class SignatureCalculatorV4(
     @inline def hmac(key: Array[Byte], data: String): Array[Byte] = {
       hmacSHA256.init(new SecretKeySpec(key, "HmacSHA256"))
 
-      hmacSHA256.doFinal(data.getBytes("UTF8"))
+      hmacSHA256.doFinal(data getBytes "UTF8")
     }
 
     val kDate = hmac(s"AWS4${secretKey}".getBytes("UTF-8"), awsDate.take(8))

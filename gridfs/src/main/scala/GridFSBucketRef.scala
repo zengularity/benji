@@ -58,7 +58,7 @@ final class GridFSBucketRef(
       ec: ExecutionContext
     ): Future[Unit] =
     db.collectionNames.flatMap { names =>
-      if (names.contains(name)) {
+      if (names contains name) {
         Future.failed(
           new RuntimeException(s"Bucket $name already exists")
         )
@@ -78,11 +78,12 @@ final class GridFSBucketRef(
       ec: ExecutionContext
     ): Future[Long] = {
     val _ = (prefix, batchSize, ec)
+
     Future.successful(0L)
   }
 
   // DeleteRequest implementation
-  private case class GridFSDeleteRequest(
+  final private case class GridFSDeleteRequest(
       ignoreExists: Boolean = false,
       isRecursive: Boolean = false)
       extends DeleteRequest {
@@ -92,6 +93,7 @@ final class GridFSBucketRef(
         m: Materializer
       ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
+
       transport.getDatabase.flatMap { db =>
         db.drop().recover {
           case _ if ignoreExists => ()
@@ -107,7 +109,7 @@ final class GridFSBucketRef(
   }
 
   // ListRequest implementation
-  private case class GridFSListRequest(
+  final private case class GridFSListRequest(
       prefix: Option[String] = None,
       batchSize: Option[Long] = None)
       extends ListRequest {

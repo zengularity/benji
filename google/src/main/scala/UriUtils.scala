@@ -15,8 +15,10 @@ private[google] object UriUtils {
   def encodePathSegment(s: String, inputCharset: String): String = {
     val in = s.getBytes(inputCharset)
     val out = new ByteArrayOutputStream()
+
     for (b <- in) {
       val allowed = segmentChars.get(b & 0xff)
+
       if (allowed) {
         out.write(b.toInt)
       } else {
@@ -25,6 +27,7 @@ private[google] object UriUtils {
         out.write(upperHex(b & 0xf))
       }
     }
+
     out.toString("US-ASCII")
   }
 
@@ -46,6 +49,7 @@ private[google] object UriUtils {
       for (
         (min, max) <- Seq(('a', 'z'), ('A', 'Z'), ('0', '9')); c <- min to max
       ) yield c
+
     val unreserved = alphaDigit ++ Seq('-', '.', '_', '~')
 
     // RFC 3986, 2.2. Reserved Characters
@@ -61,7 +65,9 @@ private[google] object UriUtils {
   /** Create a BitSet to act as a membership lookup table for the given characters. */
   private def membershipTable(chars: Seq[Char]): util.BitSet = {
     val bits = new util.BitSet(256)
+
     for (c <- chars) { bits.set(c.toInt) }
+
     bits
   }
 

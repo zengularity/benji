@@ -12,7 +12,7 @@ import com.zengularity.benji.BucketRef
 abstract class BenjiException extends IOException
 
 /** An unknown error */
-case class BenjiUnknownError(
+final case class BenjiUnknownError(
     message: String,
     throwable: Option[Throwable] = None)
     extends BenjiException {
@@ -25,7 +25,8 @@ case class BenjiUnknownError(
  * An error when an operation cannot be applied on a not empty bucket
  * (e.g. delete).
  */
-case class BucketNotEmptyException(bucketName: String) extends BenjiException {
+final case class BucketNotEmptyException(bucketName: String)
+    extends BenjiException {
   override def getMessage: String = s"Bucket '$bucketName' was not empty."
 }
 
@@ -55,7 +56,7 @@ object BucketNotEmptyException {
  *   }
  * }}}
  */
-case class BucketAlreadyExistsException(
+final case class BucketAlreadyExistsException(
     bucketName: String)
     extends BenjiException {
   override def getMessage: String = s"Bucket '$bucketName' already exists."

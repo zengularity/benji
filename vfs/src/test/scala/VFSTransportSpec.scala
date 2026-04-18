@@ -15,6 +15,7 @@ class VFSTransportSpec extends Specification {
   "Factory using URs" should {
     "return Failure when the provider fail" in {
       val exception: Throwable = new Exception("foo")
+
       implicit val provider: URIProvider[Throwable] =
         URIProvider[Throwable](Failure[URI])
 

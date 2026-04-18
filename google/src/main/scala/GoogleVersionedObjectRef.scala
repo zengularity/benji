@@ -29,7 +29,7 @@ final class GoogleVersionedObjectRef(
 
   private val generation: Long = versionId.toLong
 
-  private case class GoogleDeleteRequest(ignoreExists: Boolean = false)
+  final private case class GoogleDeleteRequest(ignoreExists: Boolean = false)
       extends DeleteRequest {
 
     def apply(
@@ -46,12 +46,14 @@ final class GoogleVersionedObjectRef(
           .execute();
         ()
       }
+
       val result = rawResult.recoverWith(
         ErrorHandler.ofVersionToFuture(
           s"Could not delete version $versionId from object $name within bucket $bucket",
           ref
         )
       )
+
       if (ignoreExists) {
         result.recover { case VersionNotFoundException(_, _, _) => () }
       } else {
@@ -180,6 +182,7 @@ final class GoogleVersionedObjectRef(
           req.setDisableGZipContent(storage.disableGZip)
 
           val in = req.executeMediaAsInputStream() // using alt=media
+
           StreamConverters.fromInputStream(() => in)
         }.recoverWith(
           ErrorHandler.ofVersionToFuture(

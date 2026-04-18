@@ -85,20 +85,24 @@ private[benji] object Streams {
 
           var hasPushed = false
 
-          if (downstreamWaiting) outbuf.foreach { previous =>
-            downstreamWaiting = false
-            outbuf = None
+          if (downstreamWaiting) {
+            outbuf.foreach { previous =>
+              downstreamWaiting = false
+              outbuf = None
 
-            hasPushed = true
+              hasPushed = true
 
-            push(out, Chunk(previous))
+              push(out, Chunk(previous))
+            }
           }
 
           if (outbuf.isEmpty && inbuf.length >= limit) {
             val (chunk, rem) = inbuf.result().splitAt(limit)
+
             outbuf = Some(chunk)
 
             inbuf.clear()
+
             inbuf ++= rem
           }
 
@@ -112,10 +116,11 @@ private[benji] object Streams {
           if (rem.nonEmpty) { // Emit the remaining/last chunk(s)
             if (rem.size <= limit) {
               emit(out, Chunk.last(rem))
-            } else
+            } else {
               rem.splitAt(limit) match {
                 case (a, b) => emitMultiple(out, List(Chunk(a), Chunk.last(b)))
               }
+            }
           }
 
           completeStage()
@@ -159,17 +164,20 @@ private[benji] object Streams {
 
           var hasPushed = false
 
-          if (downstreamWaiting) outbuf.foreach { previous =>
-            downstreamWaiting = false
-            outbuf = None
+          if (downstreamWaiting) {
+            outbuf.foreach { previous =>
+              downstreamWaiting = false
+              outbuf = None
 
-            hasPushed = true
+              hasPushed = true
 
-            push(out, Chunk(previous))
+              push(out, Chunk(previous))
+            }
           }
 
           if (outbuf.isEmpty && inbuf.length >= limit) {
             outbuf = Some(inbuf.result())
+
             inbuf.clear()
           }
 

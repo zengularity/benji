@@ -74,6 +74,7 @@ private[benji] final class WSProvider extends Provider[StandaloneAhcWSClient] {
 
   lazy val get: StandaloneAhcWSClient = {
     implicit def m: Materializer = materializer
+
     StandaloneAhcWSClient()
   }
 }

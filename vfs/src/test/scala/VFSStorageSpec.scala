@@ -38,13 +38,16 @@ final class VFSStorageSpec(
     val fileStart = "hello world !!!"
 
     val partCount = 3
+
     s"Write file in $bucketName bucket using ${partCount.toString} parts" in assertAllStagesStopped {
       val filetest = vfs.bucket(bucketName).obj("testfile.txt")
 
       @SuppressWarnings(Array("org.wartremover.warts.Var"))
       var b = 0.toByte
+
       def nextByte = {
         b = (b + 1).toByte
+
         b
       }
 
@@ -79,7 +82,5 @@ final class VFSStorageSpec(
     }
   }
 
-  override def afterAll(): Unit = {
-    TestUtils.vfsTransport.close()
-  }
+  override def afterAll(): Unit = TestUtils.vfsTransport.close()
 }

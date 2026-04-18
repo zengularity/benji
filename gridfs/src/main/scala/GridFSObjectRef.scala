@@ -88,7 +88,7 @@ final class GridFSObjectRef(
     s"GridFSObjectRef($bucket, $name)"
 
   // GetRequest implementation
-  private case class GridFSGetRequest(
+  final private case class GridFSGetRequest(
       range: Option[ByteRange] = None)
       extends GetRequest {
 
@@ -115,13 +115,14 @@ final class GridFSObjectRef(
       ): Sink[E, Future[A]] = {
       val ec: ExecutionContext = m.executionContext
       val _ = (ec, f, z)
+
       // Return a sink that ignores input and returns the initial value
       Sink.ignore.mapMaterializedValue { _ => Future.successful(z) }
     }
   }
 
   // DeleteRequest implementation
-  private case class GridFSDeleteRequest(
+  final private case class GridFSDeleteRequest(
       ignoreExists: Boolean = false)
       extends DeleteRequest {
 

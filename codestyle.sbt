@@ -5,6 +5,7 @@ inThisBuild(
   List(
     // scalaVersion := "2.13.3",
     semanticdbEnabled := true,
-    semanticdbVersion := scalafixSemanticdb.revision
+    semanticdbVersion := scalafixSemanticdb.revision,
+    scalafixDependencies += "io.github.cchantep" %% "offler-rules" % "1.0.0"
   )
 )

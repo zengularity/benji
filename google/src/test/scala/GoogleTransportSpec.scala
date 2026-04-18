@@ -66,6 +66,7 @@ final class GoogleTransportSpec extends Specification {
     "fail" >> {
       "when the provider fail" in {
         val exception: Throwable = new Exception("foo")
+
         implicit val provider: URIProvider[Throwable] =
           URIProvider[Throwable](Failure[URI])
 

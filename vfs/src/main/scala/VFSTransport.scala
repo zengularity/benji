@@ -28,9 +28,7 @@ final class VFSTransport(
     _close: () => Unit = () => ())
     extends java.io.Closeable {
 
-  def close(): Unit = {
-    _close()
-  }
+  def close(): Unit = _close()
 }
 
 /** VFS transport factory. */
@@ -103,6 +101,7 @@ object VFSTransport {
         temporary(s"benji-${System.currentTimeMillis().toString}")
       } else {
         val mngr = new StandardFileSystemManager
+
         mngr.init()
 
         val scheme = uri.getScheme
@@ -113,7 +112,7 @@ object VFSTransport {
           )
         }
 
-        mngr.setBaseFile(mngr.resolveFile(uri))
+        mngr.setBaseFile(mngr resolveFile uri)
 
         Try(new VFSTransport(mngr, () => mngr.close()))
       }

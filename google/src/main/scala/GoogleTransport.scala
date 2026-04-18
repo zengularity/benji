@@ -95,7 +95,7 @@ final class GoogleTransport(
     ) {
       logger.trace("Google Access Token acquired")
       Future.successful(accessTok.getTokenValue)
-    } else
+    } else {
       Future {
         cred.refresh()
 
@@ -112,6 +112,7 @@ final class GoogleTransport(
           )
 
       }
+    }
   }
 
   /**
@@ -209,6 +210,7 @@ final class GoogleTransport(
         } catch {
           case NonFatal(cause) =>
             op.result.failure(cause)
+
             errors += 1L
         })
         .initialDelay(250.milliseconds * errors)
@@ -224,6 +226,7 @@ final class GoogleTransport(
         case c @ CreateBucket(name) =>
           execute(c) {
             val nb = new model.Bucket()
+
             nb.setName(name)
 
             client.buckets().insert(projectId, nb).execute()
@@ -341,9 +344,11 @@ object GoogleTransport {
 
     new GoogleTransport(
       {
-        if (!credential.createScopedRequired) credential
-        else {
+        if (!credential.createScopedRequired) {
+          credential
+        } else {
           val scopes = StorageScopes.all()
+
           credential.createScoped(scopes)
         }
       },
@@ -475,6 +480,7 @@ object GoogleTransport {
             val http = GoogleNetHttpTransport.newTrustedTransport()
             val json = new JacksonFactory()
             val url = baseUrl.getOrElse(Storage.DEFAULT_ROOT_URL)
+
             GoogleTransport(
               credential,
               projectId,
@@ -501,6 +507,7 @@ object GoogleTransport {
     def unapply(value: String): Option[Boolean] =
       try {
         def bool = value.toBoolean
+
         Some(bool)
       } catch {
         case NonFatal(_) => Option.empty[Boolean]

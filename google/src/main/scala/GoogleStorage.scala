@@ -54,8 +54,9 @@ class GoogleStorage(
             transport.buckets().list(transport.projectId).execute().getItems
 
           Source(
-            if (items == null) List.empty[Bucket]
-            else
+            if (items == null) {
+              List.empty[Bucket]
+            } else {
               items.asScala.map { b =>
                 Bucket(
                   b.getName,
@@ -65,6 +66,7 @@ class GoogleStorage(
                   )
                 )
               }.toList
+            }
           )
         })
         .flatMapMerge(1, identity)

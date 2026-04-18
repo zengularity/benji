@@ -18,6 +18,7 @@ object TestUtils {
 
   lazy val config: Config = {
     inited = true
+
     ConfigFactory.load("tests.conf")
   }
 
@@ -41,16 +42,18 @@ object TestUtils {
 
   // ---
 
-  def close(): Unit = if (inited) {
-    try {
-      vfsTransport.close()
-    } catch {
-      case NonFatal(cause) => logger.warn("Fails to release VFS", cause)
+  def close(): Unit = {
+    if (inited) {
+      try {
+        vfsTransport.close()
+      } catch {
+        case NonFatal(cause) => logger.warn("Fails to release VFS", cause)
+      }
+
+      system.terminate()
+
+      ()
     }
-
-    system.terminate()
-
-    ()
   }
 
   Runtime.getRuntime.addShutdownHook(new Thread {

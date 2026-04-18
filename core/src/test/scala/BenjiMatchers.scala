@@ -187,6 +187,7 @@ trait BenjiMatchers { self: Matchers =>
     val xm = new Matcher[T] {
       def apply[U <: T](e: Expectable[U]) = {
         val n = nmd(e.value)
+
         val underlying = {
           if (expected) existsMatcher(n)
           else doesntExistMatcher(n)
@@ -201,6 +202,7 @@ trait BenjiMatchers { self: Matchers =>
     val cm = new Matcher[T] {
       def apply[U <: T](e: Expectable[U]) = {
         val n = nmd(e.value)
+
         val underlying = {
           if (expected) containsMatcher(n)
           else doesntContainMatcher(n)

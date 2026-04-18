@@ -134,6 +134,7 @@ final class PlaySpec extends org.specs2.mutable.Specification {
           case (label, storage) =>
             s"for $label" in {
               System.setProperty("config.resource", "test3.conf")
+
               storage() must beAnInstanceOf[VFSStorage]
             }
         }
@@ -152,6 +153,7 @@ final class PlaySpec extends org.specs2.mutable.Specification {
   private def configuredAppBuilder = {
     val env = play.api.Environment.simple(mode = play.api.Mode.Test)
     val config = play.api.Configuration.load(env)
+
     val modules = config
       .getOptional[Seq[String]]("play.modules.enabled")
       .getOrElse(Seq.empty[String])

@@ -10,7 +10,7 @@ import com.zengularity.benji.{ BucketRef, ObjectRef, VersionedObjectRef }
 abstract class EntityNotFoundException extends BenjiException
 
 /** An error when a bucket is not found. */
-case class BucketNotFoundException(
+final case class BucketNotFoundException(
     bucketName: String)
     extends EntityNotFoundException {
   override def getMessage: String = s"Bucket '$bucketName' not found."
@@ -23,7 +23,7 @@ object BucketNotFoundException {
 }
 
 /** An error when an object is not found. */
-case class ObjectNotFoundException(
+final case class ObjectNotFoundException(
     bucketName: String,
     objectName: String)
     extends EntityNotFoundException {
@@ -39,7 +39,7 @@ object ObjectNotFoundException {
 }
 
 /** An error when an object version is not found. */
-case class VersionNotFoundException(
+final case class VersionNotFoundException(
     bucketName: String,
     objectName: String,
     versionId: String)

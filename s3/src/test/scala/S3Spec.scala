@@ -32,6 +32,7 @@ trait S3Spec extends BenjiMatchers {
 
       import scala.language.reflectiveCalls
       import akka.stream.scaladsl.Source
+
       type StructType = {
         def list(
             nextToken: Option[String]
@@ -43,11 +44,9 @@ trait S3Spec extends BenjiMatchers {
 
       val ls = {
         @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
-        def unsafe = bucket.objects
+        bucket.objects
           .withBatchSize(6)
           .asInstanceOf[bucket.ListRequest with StructType]
-
-        unsafe
       }
 
       def count[T] =
@@ -59,16 +58,18 @@ trait S3Spec extends BenjiMatchers {
       @SuppressWarnings(Array("org.wartremover.warts.Var"))
       @volatile var tok2 = Option.empty[String]
 
-      ls.list(Option.empty[String])({ t =>
+      ls.list(Option.empty[String]) { t =>
         tok1 = Some(t)
+
         Source.empty[Object]
-      }).runWith(count) must beEqualTo(6).await(1, 3.seconds) and {
+      }.runWith(count) must beEqualTo(6).await(1, 3.seconds) and {
         tok1 must beSome[String] // token for page #2
       } and {
-        ls.list(tok1)({ t =>
+        ls.list(tok1) { t =>
           tok2 = Some(t)
+
           Source.empty[Object]
-        }).runWith(count) must beEqualTo(6).await(1, 3.seconds) and {
+        }.runWith(count) must beEqualTo(6).await(1, 3.seconds) and {
           tok2 must beSome[String] // token for page #3
         } and {
           ls.list(tok2)(_ => Source.empty[Object])

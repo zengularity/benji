@@ -50,13 +50,14 @@ final class VFSBucketRef private[vfs] (
 
       Source
         .fromFuture(Future {
-          lazy val items = Option(dir.findFiles(selector))
+          lazy val items = Option(dir findFiles selector)
 
           Source.fromIterator[Object] { () =>
             items match {
               case Some(itm) if itm.nonEmpty =>
                 itm.map { o =>
                   val content = o.getContent
+
                   Object(
                     o.getName.getPath.stripPrefix(rootPath),
                     Bytes(content.getSize),
@@ -67,8 +68,10 @@ final class VFSBucketRef private[vfs] (
                   )
 
                 }.iterator
+
               case Some(_) =>
                 Iterator.empty
+
               case None =>
                 throw BucketNotFoundException(name)
             }
@@ -79,6 +82,7 @@ final class VFSBucketRef private[vfs] (
 
     def withBatchSize(max: Long) = {
       logger.warn("For VFS storage there is no need for batch size")
+
       this
     }
 
@@ -100,13 +104,16 @@ final class VFSBucketRef private[vfs] (
     )(implicit
       ec: ExecutionContext
     ): Future[Unit] = {
-    val before = if (failsIfExists) {
-      exists.flatMap {
-        case true  => Future.failed[Unit](BucketAlreadyExistsException(name))
-        case false => Future.successful({})
+    val before = {
+      if (failsIfExists) {
+        exists.flatMap {
+          case true  => Future.failed[Unit](BucketAlreadyExistsException(name))
+          case false => Future.successful({})
+        }
+      } else {
+        Future.successful({})
       }
-    } else {
-      Future.successful({})
+
     }
     before.map(_ => dir.createFolder())
   }
@@ -143,7 +150,7 @@ final class VFSBucketRef private[vfs] (
 
   // ---
 
-  private case class VFSDeleteRequest(
+  final private case class VFSDeleteRequest(
       isRecursive: Boolean = false,
       ignoreExists: Boolean = false)
       extends DeleteRequest {

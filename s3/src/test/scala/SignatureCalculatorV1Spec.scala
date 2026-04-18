@@ -39,6 +39,7 @@ final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
       ) = s"be '$path' for $url with $host" in {
       calculator.canonicalizeResource(style, url, host) must_== path
     }
+
     def vhResTest(url: String, host: String, path: String) =
       resForTest(VirtualHostRequest, url, host, path)
 
@@ -175,6 +176,7 @@ final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
       "to file '/photos/puppy.jpg'" in {
         val date = "Tue, 27 Mar 2007 21:15:45 +0000"
         val contentType = "image/jpeg"
+
         val headers = headerMap(
           "Content-Type" -> contentType,
           "Content-Length" -> "94328",
@@ -200,6 +202,7 @@ final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
       "to bucket in virtual host style" in {
         val date = "Sun, 24 Jan 2016 17:27:45 +0000"
         val contentType = "text/plain; charset=utf-8"
+
         val headers = headerMap(
           "Content-Type" -> contentType,
           "Host" -> s"bucket-1005827192.$serverHost",
@@ -224,6 +227,7 @@ final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
 
     "be computed for '/?prefix=photos&max-keys=50&marker=puppy'" in {
       val date = "Tue, 27 Mar 2007 19:42:41 +0000"
+
       val headers =
         headerMap("User-Agent" -> "Mozilla/5.0", "Host" -> host, "Date" -> date)
 
@@ -261,6 +265,7 @@ final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
 
     "be computed for 'DELETE /johnsmith/photos/puppy.jpg'" in {
       val date = "Tue, 27 Mar 2007 21:20:26 +0000"
+
       val headers = headerMap(
         "User-Agent" -> "dotnet",
         "Host" -> serverHost,
@@ -285,6 +290,7 @@ final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
 
     "be computed for 'DELETE /photos/puppy.jpg'" in {
       val date = "Tue, 27 Mar 2007 21:20:26 +0000"
+
       val headers = headerMap(
         "User-Agent" -> "dotnet",
         "Host" -> host,
@@ -359,6 +365,7 @@ final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
 
   "Calculated authentication signature" should {
     val signature1 = "5m+HAmc5JsrgyDelh9+a2dNrzN8="
+
     s"be '$signature1' for request #1" in {
       calculator.computeSignature(
         "GET\n\n\n\n" +
@@ -369,6 +376,7 @@ final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
     }
 
     val signature2 = "jZNOcbfWmD/A/f3hSvVzXZjM2HU="
+
     s"be '$signature2' for request #2" in {
       calculator.computeSignature(
         "PUT\n" +
@@ -382,6 +390,7 @@ final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
     }
 
     val signature3 = "vjbyPxybdZaNmGa+yT272YEAiv4="
+
     s"be '$signature3' for request #3" in {
       calculator
         .computeSignature("GET\n\n\n1141889120\n/quotes/nelson")

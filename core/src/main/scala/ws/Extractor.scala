@@ -36,7 +36,9 @@ object Successful {
       response.status == 206
     ) {
       Some(response)
-    } else None
+    } else {
+      None
+    }
   }
 }
 
@@ -68,5 +70,5 @@ object ContentMD5 extends (ByteString => String) {
   //    akka.util.Helpers.base
   /** Returns the MD5 checksum for the given bytes. */
   def apply(content: ByteString): String =
-    Base64.getEncoder.encodeToString(DigestUtils.md5(content.toArray))
+    Base64.getEncoder.encodeToString(DigestUtils md5 content.toArray)
 }

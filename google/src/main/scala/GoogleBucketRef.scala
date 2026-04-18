@@ -44,7 +44,7 @@ final class GoogleBucketRef private[google] (
 
   import storage.{ transport => gt }
 
-  private case class Objects(
+  final private case class Objects(
       maybePrefix: Option[String],
       maybeMax: Option[Long])
       extends ref.ListRequest {
@@ -147,7 +147,7 @@ final class GoogleBucketRef private[google] (
     })
   }
 
-  private case class GoogleDeleteRequest(
+  final private case class GoogleDeleteRequest(
       isRecursive: Boolean = false,
       ignoreExists: Boolean = false)
       extends DeleteRequest {
@@ -156,9 +156,11 @@ final class GoogleBucketRef private[google] (
       val marker = "unexpected end of file"
 
       error match {
-        case BenjiUnknownError(msg, cause) =>
+        case BenjiUnknownError(msg, cause) => {
           val fromCause = cause.map(_.getMessage).getOrElse("")
+
           s"$msg $fromCause".toLowerCase.contains(marker)
+        }
 
         case ioe: java.io.IOException =>
           Option(ioe.getMessage).exists(_.toLowerCase.contains(marker))
@@ -171,7 +173,7 @@ final class GoogleBucketRef private[google] (
       )(implicit
         ec: ExecutionContext
       ): Future[Unit] =
-      gt.executeBucketOp(GoogleTransport.DeleteBucket(name))
+      gt.executeBucketOp(GoogleTransport DeleteBucket name)
 
     def apply(
       )(implicit
@@ -281,10 +283,14 @@ final class GoogleBucketRef private[google] (
     Future {
       val versioning =
         new com.google.api.services.storage.model.Bucket.Versioning()
+
       versioning.setEnabled(enabled)
+
       val bucket = new com.google.api.services.storage.model.Bucket()
+
       bucket.setVersioning(versioning)
       gt.client.buckets().patch(name, bucket).execute()
+
       ()
     }.recoverWith(
       ErrorHandler.ofBucketToFuture(
@@ -293,7 +299,7 @@ final class GoogleBucketRef private[google] (
       )
     )
 
-  private case class ObjectsVersions(
+  final private case class ObjectsVersions(
       maybePrefix: Option[String],
       maybeMax: Option[Long])
       extends ref.VersionedListRequest {
@@ -323,7 +329,7 @@ final class GoogleBucketRef private[google] (
           }
 
           val currentPage = Option(request.getItems) match {
-            case Some(items) =>
+            case Some(items) => {
               val collection = collectionAsScalaIterable(items).toList
 
               // Group by name to find the latest generation per object
@@ -353,6 +359,7 @@ final class GoogleBucketRef private[google] (
                   )
                 }
               }
+            }
 
             case _ => Source.empty[VersionedObject]
           }

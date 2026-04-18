@@ -19,6 +19,7 @@ object TestUtils {
 
   lazy val config: Config = {
     inited = true
+
     ConfigFactory.load("tests.conf")
   }
 
@@ -45,11 +46,13 @@ object TestUtils {
   private def initTestbench(): Unit = {
     try {
       val useTestbench = config.getBoolean("google.storage.testbench.enabled")
+
       if (useTestbench) {
         val host = config.getString("google.storage.testbench.host")
         val port = config.getInt("google.storage.testbench.port")
 
         logger.info(s"Checking storage-testbench on $host:$port")
+
         StorageTestbench
           .checkReady(host, port, 5000)
           .get // Will throw if not ready
@@ -57,9 +60,12 @@ object TestUtils {
     } catch {
       case _: com.typesafe.config.ConfigException =>
         logger.debug("testbench not configured, using default endpoint")
-      case e: Throwable =>
+
+      case e: Throwable => {
         logger.error("Failed to connect to testbench", e)
+
         throw e
+      }
     }
   }
 
@@ -71,15 +77,16 @@ object TestUtils {
     val application = s"benji-tests-${System.identityHashCode(this).toString}"
 
     // If testbench is enabled, use its endpoint; otherwise use default GCS
-    val baseUri = if (isTestbenchEnabled) {
-      val host = config.getString("google.storage.testbench.host")
-      val port = config.getInt("google.storage.testbench.port")
-      s"google:classpath://gcs-test.json?application=$application&projectId=$projectId&baseRestUrl=http://$host:$port"
-    } else {
-      s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
-    }
+    = {
+     if (isTestbenchEnabled) {
+        val host = config.getString("google.storage.testbench.host")
+        val port = config.getInt("google.storage.testbench.port")
 
-    baseUri
+        s"google:classpath://gcs-test.json?application=$application&projectId=$projectId&baseRestUrl=http://$host:$port"
+      } else {
+        s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
+      }
+    }
   }
 
   def isTestbenchEnabled: Boolean = {
@@ -96,8 +103,10 @@ object TestUtils {
       val host = config.getString("google.storage.testbench.host")
       val port = config.getInt("google.storage.testbench.port")
       val projectId = config.getString("google.storage.projectId")
+
       val application =
         s"benji-tests-${System.identityHashCode(this).toString}"
+
       val baseRestUrl = s"http://$host:$port"
 
       // Verify testbench is reachable
@@ -129,36 +138,38 @@ object TestUtils {
 
   // ---
 
-  def close(): Unit = if (inited) {
-    import com.zengularity.benji.ObjectStorage
+  def close(): Unit = {
+    if (inited) {
+      import com.zengularity.benji.ObjectStorage
 
-    implicit def m: Materializer = materializer
-    implicit def ec: ExecutionContext = m.executionContext
+      implicit def m: Materializer = materializer
+      implicit def ec: ExecutionContext = m.executionContext
 
-    def storageCleanup(st: ObjectStorage) = st.buckets
-      .collect[List]()
-      .flatMap(bs =>
-        Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
-          st.bucket(b.name).delete.recursive()
-        })
-      )
-      .map(_ => {})
+      def storageCleanup(st: ObjectStorage) = st.buckets
+        .collect[List]()
+        .flatMap(bs =>
+          Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
+            st.bucket(b.name).delete.recursive()
+          })
+        )
+        .map(_ => {})
 
-    try {
-      Await.result(storageCleanup(google), Duration("30s"))
-    } catch {
-      case e: Throwable => logger.warn("fails to cleanup GCS", e)
+      try {
+        Await.result(storageCleanup(google), Duration("30s"))
+      } catch {
+        case e: Throwable => logger.warn("fails to cleanup GCS", e)
+      }
+
+      system.terminate()
+
+      try { ws.close() }
+      catch {
+        case e: Throwable => logger.warn("fails to close WS", e)
+      }
+
+      // Stop testbench if it was started
+      StorageTestbench.stop()
     }
-
-    system.terminate()
-
-    try { ws.close() }
-    catch {
-      case e: Throwable => logger.warn("fails to close WS", e)
-    }
-
-    // Stop testbench if it was started
-    StorageTestbench.stop()
   }
 
   Runtime.getRuntime.addShutdownHook(new Thread {

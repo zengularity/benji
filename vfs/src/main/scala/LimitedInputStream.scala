@@ -19,10 +19,13 @@ private[vfs] class LimitedInputStream(
   private var index = 0
 
   override def read(): Int = {
-    if (index == limit) -1
-    else {
+    if (index == limit) {
+      -1
+    } else {
       val res = super.read()
+
       index = index + 1
+
       res
     }
   }
@@ -33,8 +36,9 @@ private[vfs] class LimitedInputStream(
       else len
     }
 
-    if (n <= 0) -1
-    else {
+    if (n <= 0) {
+      -1
+    } else {
       val r = super.read(b, off, n)
 
       index = index + r
