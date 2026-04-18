@@ -4,7 +4,7 @@
 
 package com.zengularity.benji.gridfs
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
 
 import akka.NotUsed
 import akka.stream.Materializer
@@ -37,19 +37,24 @@ final class GridFSStorage(val transport: GridFSTransport)
 
       Source
         .fromFuture(transport.getDatabase)
-        .flatMapConcat { db =>
-          Source.fromFuture(db.collectionNames).flatMapConcat { names =>
-            // Filter out system and GridFS internal collections
-            val bucketNames = names.filter { name =>
-              !name.startsWith("system.") && !name.endsWith(".files") && !name
-                .endsWith(".chunks")
-            }
-            Source(bucketNames)
-          }
-        }
+        .flatMapConcat(getBucketNames)
         .map { name => Bucket(name, java.time.LocalDateTime.now()) }
     }
   }
+
+  private def getBucketNames(
+      db: reactivemongo.api.DB
+    )(implicit
+      ec: ExecutionContext
+    ): Source[String, NotUsed] =
+    Source.fromFuture(db.collectionNames).flatMapConcat { names =>
+      // Filter out system and GridFS internal collections
+      val bucketNames = names.filter { name =>
+        !name.startsWith("system.") && !name.endsWith(".files") && !name
+          .endsWith(".chunks")
+      }
+      Source(bucketNames)
+    }
 }
 
 object GridFSStorage {

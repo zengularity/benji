@@ -112,7 +112,8 @@ final class GridFSObjectRef(
         m: Materializer,
         w: BodyWritable[E]
       ): Sink[E, Future[A]] = {
-      implicit val ec: ExecutionContext = m.executionContext
+      val ec: ExecutionContext = m.executionContext
+      val _ = (ec, f, z)
       // Return a sink that ignores input and returns the initial value
       Sink.ignore.mapMaterializedValue { _ => Future.successful(z) }
     }

@@ -32,9 +32,14 @@ final class GridFSBucketRef(
       implicit
       ec: ExecutionContext
     ): Future[Boolean] =
-    transport.getDatabase.flatMap { db =>
-      db.collectionNames.map { names => names.contains(name) }
-    }
+    transport.getDatabase.flatMap(checkExists)
+
+  private def checkExists(
+      db: reactivemongo.api.DB
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Boolean] =
+    db.collectionNames.map { names => names.contains(name) }
 
   def create(
       failsIfExists: Boolean = false
@@ -42,16 +47,20 @@ final class GridFSBucketRef(
       ec: ExecutionContext
     ): Future[Unit] =
     transport.getDatabase.flatMap { db =>
-      if (failsIfExists) {
-        db.collectionNames.flatMap { names =>
-          if (names.contains(name)) {
-            Future.failed(
-              new RuntimeException(s"Bucket $name already exists")
-            )
-          } else {
-            Future.successful(())
-          }
-        }
+      if (failsIfExists) createWithCheck(db)
+      else Future.successful(())
+    }
+
+  private def createWithCheck(
+      db: reactivemongo.api.DB
+    )(implicit
+      ec: ExecutionContext
+    ): Future[Unit] =
+    db.collectionNames.flatMap { names =>
+      if (names.contains(name)) {
+        Future.failed(
+          new RuntimeException(s"Bucket $name already exists")
+        )
       } else {
         Future.successful(())
       }
@@ -67,8 +76,7 @@ final class GridFSBucketRef(
     )(implicit
       ec: ExecutionContext
     ): Future[Long] = {
-    @SuppressWarnings(Array("org.wartremover.warts.UnusedMethodParameter"))
-    val _ = (prefix, batchSize)
+    val _ = (prefix, batchSize, ec)
     Future.successful(0L)
   }
 
