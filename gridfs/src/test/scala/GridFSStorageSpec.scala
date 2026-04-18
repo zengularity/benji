@@ -4,8 +4,6 @@
 
 package tests.benji.gridfs
 
-import scala.concurrent.duration._
-
 import akka.stream.Materializer
 
 import org.specs2.concurrent.ExecutionEnv
@@ -13,9 +11,12 @@ import org.specs2.specification.AfterAll
 
 final class GridFSStorageSpec(
     implicit
+    @SuppressWarnings(Array("org.wartremover.warts.UnusedMethodParameter"))
     ee: ExecutionEnv)
     extends org.specs2.mutable.Specification
     with AfterAll {
+
+  locally { val _ = ee }
 
   "GridFS Cloud Storage".title
 
