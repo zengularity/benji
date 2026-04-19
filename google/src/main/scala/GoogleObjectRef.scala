@@ -144,7 +144,7 @@ final class GoogleObjectRef private[google] (
       }
       _ <- Future {
         @SuppressWarnings(Array("org.wartremover.warts.Null"))
-        gt.client
+        val _ = gt.client
           .objects()
           .copy(bucket, name, targetBucketName, targetObjectName, null)
           .execute()
