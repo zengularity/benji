@@ -4,7 +4,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import akka.stream.Materializer
-import akka.stream.scaladsl.{ Sink, Source }
+import akka.stream.scaladsl.Source
 
 import play.api.libs.ws.BodyWritable
 
@@ -445,7 +445,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
       def createFile(
           name: String
-        ): Sink[Array[Byte], scala.concurrent.Future[Long]] = {
+        ): Future[Long] = {
         val file = bucket.obj(name)
         val put = file.put[Array[Byte], Long]
 

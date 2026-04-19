@@ -140,7 +140,8 @@ trait ErrorCommonSpec extends BenjiMatchers {
           }
 
           "using chunks" in assertAllStagesStopped {
-            val threshold = objOfNonExistingBucket.defaultThreshold.bytes.toInt
+            val threshold: Int =
+              objOfNonExistingBucket.defaultThreshold.bytes.toInt
             def data = Array.fill(threshold * 2)('a'.toByte)
 
             put(objOfNonExistingBucket, data, 2) must throwA(
