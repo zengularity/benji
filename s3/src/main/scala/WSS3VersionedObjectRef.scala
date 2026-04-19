@@ -176,7 +176,7 @@ final class WSS3VersionedObjectRef(
             )
 
           case response => {
-            val errorHandler: WSS3Response => Throwable =
+            val errorHandler: play.api.libs.ws.StandaloneWSResponse => Throwable =
               ErrorHandler.ofVersion(
                 s"Could not delete version $versionId from object $name within bucket $bucket",
                 ref
