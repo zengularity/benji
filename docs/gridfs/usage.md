@@ -19,30 +19,36 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 import akka.NotUsed
 import akka.stream.Materializer
-import akka.stream.scaladsl.{ FileIO, Sink, Source }
+import akka.stream.scaladsl.{ Sink, Source }
 
-import akka.util.ByteString
+import scala.util.Success
 
 import com.zengularity.benji.{ Bucket, Object }
-import com.zengularity.benji.gridfs.GridFSStorage
+import com.zengularity.benji.gridfs.GridFSFactory
 
 def sample1(implicit m: Materializer): Future[Unit] = {
   implicit def ec: ExecutionContext = m.executionContext
 
   // Connect to MongoDB GridFS
-  lazy val gridfs = GridFSStorage("gridfs:mongodb://localhost:27017/my-storage")
+  val gridfsResult = GridFSFactory.create("gridfs:mongodb://localhost:27017/my-storage")
 
-  val buckets: Future[List[Bucket]] = gridfs.buckets.collect[List]()
+  gridfsResult match {
+    case Success(gridfs) =>
+      val buckets: Future[List[Bucket]] = gridfs.buckets.collect[List]()
 
-  buckets.flatMap {
-    _.headOption.fold(Future.successful(println("No buckets found"))) { firstBucket =>
-      val bucketRef = gridfs.bucket(firstBucket.name)
-      val objects: Source[Object, NotUsed] = bucketRef.objects()
-      
-      objects.runWith(Sink.foreach[Object] { obj =>
-        println(s"- ${obj.name}")
-      }).map(_ => {})
-    }
+      buckets.flatMap {
+        _.headOption.fold(Future.successful(println("No buckets found"))) { firstBucket =>
+          val bucketRef = gridfs.bucket(firstBucket.name)
+          val objects: Source[Object, NotUsed] = bucketRef.objects()
+          
+          objects.runWith(Sink.foreach[Object] { obj =>
+            println(s"- ${obj.name}")
+          }).map(_ => {})
+        }
+      }
+
+    case _ =>
+      Future.successful(println("Failed to connect to GridFS"))
   }
 }
 ```
@@ -54,19 +60,16 @@ Several factory methods create a GridFS `ObjectStorage`:
 ```scala
 import scala.util.Try
 import com.zengularity.benji.ObjectStorage
-import com.zengularity.benji.gridfs._
+import com.zengularity.benji.gridfs.GridFSFactory
 
-// Via configuration URI
+// Via factory helper (returns Try[ObjectStorage])
 def gridfs1: Try[ObjectStorage] =
-  Try(GridFSStorage("gridfs:mongodb://localhost:27017/my-storage"))
-
-// Via string URI directly
-def gridfs2: ObjectStorage =
-  GridFSStorage("gridfs:mongodb://localhost:27017/my-storage")
-
-// Via factory helper
-def gridfs3: ObjectStorage =
   GridFSFactory.create("gridfs:mongodb://localhost:27017/my-storage")
+
+// For example purposes, showing Success case
+def gridfs2: ObjectStorage =
+  GridFSFactory.create("gridfs:mongodb://localhost:27017/my-storage")
+    .get
 ```
 
 ### URI configuration
@@ -97,40 +100,50 @@ gridfs:mongodb://127.0.0.1:27017/benji
 import java.nio.file.Paths
 
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.Success
 
 import akka.stream.Materializer
-import akka.stream.scaladsl.{ FileIO, Sink }
+import akka.stream.scaladsl.FileIO
+import akka.util.ByteString
 
-import com.zengularity.benji.gridfs.GridFSStorage
+import play.api.libs.ws.BodyWritable
 
-def uploadFile(implicit m: Materializer): Future[Long] = {
+import com.zengularity.benji.gridfs.GridFSFactory
+
+def uploadFile(implicit m: Materializer, w: BodyWritable[ByteString]): Future[Unit] = {
   implicit def ec: ExecutionContext = m.executionContext
 
-  val gridfs = GridFSStorage("gridfs:mongodb://localhost:27017/my-storage")
-  val bucket = gridfs.bucket("my-bucket")
-  val obj = bucket.obj("my-file.txt")
+  GridFSFactory.create("gridfs:mongodb://localhost:27017/my-storage") match {
+    case Success(gridfs) =>
+      val bucket = gridfs.bucket("my-bucket")
+      val obj = bucket.obj("my-file.txt")
 
-  // Upload from file
-  val path = Paths.get("/path/to/local/file.txt")
-  val upload = FileIO.fromPath(path).runWith(obj.put[Long](0L) { (count, chunk) =>
-    Future.successful(count + chunk.size)
-  })
+      // Upload from file
+      val path = Paths.get("/path/to/local/file.txt")
+      FileIO.fromPath(path).runWith(obj.put[ByteString]).map(_ => ())
 
-  upload
+    case _ =>
+      Future.failed(new Exception("Failed to initialize GridFS storage"))
+  }
 }
 
 def downloadFile(implicit m: Materializer): Future[Long] = {
   implicit def ec: ExecutionContext = m.executionContext
 
-  val gridfs = GridFSStorage("gridfs:mongodb://localhost:27017/my-storage")
-  val bucket = gridfs.bucket("my-bucket")
-  val obj = bucket.obj("my-file.txt")
+  GridFSFactory.create("gridfs:mongodb://localhost:27017/my-storage") match {
+    case Success(gridfs) =>
+      val bucket = gridfs.bucket("my-bucket")
+      val obj = bucket.obj("my-file.txt")
 
-  // Download to file
-  val path = Paths.get("/path/to/destination.txt")
-  val download = obj.get().runWith(FileIO.toPath(path))
+      // Download to file
+      val path = Paths.get("/path/to/destination.txt")
+      val download = obj.get().runWith(FileIO.toPath(path))
 
-  download.map(_.count)
+      download.map(_.count)
+
+    case _ =>
+      Future.failed(new Exception("Failed to initialize GridFS storage"))
+  }
 }
 ```
 
@@ -138,30 +151,31 @@ def downloadFile(implicit m: Materializer): Future[Long] = {
 
 ```scala
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.Success
 
 import akka.stream.Materializer
 
-import com.zengularity.benji.gridfs.GridFSStorage
+import com.zengularity.benji.gridfs.GridFSFactory
 
 def bucketOps(implicit m: Materializer): Future[Unit] = {
   implicit def ec: ExecutionContext = m.executionContext
 
-  val gridfs = GridFSStorage("gridfs:mongodb://localhost:27017/my-storage")
+  GridFSFactory.create("gridfs:mongodb://localhost:27017/my-storage") match {
+    case Success(gridfs) =>
+      // List all buckets
+      val allBucketsF = gridfs.buckets.collect[List]()
 
-  // List all buckets
-  val allBuckets = gridfs.buckets.collect[List]()
+      // Create a bucket
+      val newBucket = gridfs.bucket("new-bucket").create()
 
-  // Create a bucket
-  val newBucket = gridfs.bucket("new-bucket").create()
+      // Delete bucket
+      val delete = gridfs.bucket("to-delete").delete()
 
-  // Check bucket exists
-  val bucketRef = gridfs.bucket("existing-bucket")
-  val exists = bucketRef.exists()
+      Future.sequence(Seq(allBucketsF.map(_ => ()), newBucket, delete)).map(_ => ())
 
-  // Delete bucket
-  val delete = bucketRef.delete()
-
-  Future.sequence(Seq(newBucket, exists, delete)).map(_ => ())
+    case _ =>
+      Future.failed(new Exception("Failed to initialize GridFS storage"))
+  }
 }
 ```
 

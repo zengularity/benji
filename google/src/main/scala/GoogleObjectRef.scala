@@ -614,7 +614,7 @@ final class GoogleObjectRef private[google] (
             nextToken.fold(maxed.execute()) { maxed.setPageToken(_).execute() }
 
           val (currentPage, empty): (
-              akka.stream.scaladsl.Source[VersionedObject, akka.NotUsed],
+              Source[VersionedObject, NotUsed],
               Boolean
             ) = Option(request.getItems) match {
             case Some(items) => {

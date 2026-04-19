@@ -21,6 +21,7 @@ import com.zengularity.benji.{
   ObjectRef,
   ObjectVersioning
 }
+import reactivemongo.api.bson.BSONDocument
 
 /**
  * GridFS object reference.
@@ -44,7 +45,16 @@ final class GridFSObjectRef(
       implicit
       ec: ExecutionContext
     ): Future[Boolean] =
-    Future.successful(false) // TODO: Query GridFS
+    transport.getDatabase.flatMap { db =>
+      val filesCollection = db.collection(s"$bucket.files")
+      filesCollection
+        .find(
+          selector = BSONDocument("filename" -> name),
+          projection = Some(BSONDocument("_id" -> 1))
+        )
+        .one[BSONDocument]
+        .map(_.isDefined)
+    }
 
   def headers(
     )(implicit
@@ -72,7 +82,7 @@ final class GridFSObjectRef(
       ec: ExecutionContext
     ): Future[Unit] = {
     copyTo(targetBucketName, targetObjectName).flatMap { _ =>
-      delete().flatMap(_ => Future.successful(()))
+      delete().flatMap(_ => Future.successful({}))
     }
   }
 

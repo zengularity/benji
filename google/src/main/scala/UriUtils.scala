@@ -7,6 +7,8 @@ package com.zengularity.benji.google
 import java.io.ByteArrayOutputStream
 import java.util
 
+import scala.collection.immutable.Vector
+
 private[google] object UriUtils {
 
   /*
@@ -45,12 +47,12 @@ private[google] object UriUtils {
   private def pchar: Seq[Char] = {
     // RFC 3986, 2.3. Unreserved Characters
     // unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
-    val alphaDigit: scala.collection.immutable.Vector[Char] =
+    val alphaDigit: Vector[Char] =
       (for (
         (min, max) <- Seq(('a', 'z'), ('A', 'Z'), ('0', '9')); c <- min to max
       ) yield c).toVector
 
-    val unreserved: scala.collection.immutable.Vector[Char] =
+    val unreserved: Vector[Char] =
       (alphaDigit ++ Seq('-', '.', '_', '~')).toVector
 
     // RFC 3986, 2.2. Reserved Characters

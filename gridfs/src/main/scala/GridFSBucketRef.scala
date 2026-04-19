@@ -12,6 +12,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 
 import com.zengularity.benji.{ BucketRef, BucketVersioning, Object, ObjectRef }
+import com.zengularity.benji.exception.BucketAlreadyExistsException
 
 /**
  * GridFS bucket reference.
@@ -40,7 +41,7 @@ final class GridFSBucketRef(
     )(implicit
       ec: ExecutionContext
     ): Future[Boolean] =
-    db.collectionNames.map { names => names.contains(name) }
+    db.collectionNames.map { _.contains(name) }
 
   def create(
       failsIfExists: Boolean = false
@@ -59,9 +60,7 @@ final class GridFSBucketRef(
     ): Future[Unit] =
     db.collectionNames.flatMap { names =>
       if (names contains name) {
-        Future.failed(
-          new RuntimeException(s"Bucket $name already exists")
-        )
+        Future.failed(new BucketAlreadyExistsException(name))
       } else {
         Future.successful(())
       }

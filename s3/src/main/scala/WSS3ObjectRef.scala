@@ -397,7 +397,7 @@ final class WSS3ObjectRef private[s3] (
     private def checkExists(
         implicit
         ec: ExecutionContext
-      ): scala.concurrent.Future[Unit] = {
+      ): Future[Unit] = {
       if (ignoreExists) {
         Future.successful({}) // .unit > 2.12
       } else {

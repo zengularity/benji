@@ -16,9 +16,8 @@ import com.zengularity.benji.{
 }
 
 import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.{ Expectable, Matcher, Matchers }
+import org.specs2.matcher.{ Expectable, MatchResult, Matcher, Matchers }
 
-@SuppressWarnings(Array("OfflerGoodCodeSemantic.missingDeclType"))
 trait BenjiMatchers { self: Matchers =>
 
   sealed trait Named[T] {
@@ -186,30 +185,31 @@ trait BenjiMatchers { self: Matchers =>
     val sleep = duration * 2.2D
 
     val xm = new Matcher[T] {
-      def apply[U <: T](e: Expectable[U]) = {
+      def apply[U <: T](e: Expectable[U]): MatchResult[U] = {
         val n = nmd(e.value)
 
-        val underlying = {
+        val underlying: Matcher[Boolean] = {
           if (expected) existsMatcher(n)
           else doesntExistMatcher(n)
         }
 
-        val m = underlying.awaitFor(duration).eventually(tries, sleep) ^^ exists
+        val m: Matcher[T] =
+          underlying.awaitFor(duration).eventually(tries, sleep) ^^ exists
 
         m(e)
       }
     }
 
     val cm = new Matcher[T] {
-      def apply[U <: T](e: Expectable[U]) = {
+      def apply[U <: T](e: Expectable[U]): MatchResult[U] = {
         val n = nmd(e.value)
 
-        val underlying = {
+        val underlying: Matcher[Boolean] = {
           if (expected) containsMatcher(n)
           else doesntContainMatcher(n)
         }
 
-        val m =
+        val m: Matcher[T] =
           underlying.awaitFor(duration).eventually(tries, sleep) ^^ contains
 
         m(e)

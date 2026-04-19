@@ -147,6 +147,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
                 } and {
                   val before: Long =
                     Instant.now.minusSeconds(300).getEpochSecond
+
                   val after: Long = Instant.now.plusSeconds(300).getEpochSecond
 
                   firstVer.versionCreatedAt.toEpochSecond(
@@ -320,6 +321,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
                 } and {
                   val before: Long =
                     Instant.now.minusSeconds(300).getEpochSecond
+
                   val after: Long = Instant.now.plusSeconds(300).getEpochSecond
 
                   ver.versionCreatedAt.toEpochSecond(
@@ -495,6 +497,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
                   } and {
                     val before: Long =
                       Instant.now.minusSeconds(300).getEpochSecond
+
                     val after: Long =
                       Instant.now.plusSeconds(300).getEpochSecond
 
@@ -513,6 +516,7 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
                   } and {
                     val before: Long =
                       Instant.now.minusSeconds(300).getEpochSecond
+
                     val after: Long =
                       Instant.now.plusSeconds(300).getEpochSecond
 

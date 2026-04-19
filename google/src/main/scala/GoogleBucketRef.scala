@@ -72,7 +72,7 @@ final class GoogleBucketRef private[google] (
             prefixed.setPageToken(_).execute()
           }
 
-          val currentPage: akka.stream.scaladsl.Source[Object, akka.NotUsed] =
+          val currentPage: Source[Object, NotUsed] =
             Option(request.getItems) match {
               case Some(items) =>
                 Source.fromIterator[Object] { () =>
@@ -182,7 +182,7 @@ final class GoogleBucketRef private[google] (
       ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
-      val rawResult: scala.concurrent.Future[Unit] = {
+      val rawResult: Future[Unit] = {
         if (!isRecursive) delete()
         else emptyBucket().flatMap(_ => delete())
       }
@@ -329,7 +329,7 @@ final class GoogleBucketRef private[google] (
             prefixed.setPageToken(_).execute()
           }
 
-          val currentPage: akka.stream.scaladsl.Source[VersionedObject, akka.NotUsed] =
+          val currentPage: Source[VersionedObject, NotUsed] =
             Option(request.getItems) match {
               case Some(items) => {
                 val collection: List[StorageObject] =
