@@ -236,7 +236,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     "Write and copy file" in assertAllStagesStopped {
       // TODO: Remove once NIC storage store URL-encoded x-amz-copy-source
       // See https://github.com/zengularity/benji/pull/23
-      val sourceName = {
+      val sourceName: String = {
         if (storageKind == "ceph") "ceph.txt"
         else if (storageKind == "vfs") "vfs.txt"
         else "Capture d’écran 2018-11-14 à 09.35.49 (1).png"
@@ -287,7 +287,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
           target: ObjectRef,
           preventOverwrite: Boolean = true
         )(onMove: (ObjectRef, ObjectRef, Future[Unit]) => MatchResult[R]
-        ) = {
+        ): MatchResult[Any] = {
         val src =
           defaultBucketRef.obj(s"testsrc-${random.nextInt().toString}.txt")
 
@@ -322,15 +322,16 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val targetObj =
         defaultBucketRef.obj(s"testfile4-${random.nextInt().toString}.txt")
 
-      val successful = { (_: ObjectRef, _: ObjectRef, res: Future[Unit]) =>
-        res must beDone.await(2, 3.seconds)
+      val successful: (ObjectRef, ObjectRef, Future[Unit]) => MatchResult[Any] = {
+        (_: ObjectRef, _: ObjectRef, res: Future[Unit]) =>
+          res must beDone.await(2, 3.seconds)
       }
 
       @inline def failed(
           src: ObjectRef,
           target: ObjectRef,
           res: Future[Unit]
-        ) = {
+        ): MatchResult[Any] = {
         res.recover { case _: IllegalStateException => () } must beDone.await(
           2,
           3.seconds

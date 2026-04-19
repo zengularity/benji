@@ -145,8 +145,9 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
                 firstVer.name must_=== objectName and {
                   firstVer.size.bytes must_=== "hello".length.toLong
                 } and {
-                  val before = Instant.now.minusSeconds(300).getEpochSecond
-                  val after = Instant.now.plusSeconds(300).getEpochSecond
+                  val before: Long =
+                    Instant.now.minusSeconds(300).getEpochSecond
+                  val after: Long = Instant.now.plusSeconds(300).getEpochSecond
 
                   firstVer.versionCreatedAt.toEpochSecond(
                     ZoneOffset.UTC
@@ -183,7 +184,8 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
                         val before =
                           ver.versionCreatedAt.toEpochSecond(ZoneOffset.UTC)
 
-                        val after = Instant.now.plusSeconds(300).getEpochSecond
+                        val after: Long =
+                          Instant.now.plusSeconds(300).getEpochSecond
 
                         ver.versionCreatedAt.toEpochSecond(
                           ZoneOffset.UTC
@@ -316,8 +318,9 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
                 } and {
                   ver.size.bytes must_=== 5L // "hello".length.toLong
                 } and {
-                  val before = Instant.now.minusSeconds(300).getEpochSecond
-                  val after = Instant.now.plusSeconds(300).getEpochSecond
+                  val before: Long =
+                    Instant.now.minusSeconds(300).getEpochSecond
+                  val after: Long = Instant.now.plusSeconds(300).getEpochSecond
 
                   ver.versionCreatedAt.toEpochSecond(
                     ZoneOffset.UTC
@@ -490,8 +493,10 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
                   } and {
                     v1.size.bytes must_=== "test v1".length.toLong
                   } and {
-                    val before = Instant.now.minusSeconds(300).getEpochSecond
-                    val after = Instant.now.plusSeconds(300).getEpochSecond
+                    val before: Long =
+                      Instant.now.minusSeconds(300).getEpochSecond
+                    val after: Long =
+                      Instant.now.plusSeconds(300).getEpochSecond
 
                     v1.versionCreatedAt.toEpochSecond(
                       ZoneOffset.UTC
@@ -506,8 +511,10 @@ trait VersioningCommonSpec extends BenjiMatchers with ErrorCommonSpec {
                   } and {
                     v2.size.bytes must_=== "test v1.1".length.toLong
                   } and {
-                    val before = Instant.now.minusSeconds(300).getEpochSecond
-                    val after = Instant.now.plusSeconds(300).getEpochSecond
+                    val before: Long =
+                      Instant.now.minusSeconds(300).getEpochSecond
+                    val after: Long =
+                      Instant.now.plusSeconds(300).getEpochSecond
 
                     v2.versionCreatedAt.toEpochSecond(
                       ZoneOffset.UTC

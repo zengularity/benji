@@ -98,7 +98,7 @@ final class PlaySpec extends org.specs2.mutable.Specification {
     }
 
     "be initialized from custom application context" >> {
-      def benji(n: String = "default") = {
+      def benji(n: String = "default"): ObjectStorage = {
         val apiFromCustomCtx = new BenjiFromContext(PlayUtil.context, n) {
           lazy val router = play.api.routing.Router.empty
 
@@ -150,7 +150,7 @@ final class PlaySpec extends org.specs2.mutable.Specification {
 
   // ---
 
-  private def configuredAppBuilder = {
+  private def configuredAppBuilder: play.api.Application = {
     val env = play.api.Environment.simple(mode = play.api.Mode.Test)
     val config = play.api.Configuration.load(env)
 
