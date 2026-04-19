@@ -12,7 +12,7 @@ import com.zengularity.benji.BucketRef
 abstract class BenjiException extends IOException
 
 /** An unknown error */
-final case class BenjiUnknownError( // scalafix:ok OfflerGoodCodeSyntax.caseClassWithDefault
+final case class BenjiUnknownError(
     message: String,
     throwable: Option[Throwable] = None)
     extends BenjiException {
