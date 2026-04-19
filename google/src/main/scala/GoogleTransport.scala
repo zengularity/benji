@@ -195,7 +195,7 @@ final class GoogleTransport(
   /*
    * [[https://cloud.google.com/storage/quotas 1 operation per 2-second limit]]
    */
-  private val bucketOpFlow = {
+  private val bucketOpFlow: Flow[BucketOp, Unit, NotUsed] = {
     @SuppressWarnings(Array("org.wartremover.warts.Var"))
     @volatile var errors = 0L // successive errors
 
@@ -335,7 +335,7 @@ object GoogleTransport {
     )(implicit
       ws: StandaloneAhcWSClient
     ): GoogleTransport = {
-    val build = { (creds: GoogleCredentials) =>
+    val build: GoogleCredentials => Storage = { (creds: GoogleCredentials) =>
       new Storage.Builder(http, json, new HttpCredentialsAdapter(creds))
         .setApplicationName(application)
         .setRootUrl(baseRestUrl)
@@ -434,7 +434,7 @@ object GoogleTransport {
         val uri = new URI(builtUri.getSchemeSpecificPart)
         val scheme = uri.getScheme
 
-        val credentialStream = scheme match {
+        val credentialStream: java.io.InputStream = scheme match {
           case "classpath" =>
             getClass.getResourceAsStream("/" + uri.getHost + uri.getPath)
 

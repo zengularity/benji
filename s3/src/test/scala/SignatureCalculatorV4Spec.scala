@@ -12,7 +12,7 @@ final class SignatureCalculatorV4Spec extends org.specs2.mutable.Specification {
   "Canonical request" should {
     // Examples from https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
 
-    val req1 = {
+    val req1: play.shaded.ahc.org.asynchttpclient.Request = {
       @SuppressWarnings(Array("org.wartremover.warts.Null"))
       def build() = new RequestBuilder()
         .setUrl(

@@ -50,14 +50,14 @@ object StorageTestbench {
       port: Int,
       timeout: Long
     ): Try[Unit] = {
-    val deadline = System.currentTimeMillis() + timeout
+    val deadline: Long = System.currentTimeMillis() + timeout
     val url = s"http://$host:$port"
 
     var lastError: Option[Throwable] = None
 
     while (System.currentTimeMillis() < deadline) {
       try {
-        val conn =
+        val conn: java.net.HttpURLConnection =
           new URL(url).openConnection().asInstanceOf[HttpURLConnection]
 
         conn.setConnectTimeout(500)

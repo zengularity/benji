@@ -36,9 +36,10 @@ final class SignatureCalculatorV1Spec extends org.specs2.mutable.Specification {
         url: String,
         host: String,
         path: String
-      ) = s"be '$path' for $url with $host" in {
-      calculator.canonicalizeResource(style, url, host) must_== path
-    }
+      ): org.specs2.specification.core.Fragment =
+      s"be '$path' for $url with $host" in {
+        calculator.canonicalizeResource(style, url, host) must_== path
+      }
 
     def vhResTest(url: String, host: String, path: String) =
       resForTest(VirtualHostRequest, url, host, path)

@@ -397,7 +397,7 @@ final class WSS3ObjectRef private[s3] (
     private def checkExists(
         implicit
         ec: ExecutionContext
-      ) = {
+      ): scala.concurrent.Future[Unit] = {
       if (ignoreExists) {
         Future.successful({}) // .unit > 2.12
       } else {
@@ -459,10 +459,11 @@ final class WSS3ObjectRef private[s3] (
               )
 
             case response => {
-              val handler = ErrorHandler.ofBucket(
-                s"Could not update the contents of the object $name in $bucket",
-                bucket
-              )(_)
+              val handler: StandaloneWSResponse => Throwable =
+                ErrorHandler.ofBucket(
+                  s"Could not update the contents of the object $name in $bucket",
+                  bucket
+                )(_)
 
               Future.failed[Unit](handler(response))
             }
@@ -489,7 +490,8 @@ final class WSS3ObjectRef private[s3] (
     ): Flow[(Chunk, String), A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
-    @inline def zst = (Option.empty[String], List.empty[String], z)
+    @inline def zst: (Option[String], List[String], A) =
+      (Option.empty[String], List.empty[String], z)
 
     Flow
       .apply[(Chunk, String)]
@@ -540,10 +542,11 @@ final class WSS3ObjectRef private[s3] (
         }
 
         case response => {
-          val handler = ErrorHandler.ofBucket(
-            s"Could not initiate the upload for object $name in $bucket",
-            bucket
-          )(_)
+          val handler: StandaloneWSResponse => Throwable =
+            ErrorHandler.ofBucket(
+              s"Could not initiate the upload for object $name in $bucket",
+              bucket
+            )(_)
 
           Future.failed[String](handler(response))
         }
@@ -596,10 +599,11 @@ final class WSS3ObjectRef private[s3] (
         )
 
       case response => {
-        val handler = ErrorHandler.ofBucket(
-          s"Could not upload a part for [$bucket/$name, $uploadId, part: ${partNumber.toString}]",
-          bucket
-        )(_)
+        val handler: StandaloneWSResponse => Throwable =
+          ErrorHandler.ofBucket(
+            s"Could not upload a part for [$bucket/$name, $uploadId, part: ${partNumber.toString}]",
+            bucket
+          )(_)
 
         Future.failed[String](handler(response))
       }
@@ -627,8 +631,9 @@ final class WSS3ObjectRef private[s3] (
         val result: List[Elem] = etags.zipWithIndex.map {
           case (etag, partNumber) =>
             // Part numbers start at index 1 rather than 0
-            <Part><PartNumber>partNumber + 1).toString
-            </PartNumber><ETag>{etag}</ETag></Part>
+            <Part><PartNumber>{(partNumber + 1).toString}</PartNumber><ETag>{
+              etag
+            }</ETag></Part>
         }
 
         result
@@ -641,10 +646,11 @@ final class WSS3ObjectRef private[s3] (
           )
 
         case response => {
-          val handler = ErrorHandler.ofBucket(
-            s"Could not complete the upload for [$bucket/$name, $uploadId]",
-            bucket
-          )(_)
+          val handler: StandaloneWSResponse => Throwable =
+            ErrorHandler.ofBucket(
+              s"Could not complete the upload for [$bucket/$name, $uploadId]",
+              bucket
+            )(_)
 
           Future.failed[Unit](handler(response))
         }
@@ -715,10 +721,11 @@ final class WSS3ObjectRef private[s3] (
         )
       }
 
-      val errorHandler = ErrorHandler.ofObject(
-        s"Could not list versions of object $name in bucket $bucket",
-        ref
-      )(_)
+      val errorHandler: StandaloneWSResponse => Throwable =
+        ErrorHandler.ofObject(
+          s"Could not list versions of object $name in bucket $bucket",
+          ref
+        )(_)
 
       WSS3BucketRef.list[VersionedObject](
         ref.storage,

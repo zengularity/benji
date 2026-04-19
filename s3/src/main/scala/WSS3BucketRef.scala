@@ -60,7 +60,7 @@ final class WSS3BucketRef private[s3] (
     )(implicit
       ec: ExecutionContext
     ): Future[Unit] = {
-    val before = {
+    val before: scala.concurrent.Future[Unit] = {
       if (failsIfExists) {
         exists.flatMap {
           case true  => Future.failed[Unit](BucketAlreadyExistsException(name))
@@ -169,7 +169,7 @@ final class WSS3BucketRef private[s3] (
     ): Future[Unit] = {
     import play.api.libs.ws.DefaultBodyWritables._
 
-    val body =
+    val body: scala.xml.Elem =
       <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
         <Status>{if (enabled) "Enabled" else "Suspended"}</Status>
       </VersioningConfiguration>
@@ -250,10 +250,11 @@ final class WSS3BucketRef private[s3] (
         )
       }
 
-      val errorHandler = ErrorHandler.ofBucket(
-        s"Could not list objects within the bucket $name",
-        ref
-      )(_)
+      val errorHandler: StandaloneWSResponse => Throwable =
+        ErrorHandler.ofBucket(
+          s"Could not list objects within the bucket $name",
+          ref
+        )(_)
 
       WSS3BucketRef.list[Object](ref.storage, ref.name, token, errorHandler)(
         query,
@@ -372,10 +373,11 @@ final class WSS3BucketRef private[s3] (
         )
       }
 
-      val errorHandler = ErrorHandler.ofBucket(
-        s"Could not list versions within the bucket $name",
-        ref
-      )(_)
+      val errorHandler: StandaloneWSResponse => Throwable =
+        ErrorHandler.ofBucket(
+          s"Could not list versions within the bucket $name",
+          ref
+        )(_)
 
       WSS3BucketRef.list[VersionedObject](
         ref.storage,
@@ -417,7 +419,7 @@ private[s3] object WSS3BucketRef {
 
     S3.getXml[T](request)(
       { xml =>
-        def isTruncated = (xml \ "IsTruncated").text.toBoolean
+        def isTruncated: Boolean = (xml \ "IsTruncated").text.toBoolean
 
         val parsed = parse(xml)
 

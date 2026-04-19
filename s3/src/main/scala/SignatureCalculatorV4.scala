@@ -164,12 +164,12 @@ private[s3] final class SignatureCalculatorV4(
     ): (String, String) = {
     val headers: HttpHeaders = request.getHeaders
 
-    val it = {
+    val it: scala.collection.mutable.Buffer[(String, String)] = {
       val hs = headers.entries.asScala.map { entry =>
         entry.getKey.toLowerCase(Locale.US) -> entry.getValue
       }
 
-      val withEnsuredDateHeader = {
+      val withEnsuredDateHeader: scala.collection.mutable.Buffer[(String, String)] = {
         if (headers.get("x-amz-date") == null) {
           (("x-amz-date" -> awsDate) +: hs)
         } else {

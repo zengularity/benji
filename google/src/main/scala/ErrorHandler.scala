@@ -98,7 +98,7 @@ private[google] object ErrorHandler {
       bucketName: String
     ): Throwable => Throwable = {
     case g: GoogleJsonResponseException => {
-      val msg = {
+      val msg: String = {
         if (g.getDetails == null) g.getMessage
         else g.getDetails.getMessage
       }

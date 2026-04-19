@@ -77,15 +77,13 @@ object TestUtils {
     val application = s"benji-tests-${System.identityHashCode(this).toString}"
 
     // If testbench is enabled, use its endpoint; otherwise use default GCS
-    = {
-     if (isTestbenchEnabled) {
-        val host = config.getString("google.storage.testbench.host")
-        val port = config.getInt("google.storage.testbench.port")
+    if (isTestbenchEnabled) {
+      val host = config.getString("google.storage.testbench.host")
+      val port = config.getInt("google.storage.testbench.port")
 
-        s"google:classpath://gcs-test.json?application=$application&projectId=$projectId&baseRestUrl=http://$host:$port"
-      } else {
-        s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
-      }
+      s"google:classpath://gcs-test.json?application=$application&projectId=$projectId&baseRestUrl=http://$host:$port"
+    } else {
+      s"google:classpath://gcs-test.json?application=$application&projectId=$projectId"
     }
   }
 

@@ -42,9 +42,9 @@ trait S3Spec extends BenjiMatchers {
           ): Source[Object, akka.NotUsed]
       }
 
-      val ls = {
+      val ls: bucket.ListRequest with StructType = {
         @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
-        val result = bucket.objects
+        val result: bucket.ListRequest with StructType = bucket.objects
           .withBatchSize(6)
           .asInstanceOf[bucket.ListRequest with StructType]
         result

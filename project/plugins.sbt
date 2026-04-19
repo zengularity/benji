@@ -1,6 +1,7 @@
 resolvers ++= Seq(
   "Tatami Releases" at "https://raw.githubusercontent.com/cchantep/tatami/master/releases",
-  Resolver.typesafeIvyRepo("releases")
+  Resolver.typesafeIvyRepo("releases"),
+  "Sonatype Snapshots" at "https://central.sonatype.com/repository/maven-snapshots/"
 )
 
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.10.0-RC1")

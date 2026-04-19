@@ -226,7 +226,7 @@ private[s3] class SignatureCalculatorV1(
         val canonicalHost = host.split(':').headOption.getOrElse(host)
         val suffix = s".$canonicalHost"
 
-        val bucket = {
+        val bucket: String = {
           if (requestHost endsWith suffix) requestHost.stripSuffix(suffix)
           else ""
         }

@@ -72,23 +72,24 @@ final class GoogleBucketRef private[google] (
             prefixed.setPageToken(_).execute()
           }
 
-          val currentPage = Option(request.getItems) match {
-            case Some(items) =>
-              Source.fromIterator[Object] { () =>
-                collectionAsScalaIterable(items).iterator.map { obj =>
-                  Object(
-                    obj.getName,
-                    Bytes(obj.getSize.longValue),
-                    LocalDateTime.ofInstant(
-                      Instant.ofEpochMilli(obj.getUpdated.getValue),
-                      ZoneOffset.UTC
+          val currentPage: akka.stream.scaladsl.Source[Object, akka.NotUsed] =
+            Option(request.getItems) match {
+              case Some(items) =>
+                Source.fromIterator[Object] { () =>
+                  collectionAsScalaIterable(items).iterator.map { obj =>
+                    Object(
+                      obj.getName,
+                      Bytes(obj.getSize.longValue),
+                      LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(obj.getUpdated.getValue),
+                        ZoneOffset.UTC
+                      )
                     )
-                  )
+                  }
                 }
-              }
 
-            case _ => Source.empty[Object]
-          }
+              case _ => Source.empty[Object]
+            }
 
           Option(request.getNextPageToken) match {
             case nextPageToken @ Some(_) =>
@@ -181,7 +182,7 @@ final class GoogleBucketRef private[google] (
       ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
-      val rawResult = {
+      val rawResult: scala.concurrent.Future[Unit] = {
         if (!isRecursive) delete()
         else emptyBucket().flatMap(_ => delete())
       }
@@ -328,41 +329,44 @@ final class GoogleBucketRef private[google] (
             prefixed.setPageToken(_).execute()
           }
 
-          val currentPage = Option(request.getItems) match {
-            case Some(items) => {
-              val collection = collectionAsScalaIterable(items).toList
+          val currentPage: akka.stream.scaladsl.Source[VersionedObject, akka.NotUsed] =
+            Option(request.getItems) match {
+              case Some(items) => {
+                val collection: List[StorageObject] =
+                  collectionAsScalaIterable(items).toList
 
-              // Group by name to find the latest generation per object
-              val latestGenerations: Map[String, Long] =
-                collection.groupBy(_.getName).map {
-                  case (n, objs) =>
-                    n -> objs.map(_.getGeneration.longValue).max
-                }
+                // Group by name to find the latest generation per object
+                val latestGenerations: Map[String, Long] =
+                  collection.groupBy(_.getName).map {
+                    case (n, objs) =>
+                      n -> objs.map(_.getGeneration.longValue).max
+                  }
 
-              Source.fromIterator[VersionedObject] { () =>
-                collection.iterator.map { (obj: StorageObject) =>
-                  val isLatest = obj.getTimeDeleted == null &&
-                    obj.getGeneration.longValue == latestGenerations.getOrElse(
+                Source.fromIterator[VersionedObject] { () =>
+                  collection.iterator.map { (obj: StorageObject) =>
+                    val isLatest: Boolean = obj.getTimeDeleted == null &&
+                      obj.getGeneration.longValue == latestGenerations
+                        .getOrElse(
+                          obj.getName,
+                          -1L
+                        )
+
+                    VersionedObject(
                       obj.getName,
-                      -1L
+                      Bytes(obj.getSize.longValue),
+                      LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(obj.getUpdated.getValue),
+                        ZoneOffset.UTC
+                      ),
+                      obj.getGeneration.toString,
+                      isLatest
                     )
-
-                  VersionedObject(
-                    obj.getName,
-                    Bytes(obj.getSize.longValue),
-                    LocalDateTime.ofInstant(
-                      Instant.ofEpochMilli(obj.getUpdated.getValue),
-                      ZoneOffset.UTC
-                    ),
-                    obj.getGeneration.toString,
-                    isLatest
-                  )
+                  }
                 }
               }
-            }
 
-            case _ => Source.empty[VersionedObject]
-          }
+              case _ => Source.empty[VersionedObject]
+            }
 
           Option(request.getNextPageToken) match {
             case nextPageToken @ Some(_) =>

@@ -45,12 +45,13 @@ private[google] object UriUtils {
   private def pchar: Seq[Char] = {
     // RFC 3986, 2.3. Unreserved Characters
     // unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
-    val alphaDigit =
-      for (
+    val alphaDigit: scala.collection.immutable.Vector[Char] =
+      (for (
         (min, max) <- Seq(('a', 'z'), ('A', 'Z'), ('0', '9')); c <- min to max
-      ) yield c
+      ) yield c).toVector
 
-    val unreserved = alphaDigit ++ Seq('-', '.', '_', '~')
+    val unreserved: scala.collection.immutable.Vector[Char] =
+      (alphaDigit ++ Seq('-', '.', '_', '~')).toVector
 
     // RFC 3986, 2.2. Reserved Characters
     // sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"

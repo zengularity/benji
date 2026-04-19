@@ -50,8 +50,9 @@ final class S3CephSpec
         def part(b: Byte) =
           Array.fill[Byte](filetest.defaultThreshold.bytes.toInt)(b)
 
-        def body = Source.single("hello world !!!" getBytes "UTF-8") ++ Source
-          .fromIterator(() => Seq(part(1), part(2), part(3)).iterator)
+        def body: akka.stream.scaladsl.Source[Array[Byte], akka.NotUsed] =
+          Source.single("hello world !!!" getBytes "UTF-8") ++ Source
+            .fromIterator(() => Seq(part(1), part(2), part(3)).iterator)
 
         type PutReq = filetest.RESTPutRequest[Array[Byte], Unit]
 

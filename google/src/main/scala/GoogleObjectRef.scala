@@ -47,7 +47,7 @@ final class GoogleObjectRef private[google] (
     with ObjectVersioning { ref =>
   import GoogleObjectRef.ResumeIncomplete
 
-  @inline def defaultThreshold = GoogleObjectRef.defaultThreshold
+  @inline def defaultThreshold: Bytes = GoogleObjectRef.defaultThreshold
 
   import Compat.javaConverters._
   import storage.{ logger, transport => gt }
@@ -317,10 +317,10 @@ final class GoogleObjectRef private[google] (
     implicit def ec: ExecutionContext = m.executionContext
 
     Flow[Chunk].limit(1).flatMapConcat { single =>
-      lazy val typ = contentType getOrElse "application/octet-stream"
+      lazy val typ: String = contentType getOrElse "application/octet-stream"
       def content = new ByteArrayContent(typ, single.data.toArray)
 
-      def obj = {
+      def obj: StorageObject = {
         val so = new StorageObject()
 
         so.setBucket(bucket)
@@ -366,7 +366,8 @@ final class GoogleObjectRef private[google] (
     ): Flow[(Chunk, String), A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
-    @inline def zst = (Option.empty[String], 0L, firstChunk, z)
+    @inline def zst: (Option[String], Long, Chunk, A) =
+      (Option.empty[String], 0L, firstChunk, z)
 
     Flow
       .apply[(Chunk, String)]
@@ -612,19 +613,23 @@ final class GoogleObjectRef private[google] (
           val request =
             nextToken.fold(maxed.execute()) { maxed.setPageToken(_).execute() }
 
-          val (currentPage, empty) = Option(request.getItems) match {
+          val (currentPage, empty): (
+              akka.stream.scaladsl.Source[VersionedObject, akka.NotUsed],
+              Boolean
+            ) = Option(request.getItems) match {
             case Some(items) => {
-              val collection = items.asScala.filter(_.getName == name).toList
+              val collection: List[StorageObject] =
+                items.asScala.filter(_.getName == name).toList
 
               // Find the latest generation for this object
-              val latestGen = {
+              val latestGen: Long = {
                 if (collection.isEmpty) -1L
                 else collection.map(_.getGeneration.longValue).max
               }
 
               val source = Source.fromIterator[VersionedObject] { () =>
                 collection.iterator.map { (obj: StorageObject) =>
-                  val isLatest = obj.getTimeDeleted == null &&
+                  val isLatest: Boolean = obj.getTimeDeleted == null &&
                     obj.getGeneration.longValue == latestGen
 
                   VersionedObject(

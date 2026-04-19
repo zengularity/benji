@@ -31,7 +31,12 @@ object TestUtils {
   implicit lazy val WS: play.api.libs.ws.ahc.StandaloneAhcWSClient =
     S3.client()(materializer)
 
-  private lazy val (awsAccessKey, awsSecretKey, awsHost, awsProtocol) = (
+  private lazy val (
+    awsAccessKey,
+    awsSecretKey,
+    awsHost,
+    awsProtocol
+  ): (String, String, String, String) = (
     config.getString("aws.s3.accessKey"),
     config.getString("aws.s3.secretKey"),
     config.getString("aws.s3.host"),
@@ -48,7 +53,12 @@ object TestUtils {
 
   lazy val awsSupportsVirtualHostStyle: Boolean = !isLoopbackHost(awsHost)
 
-  private lazy val (cephAccessKey, cephSecretKey, cephHost, cephProtocol) = (
+  private lazy val (
+    cephAccessKey,
+    cephSecretKey,
+    cephHost,
+    cephProtocol
+  ): (String, String, String, String) = (
     config.getString("ceph.s3.accessKey"),
     config.getString("ceph.s3.secretKey"),
     config.getString("ceph.s3.host"),

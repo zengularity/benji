@@ -50,7 +50,7 @@ class GoogleStorage(
 
       Source
         .fromFuture(Future {
-          val items =
+          val items: java.util.List[com.google.api.services.storage.model.Bucket] =
             transport.buckets().list(transport.projectId).execute().getItems
 
           Source(
