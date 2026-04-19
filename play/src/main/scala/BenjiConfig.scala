@@ -15,7 +15,8 @@ import play.api.Configuration
 private[benji] object BenjiConfig {
   val logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
-  val registry = com.zengularity.benji.spi.Registry.getInstance
+  val registry: com.zengularity.benji.spi.Registry =
+    com.zengularity.benji.spi.Registry.getInstance
 
   object ValidUri {
 

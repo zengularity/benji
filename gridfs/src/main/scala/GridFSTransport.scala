@@ -63,7 +63,7 @@ object GridFSTransport {
       }
 
       // Extract database name from path or default to "benji"
-      val dbName = {
+      val dbName: String = {
         val path = builtUri.getPath
 
         if (path != null && path.nonEmpty && path != "/") {
@@ -76,7 +76,7 @@ object GridFSTransport {
       logger.info(s"GridFS transport configured for database: $dbName")
 
       // Rebuild the URI without the scheme prefix for MongoDB connection
-      val mongoUri = {
+      val mongoUri: String = {
         val scheme = builtUri.getScheme.replace("gridfs", "mongodb")
         val authority = builtUri.getAuthority
         val path = builtUri.getPath

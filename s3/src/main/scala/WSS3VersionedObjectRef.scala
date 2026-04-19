@@ -176,10 +176,11 @@ final class WSS3VersionedObjectRef(
             )
 
           case response => {
-            val errorHandler = ErrorHandler.ofVersion(
-              s"Could not delete version $versionId from object $name within bucket $bucket",
-              ref
-            )(_)
+            val errorHandler: WSS3Response => Throwable =
+              ErrorHandler.ofVersion(
+                s"Could not delete version $versionId from object $name within bucket $bucket",
+                ref
+              )(_)
 
             errorHandler(response) match {
               case VersionNotFoundException(_, _, _) if ignoreExists =>

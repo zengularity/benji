@@ -34,7 +34,9 @@ class VFSStorage(
 
   object buckets extends self.BucketsRequest {
     private val selector = new FileTypeSelector(FileType.FOLDER)
-    private val rootBaseFile = transport.fsManager.getBaseFile
+
+    private val rootBaseFile: org.apache.commons.vfs2.FileObject =
+      transport.fsManager.getBaseFile
 
     def apply(
       )(implicit

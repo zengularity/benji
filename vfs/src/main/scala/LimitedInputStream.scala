@@ -31,7 +31,7 @@ private[vfs] class LimitedInputStream(
   }
 
   override def read(b: Array[Byte], off: Int, len: Int): Int = {
-    val n = {
+    val n: Int = {
       if ((index + len) >= limit) limit - index
       else len
     }

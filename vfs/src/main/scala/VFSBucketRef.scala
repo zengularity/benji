@@ -80,7 +80,7 @@ final class VFSBucketRef private[vfs] (
         .flatMapMerge(1, identity)
     }
 
-    def withBatchSize(max: Long) = {
+    def withBatchSize(max: Long): VFSListRequest = {
       logger.warn("For VFS storage there is no need for batch size")
 
       this
@@ -104,7 +104,7 @@ final class VFSBucketRef private[vfs] (
     )(implicit
       ec: ExecutionContext
     ): Future[Unit] = {
-    val before = {
+    val before: Future[Unit] = {
       if (failsIfExists) {
         exists.flatMap {
           case true  => Future.failed[Unit](BucketAlreadyExistsException(name))
@@ -115,6 +115,7 @@ final class VFSBucketRef private[vfs] (
       }
 
     }
+
     before.map(_ => dir.createFolder())
   }
 

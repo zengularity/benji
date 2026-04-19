@@ -37,7 +37,8 @@ final class BenjiModule extends Module {
     case (name, uri) =>
       val provider: Provider[ObjectStorage] = {
         @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
-        BenjiProvider.from(uri).get
+        val result = BenjiProvider.from(uri).get
+        result
       }
 
       val annot: NamedStorage = new NamedStorageImpl(name)

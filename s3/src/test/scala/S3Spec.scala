@@ -44,9 +44,10 @@ trait S3Spec extends BenjiMatchers {
 
       val ls = {
         @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
-        bucket.objects
+        val result = bucket.objects
           .withBatchSize(6)
           .asInstanceOf[bucket.ListRequest with StructType]
+        result
       }
 
       def count[T] =

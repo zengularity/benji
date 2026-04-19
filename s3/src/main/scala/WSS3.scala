@@ -23,7 +23,13 @@ import play.shaded.ahc.io.netty.handler.codec.http.QueryStringDecoder
 import play.api.libs.ws.{ StandaloneWSRequest, StandaloneWSResponse }
 import play.api.libs.ws.ahc.{ AhcWSClientConfig, StandaloneAhcWSClient }
 
-import com.zengularity.benji.{ Bucket, Compat, ObjectStorage, URIProvider }
+import com.zengularity.benji.{
+  Bucket,
+  Compat,
+  LongVal,
+  ObjectStorage,
+  URIProvider
+}
 
 import Compat.javaConverters._
 
@@ -94,7 +100,6 @@ class WSS3(
 
 /** S3 utility */
 object S3 {
-  import com.zengularity.benji.LongVal
 
   /**
    * Returns the S3 client in the path style (and signature V1/V2).
@@ -230,7 +235,7 @@ object S3 {
       provider: URIProvider[T]
     ): Try[WSS3] = {
     def fromUri(uri: URI, accessKey: String, secretKey: String): Try[WSS3] = {
-      val host = {
+      val host: String = {
         if (uri.getPort > 0) {
           s"${uri.getHost}:${uri.getPort.toString}"
         } else {
@@ -385,5 +390,6 @@ object S3 {
       new QueryStringDecoder(uri.toString).parameters.asScala.toMap
     )(_.asScala.toSeq)
 
-  private lazy val HttpUrl = "^(http[s]*)://([^:]+):([^@]+)@(.+)$".r
+  private lazy val HttpUrl: scala.util.matching.Regex =
+    "^(http[s]*)://([^:]+):([^@]+)@(.+)$".r
 }

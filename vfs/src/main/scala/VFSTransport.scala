@@ -10,11 +10,13 @@ import java.nio.file.Files
 import scala.util.Try
 
 import org.apache.commons.vfs2.{
+  CacheStrategy,
   FileSystemManager,
   FileType,
   FileTypeSelector,
   VFS
 }
+import org.apache.commons.vfs2.cache.NullFilesCache
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
 import org.apache.commons.vfs2.provider.temp.TemporaryFileProvider
 
@@ -35,9 +37,6 @@ final class VFSTransport(
 object VFSTransport {
   private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
   private val TemporaryScheme = "temporary"
-
-  import org.apache.commons.vfs2.CacheStrategy
-  import org.apache.commons.vfs2.cache.NullFilesCache
 
   /**
    * Initializes a transport based on the given FS manager.

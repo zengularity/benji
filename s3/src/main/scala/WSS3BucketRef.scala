@@ -71,6 +71,7 @@ final class WSS3BucketRef private[s3] (
       }
 
     }
+
     before.flatMap(_ => createNew(failsIfExists))
   }
 

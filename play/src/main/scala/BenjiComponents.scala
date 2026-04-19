@@ -55,7 +55,7 @@ trait BenjiComponentsWithInjector extends BenjiComponents {
 
   final lazy val benji: ObjectStorage = {
     @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
-    def provider = BenjiProvider.from(parsedUri).get
+    def provider: ObjectStorage = BenjiProvider.from(parsedUri).get
 
     val p = provider
 

@@ -64,7 +64,8 @@ final class VFSObjectRef private[vfs] (
       metadataFile.exists()
     }.flatMap { exists =>
       if (exists) {
-        val inputStream = metadataFile.getContent.getInputStream
+        val inputStream: java.io.InputStream =
+          metadataFile.getContent.getInputStream
 
         Future.fromTry {
           Try {

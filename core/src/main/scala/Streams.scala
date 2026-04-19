@@ -111,7 +111,8 @@ private[benji] object Streams {
 
         @SuppressWarnings(Array("org.wartremover.warts.SizeIs"))
         override def onUpstreamFinish(): Unit = {
-          val rem = outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
+          val rem: akka.util.ByteString =
+            outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
 
           if (rem.nonEmpty) { // Emit the remaining/last chunk(s)
             if (rem.size <= limit) {
@@ -185,7 +186,8 @@ private[benji] object Streams {
         }
 
         override def onUpstreamFinish(): Unit = {
-          val rem = outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
+          val rem: akka.util.ByteString =
+            outbuf.getOrElse(ByteString.empty) ++ inbuf.result()
 
           if (rem.nonEmpty) { // Emit the remaining/last chunk(s)
             emit(out, Chunk.last(rem))
