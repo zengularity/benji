@@ -18,7 +18,6 @@ import com.zengularity.benji.{
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.{ Expectable, MatchResult, Matcher, Matchers }
 
-@SuppressWarnings(Array("OfflerGoodCodeSemantic.missingDeclType"))
 trait BenjiMatchers { self: Matchers =>
 
   sealed trait Named[T] {

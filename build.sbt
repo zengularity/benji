@@ -274,24 +274,6 @@ lazy val gridfs = project
   )
   .dependsOn(core % "test->test;compile->compile")
 
-lazy val gridfs = project
-  .in(file("gridfs"))
-  .settings(
-    name := "benji-gridfs",
-    libraryDependencies ++= {
-      val reactiveMongoVer = scalaBinaryVersion.value match {
-        case v if v startsWith "3" => "1.1.0-RC2"
-        case _                     => "1.0.10" // 2.11, 2.12, 2.13
-      }
-
-      Seq(
-        "org.reactivemongo" %% "reactivemongo" % reactiveMongoVer,
-        Dependencies.slf4jApi
-      )
-    }
-  )
-  .dependsOn(core % "test->test;compile->compile")
-
 lazy val playTest = Def.setting {
   val ver = {
     if (scalaBinaryVersion.value startsWith "3") {
