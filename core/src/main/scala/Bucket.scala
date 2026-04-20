@@ -14,7 +14,7 @@ import java.time.LocalDateTime
  *
  * @see [[BucketRef]]
  */
-case class Bucket(name: String, creationTime: LocalDateTime)
+final case class Bucket(name: String, creationTime: LocalDateTime)
 
 /**
  * Metadata about a storage object.
@@ -25,7 +25,10 @@ case class Bucket(name: String, creationTime: LocalDateTime)
  *
  * @see [[ObjectRef]]
  */
-case class Object(name: String, size: Bytes, lastModifiedAt: LocalDateTime)
+final case class Object(
+    name: String,
+    size: Bytes,
+    lastModifiedAt: LocalDateTime)
 
 /**
  * Metadata about a versioned object.
@@ -38,7 +41,7 @@ case class Object(name: String, size: Bytes, lastModifiedAt: LocalDateTime)
  *
  * @see [[VersionedObjectRef]]
  */
-case class VersionedObject(
+final case class VersionedObject(
     name: String,
     size: Bytes,
     versionCreatedAt: LocalDateTime,
@@ -51,4 +54,4 @@ case class VersionedObject(
  * @param start the inclusive offset for the range start (< end)
  * @param end the inclusive index of the last byte of the range (> start)
  */
-case class ByteRange(start: Long, end: Long)
+final case class ByteRange(start: Long, end: Long)

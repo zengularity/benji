@@ -60,14 +60,18 @@ final class WSS3BucketRef private[s3] (
     )(implicit
       ec: ExecutionContext
     ): Future[Unit] = {
-    val before = if (failsIfExists) {
-      exists.flatMap {
-        case true  => Future.failed[Unit](BucketAlreadyExistsException(name))
-        case false => Future.successful({})
+    val before: scala.concurrent.Future[Unit] = {
+      if (failsIfExists) {
+        exists.flatMap {
+          case true  => Future.failed[Unit](BucketAlreadyExistsException(name))
+          case false => Future.successful({})
+        }
+      } else {
+        Future.successful({})
       }
-    } else {
-      Future.successful({})
+
     }
+
     before.flatMap(_ => createNew(failsIfExists))
   }
 
@@ -93,6 +97,7 @@ final class WSS3BucketRef private[s3] (
           ) match {
             case BucketAlreadyExistsException(_) if !failsIfExists =>
               Future.successful({})
+
             case throwable => Future.failed[Unit](throwable)
           }
       }
@@ -164,7 +169,7 @@ final class WSS3BucketRef private[s3] (
     ): Future[Unit] = {
     import play.api.libs.ws.DefaultBodyWritables._
 
-    val body =
+    val body: scala.xml.Elem =
       <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
         <Status>{if (enabled) "Enabled" else "Suspended"}</Status>
       </VersioningConfiguration>
@@ -179,12 +184,14 @@ final class WSS3BucketRef private[s3] (
       case Successful(_) =>
         isVersioned.map(_ => {})
 
-      case response =>
+      case response => {
         val error = ErrorHandler.ofBucket(
           s"Could not change versionning of the bucket $name",
           ref
         )(response)
+
         Future.failed[Unit](error)
+      }
     }
   }
 
@@ -193,7 +200,7 @@ final class WSS3BucketRef private[s3] (
   def obj(objectName: String, versionId: String): WSS3VersionedObjectRef =
     new WSS3VersionedObjectRef(storage, name, objectName, versionId)
 
-  override val toString: String = s"WSS3BucketRef($name)"
+  override val toString = s"WSS3BucketRef($name)"
 
   override def equals(that: Any): Boolean = that match {
     case other: WSS3BucketRef =>
@@ -209,7 +216,7 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see [[http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html RESTBucketGET]]
    */
-  private case class Objects(
+  final private case class Objects(
       maybePrefix: Option[String],
       maybeMax: Option[Long])
       extends ref.ListRequest {
@@ -243,10 +250,11 @@ final class WSS3BucketRef private[s3] (
         )
       }
 
-      val errorHandler = ErrorHandler.ofBucket(
-        s"Could not list objects within the bucket $name",
-        ref
-      )(_)
+      val errorHandler: StandaloneWSResponse => Throwable =
+        ErrorHandler.ofBucket(
+          s"Could not list objects within the bucket $name",
+          ref
+        )(_)
 
       WSS3BucketRef.list[Object](ref.storage, ref.name, token, errorHandler)(
         query,
@@ -264,7 +272,7 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
    */
-  private case class WSS3DeleteRequest(
+  final private case class WSS3DeleteRequest(
       isRecursive: Boolean = false,
       ignoreExists: Boolean = false)
       extends DeleteRequest {
@@ -294,6 +302,7 @@ final class WSS3BucketRef private[s3] (
                     s"Bucket $name was not found when deleting. (Success)"
                   )
                 )
+
               case throwable => Future.failed[Unit](throwable)
             }
         }
@@ -317,7 +326,7 @@ final class WSS3BucketRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
-  private case class ObjectVersions(
+  final private case class ObjectVersions(
       maybePrefix: Option[String] = None,
       maybeMax: Option[Long] = None,
       includeDeleteMarkers: Boolean = false)
@@ -364,10 +373,11 @@ final class WSS3BucketRef private[s3] (
         )
       }
 
-      val errorHandler = ErrorHandler.ofBucket(
-        s"Could not list versions within the bucket $name",
-        ref
-      )(_)
+      val errorHandler: StandaloneWSResponse => Throwable =
+        ErrorHandler.ofBucket(
+          s"Could not list versions within the bucket $name",
+          ref
+        )(_)
 
       WSS3BucketRef.list[VersionedObject](
         ref.storage,
@@ -409,13 +419,13 @@ private[s3] object WSS3BucketRef {
 
     S3.getXml[T](request)(
       { xml =>
-        def isTruncated = (xml \ "IsTruncated").text.toBoolean
+        def isTruncated: Boolean = (xml \ "IsTruncated").text.toBoolean
 
         val parsed = parse(xml)
 
         whenEmpty match {
           case Some(throwable) if parsed.isEmpty => Source.failed[T](throwable)
-          case _                                 =>
+          case _                                 => {
             def currentPage = Source(parsed)
 
             parsed.lastOption.map(marker) match {
@@ -424,6 +434,7 @@ private[s3] object WSS3BucketRef {
 
               case _ => currentPage
             }
+          }
         }
       },
       errorHandler

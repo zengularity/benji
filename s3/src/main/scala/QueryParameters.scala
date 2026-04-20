@@ -24,6 +24,7 @@ private[s3] object QueryParameters {
 
   def buildQuery(queryParams: Option[String]*): Option[String] = {
     val query = queryParams.flatMap(_.toList).mkString("&")
+
     if (query.isEmpty) None else Some(query)
   }
 }

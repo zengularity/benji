@@ -54,12 +54,14 @@ final class WSS3VersionedObjectRef(
       case response if response.status == 200 =>
         Future(Compat.mapValues(response.headers)(_.toSeq))
 
-      case response =>
+      case response => {
         val error = ErrorHandler.ofVersion(
           s"Could not get the head of version $versionId of the object $name in the bucket $bucket",
           ref
         )(response)
+
         Future.failed[Map[String, Seq[String]]](error)
+      }
     }
   }
 
@@ -106,7 +108,7 @@ final class WSS3VersionedObjectRef(
 
   // ---
 
-  private[s3] case class WSS3DeleteRequest(
+  final private[s3] case class WSS3DeleteRequest(
       ignoreExists: Boolean = false,
       skipMarkers: Boolean = false)
       extends DeleteRequest {
@@ -127,7 +129,7 @@ final class WSS3VersionedObjectRef(
         .ObjectVersions()
         .withDeleteMarkers
         .collect[List]()
-        .flatMap(versionsWithSelf => {
+        .flatMap { versionsWithSelf =>
           if (!versionsWithSelf.exists(_.versionId == versionId)) {
             Future.failed[Seq[VersionedObject]](VersionNotFoundException(ref))
           } else {
@@ -137,7 +139,7 @@ final class WSS3VersionedObjectRef(
             // There are two cases where we automatically delete some deleteMarkers after deleting this version :
             //  1. When there will be only deleteMarkers left, we completely delete the object (forall condition)
             //  2. Otherwise, we will delete deleteMarkers that are not currently the latest version (filter condition)
-            if (versions.forall(isDeleteMarker)) {
+            if (versions forall isDeleteMarker) {
               Future.successful(versions)
             } else {
               Future.successful(
@@ -145,7 +147,7 @@ final class WSS3VersionedObjectRef(
               )
             }
           }
-        })
+        }
         .recoverWith {
           case ObjectNotFoundException(_, _) =>
             Future.failed[Seq[VersionedObject]](VersionNotFoundException(ref))
@@ -173,11 +175,13 @@ final class WSS3VersionedObjectRef(
               logger.info(s"Successfully deleted the version $bucket/${v.name}/${v.versionId}.")
             )
 
-          case response =>
-            val errorHandler = ErrorHandler.ofVersion(
-              s"Could not delete version $versionId from object $name within bucket $bucket",
-              ref
-            )(_)
+          case response => {
+            val errorHandler: play.api.libs.ws.StandaloneWSResponse => Throwable =
+              ErrorHandler.ofVersion(
+                s"Could not delete version $versionId from object $name within bucket $bucket",
+                ref
+              )(_)
+
             errorHandler(response) match {
               case VersionNotFoundException(_, _, _) if ignoreExists =>
                 Future.successful(
@@ -186,6 +190,7 @@ final class WSS3VersionedObjectRef(
 
               case throwable => Future.failed[Unit](throwable)
             }
+          }
         }
     }
 
@@ -196,7 +201,7 @@ final class WSS3VersionedObjectRef(
       ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
-      Future.sequence(versions.map(deleteSingle)).map(_ => {})
+      Future.sequence(versions map deleteSingle).map(_ => {})
     }
 
     /**
@@ -216,10 +221,13 @@ final class WSS3VersionedObjectRef(
         isLatest = false
       )
 
-      if (skipMarkers) multiDeleteSimulated(Seq(self))
-      else
-        markersToDelete()
-          .flatMap(markers => multiDeleteSimulated(self +: markers))
+      if (skipMarkers) {
+        multiDeleteSimulated(Seq(self))
+      } else {
+        markersToDelete().flatMap(markers =>
+          multiDeleteSimulated(self +: markers)
+        )
+      }
     }
 
     def ignoreIfNotExists: WSS3DeleteRequest = copy(ignoreExists = true)
@@ -263,12 +271,14 @@ final class WSS3VersionedObjectRef(
                   response.bodyAsSource.mapMaterializedValue(_ => NotUsed)
                 )
 
-              case response =>
+              case response => {
                 val err = ErrorHandler.ofVersion(
                   s"Could not get the contents of the version $versionId in object $name in the bucket $bucket",
                   ref
                 )(response)
+
                 Future.failed[Source[ByteString, NotUsed]](err)
+              }
             }
         )
         .mapMaterializedValue(_ => NotUsed)

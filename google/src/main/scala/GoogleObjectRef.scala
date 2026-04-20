@@ -47,7 +47,7 @@ final class GoogleObjectRef private[google] (
     with ObjectVersioning { ref =>
   import GoogleObjectRef.ResumeIncomplete
 
-  @inline def defaultThreshold = GoogleObjectRef.defaultThreshold
+  @inline def defaultThreshold: Bytes = GoogleObjectRef.defaultThreshold
 
   import Compat.javaConverters._
   import storage.{ logger, transport => gt }
@@ -127,8 +127,9 @@ final class GoogleObjectRef private[google] (
 
     for {
       _ <- {
-        if (!preventOverwrite) Future.successful({})
-        else
+        if (!preventOverwrite) {
+          Future.successful({})
+        } else {
           targetObj.exists.flatMap {
             case true =>
               Future.failed[Unit](
@@ -139,15 +140,14 @@ final class GoogleObjectRef private[google] (
 
             case _ => Future.successful({})
           }
+        }
       }
       _ <- Future {
         @SuppressWarnings(Array("org.wartremover.warts.Null"))
-        @inline def unsafe = gt.client
+        val _ = gt.client
           .objects()
           .copy(bucket, name, targetBucketName, targetObjectName, null)
           .execute()
-
-        unsafe
       }.map(_ => {}).recoverWith {
         case reason =>
           targetObj.delete.ignoreIfNotExists().filter(_ => false).recoverWith {
@@ -200,6 +200,7 @@ final class GoogleObjectRef private[google] (
           req.setDisableGZipContent(storage.disableGZip)
 
           val in = req.executeMediaAsInputStream() // using alt=media
+
           StreamConverters.fromInputStream(() => in)
         }.recoverWith(
           ErrorHandler.ofObjectToFuture(
@@ -229,7 +230,7 @@ final class GoogleObjectRef private[google] (
         m: Materializer,
         w: BodyWritable[E]
       ): Sink[E, Future[A]] = {
-      def flowChunks = Streams.chunker[E].via(Streams.consumeAtMost(threshold))
+      def flowChunks = Streams.chunker[E].via(Streams consumeAtMost threshold)
 
       flowChunks
         .prefixAndTail(1)
@@ -262,7 +263,7 @@ final class GoogleObjectRef private[google] (
     }
   }
 
-  private case class GoogleDeleteRequest(ignoreExists: Boolean = false)
+  final private case class GoogleDeleteRequest(ignoreExists: Boolean = false)
       extends DeleteRequest {
 
     def apply(
@@ -316,9 +317,10 @@ final class GoogleObjectRef private[google] (
     implicit def ec: ExecutionContext = m.executionContext
 
     Flow[Chunk].limit(1).flatMapConcat { single =>
-      lazy val typ = contentType getOrElse "application/octet-stream"
+      lazy val typ: String = contentType getOrElse "application/octet-stream"
       def content = new ByteArrayContent(typ, single.data.toArray)
-      def obj = {
+
+      def obj: StorageObject = {
         val so = new StorageObject()
 
         so.setBucket(bucket)
@@ -364,7 +366,8 @@ final class GoogleObjectRef private[google] (
     ): Flow[(Chunk, String), A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
-    @inline def zst = (Option.empty[String], 0L, firstChunk, z)
+    @inline def zst: (Option[String], Long, Chunk, A) =
+      (Option.empty[String], 0L, firstChunk, z)
 
     Flow
       .apply[(Chunk, String)]
@@ -455,8 +458,10 @@ final class GoogleObjectRef private[google] (
                   logger.debug(
                     s"Initiated a resumable upload for $bucket/$name: $url"
                   )
+
                   url
                 }
+
               case _ =>
                 Future.failed[String](
                   new BenjiUnknownError(
@@ -498,6 +503,7 @@ final class GoogleObjectRef private[google] (
 
     gt.withWSRequest2(url) { req =>
       val limit = globalSz.fold("*")(_.toString)
+
       val reqRange =
         s"bytes ${offset.toString}-${(offset + bytes.size - 1).toString}/${limit}"
 
@@ -553,6 +559,7 @@ final class GoogleObjectRef private[google] (
         logger.trace(
           s"Uploaded part @${offset.toString} with ${sz.toString} bytes: $url"
         )
+
         range
       }
 
@@ -581,7 +588,7 @@ final class GoogleObjectRef private[google] (
 
   // ---
 
-  private case class ObjectsVersions(maybeMax: Option[Long])
+  final private case class ObjectsVersions(maybeMax: Option[Long])
       extends ref.VersionedListRequest {
     def withBatchSize(max: Long) = this.copy(maybeMax = Some(max))
 
@@ -600,23 +607,29 @@ final class GoogleObjectRef private[google] (
         Future {
           val prepared =
             gt.client.objects().list(bucket).setVersions(true).setPrefix(name)
+
           val maxed = maybeMax.fold(prepared) { prepared.setMaxResults(_) }
 
           val request =
             nextToken.fold(maxed.execute()) { maxed.setPageToken(_).execute() }
 
-          val (currentPage, empty) = Option(request.getItems) match {
-            case Some(items) =>
-              val collection = items.asScala.filter(_.getName == name).toList
+          val (currentPage, empty): (
+              Source[VersionedObject, NotUsed],
+              Boolean
+            ) = Option(request.getItems) match {
+            case Some(items) => {
+              val collection: List[StorageObject] =
+                items.asScala.filter(_.getName == name).toList
 
               // Find the latest generation for this object
-              val latestGen =
+              val latestGen: Long = {
                 if (collection.isEmpty) -1L
                 else collection.map(_.getGeneration.longValue).max
+              }
 
               val source = Source.fromIterator[VersionedObject] { () =>
                 collection.iterator.map { (obj: StorageObject) =>
-                  val isLatest = obj.getTimeDeleted == null &&
+                  val isLatest: Boolean = obj.getTimeDeleted == null &&
                     obj.getGeneration.longValue == latestGen
 
                   VersionedObject(
@@ -631,9 +644,11 @@ final class GoogleObjectRef private[google] (
                   )
                 }
               }
-              (source, collection.isEmpty)
 
-            case _ => (Source.empty[VersionedObject], true)
+              (source -> collection.isEmpty)
+            }
+
+            case _ => (Source.empty[VersionedObject] -> true)
           }
 
           Option(request.getNextPageToken) match {
@@ -644,10 +659,11 @@ final class GoogleObjectRef private[google] (
               )
 
             case _ =>
-              if (maybeEmpty && empty)
+              if (maybeEmpty && empty) {
                 throw ObjectNotFoundException(ref)
-              else
+              } else {
                 currentPage
+              }
           }
         }.recoverWith(
           ErrorHandler.ofObjectToFuture(

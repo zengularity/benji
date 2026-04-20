@@ -46,7 +46,7 @@ final class WSS3ObjectRef private[s3] (
     with ObjectVersioning { ref =>
 
   /** The maximum number of part (10,000) for a multipart upload to S3/AWS. */
-  val defaultMaxPart: Int = 10000
+  val defaultMaxPart = 10000
 
   /** The default threshold for multi-part upload. */
   val defaultThreshold: Bytes = Bytes.megabytes(5)
@@ -80,12 +80,14 @@ final class WSS3ObjectRef private[s3] (
       case response if response.status == 200 =>
         Future(Compat.mapValues(response.headers)(_.toSeq))
 
-      case response =>
+      case response => {
         val error = ErrorHandler.ofObject(
           s"Could not get the head of the object $name in the bucket $bucket",
           ref
         )(response)
+
         Future.failed[Map[String, Seq[String]]](error)
+      }
     }
   }
 
@@ -119,8 +121,9 @@ final class WSS3ObjectRef private[s3] (
 
     for {
       _ <- {
-        if (!preventOverwrite) Future.successful({})
-        else
+        if (!preventOverwrite) {
+          Future.successful({})
+        } else {
           targetObj.exists.flatMap {
             case true =>
               Future.failed[Unit](
@@ -131,6 +134,7 @@ final class WSS3ObjectRef private[s3] (
 
             case _ => Future.successful({})
           }
+        }
       }
       _ <- copyTo(targetBucketName, targetObjectName).recoverWith {
         case reason =>
@@ -204,12 +208,14 @@ final class WSS3ObjectRef private[s3] (
     source.foreach {
       case '/'                  => encoded.append('/')
       case c if isUnreserved(c) => encoded.append(c)
-      case c                    =>
+      case c                    => {
         val bytes = c.toString.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+
         bytes.foreach { b =>
           encoded.append('%')
           encoded.append(f"${b & 0xff}%02X")
         }
+      }
     }
 
     encoded.toString
@@ -259,12 +265,14 @@ final class WSS3ObjectRef private[s3] (
                 Future.successful(
                   response.bodyAsSource.mapMaterializedValue(_ => NotUsed)
                 )
-              case response =>
+              case response => {
                 val err = ErrorHandler.ofObject(
                   s"Could not get the contents of the object $name in the bucket $bucket",
                   ref
                 )(response)
+
                 Future.failed[Source[ByteString, NotUsed]](err)
+              }
             }
         )
         .mapMaterializedValue(_ => NotUsed)
@@ -308,11 +316,13 @@ final class WSS3ObjectRef private[s3] (
       ): Sink[E, Future[A]] = {
       val th = size.filter(_ > 0).fold(threshold) { sz =>
         val partCount = sz /: threshold
+
         if (partCount <= maxPart) threshold else Bytes(sz / maxPart)
       }
+
       implicit def ec: ExecutionContext = m.executionContext
 
-      def flowChunks = Streams.chunker[E].via(Streams.consumeAtLeast(th))
+      def flowChunks = Streams.chunker[E].via(Streams consumeAtLeast th)
 
       val amzHeaders = metadata.map {
         case (key, value) => s"x-amz-meta-${key}" -> value
@@ -334,6 +344,7 @@ final class WSS3ObjectRef private[s3] (
                 case first :: _ => {
                   def chunks =
                     Source.single(first) ++ tail // push back the first
+
                   def source = chunks.zip(
                     initiateUpload(amzHeaders)
                       .flatMapConcat(Source.repeat /* same ID for all */ )
@@ -353,7 +364,7 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
    */
-  private case class WSS3DeleteRequest(ignoreExists: Boolean = false)
+  final private case class WSS3DeleteRequest(ignoreExists: Boolean = false)
       extends DeleteRequest {
 
     private def delete(
@@ -364,9 +375,10 @@ final class WSS3ObjectRef private[s3] (
         .request(Some(bucket), Some(name), requestTimeout = requestTimeout)
         .delete()
         .flatMap {
-          case Successful(_) =>
+          case Successful(_) => {
             logger.info(s"Successfully deleted the object $bucket/$name.")
-            Future.successful({}) // .unit > 2.12
+            Future.successful({})
+          } // .unit > 2.12
 
           case response =>
             ErrorHandler.ofObject(
@@ -385,7 +397,7 @@ final class WSS3ObjectRef private[s3] (
     private def checkExists(
         implicit
         ec: ExecutionContext
-      ) =
+      ): Future[Unit] = {
       if (ignoreExists) {
         Future.successful({}) // .unit > 2.12
       } else {
@@ -394,6 +406,7 @@ final class WSS3ObjectRef private[s3] (
           case true  => Future.successful({}) // .unit > 2.12
         }
       }
+    }
 
     def apply(
       )(implicit
@@ -445,12 +458,15 @@ final class WSS3ObjectRef private[s3] (
                 logger.debug(s"Completed the simple upload for $bucket/$name.")
               )
 
-            case response =>
-              val handler = ErrorHandler.ofBucket(
-                s"Could not update the contents of the object $name in $bucket",
-                bucket
-              )(_)
+            case response => {
+              val handler: StandaloneWSResponse => Throwable =
+                ErrorHandler.ofBucket(
+                  s"Could not update the contents of the object $name in $bucket",
+                  bucket
+                )(_)
+
               Future.failed[Unit](handler(response))
+            }
 
           }
           .flatMap(_ => f(z, single))
@@ -474,7 +490,8 @@ final class WSS3ObjectRef private[s3] (
     ): Flow[(Chunk, String), A, NotUsed] = {
     implicit def ec: ExecutionContext = m.executionContext
 
-    @inline def zst = (Option.empty[String], List.empty[String], z)
+    @inline def zst: (Option[String], List[String], A) =
+      (Option.empty[String], List.empty[String], z)
 
     Flow
       .apply[(Chunk, String)]
@@ -524,12 +541,15 @@ final class WSS3ObjectRef private[s3] (
           Future.successful(uploadId)
         }
 
-        case response =>
-          val handler = ErrorHandler.ofBucket(
-            s"Could not initiate the upload for object $name in $bucket",
-            bucket
-          )(_)
+        case response => {
+          val handler: StandaloneWSResponse => Throwable =
+            ErrorHandler.ofBucket(
+              s"Could not initiate the upload for object $name in $bucket",
+              bucket
+            )(_)
+
           Future.failed[String](handler(response))
+        }
       }
   }
 
@@ -578,12 +598,15 @@ final class WSS3ObjectRef private[s3] (
           )
         )
 
-      case response =>
-        val handler = ErrorHandler.ofBucket(
-          s"Could not upload a part for [$bucket/$name, $uploadId, part: ${partNumber.toString}]",
-          bucket
-        )(_)
+      case response => {
+        val handler: StandaloneWSResponse => Throwable =
+          ErrorHandler.ofBucket(
+            s"Could not upload a part for [$bucket/$name, $uploadId, part: ${partNumber.toString}]",
+            bucket
+          )(_)
+
         Future.failed[String](handler(response))
+      }
     }
   }
 
@@ -608,9 +631,9 @@ final class WSS3ObjectRef private[s3] (
         val result: List[Elem] = etags.zipWithIndex.map {
           case (etag, partNumber) =>
             // Part numbers start at index 1 rather than 0
-            <Part><PartNumber>{
-              (partNumber + 1).toString
-            }</PartNumber><ETag>{etag}</ETag></Part>
+            <Part><PartNumber>{(partNumber + 1).toString}</PartNumber><ETag>{
+              etag
+            }</ETag></Part>
         }
 
         result
@@ -622,12 +645,15 @@ final class WSS3ObjectRef private[s3] (
             logger.debug(s"Completed the upload $uploadId for $bucket/$name.")
           )
 
-        case response =>
-          val handler = ErrorHandler.ofBucket(
-            s"Could not complete the upload for [$bucket/$name, $uploadId]",
-            bucket
-          )(_)
+        case response => {
+          val handler: StandaloneWSResponse => Throwable =
+            ErrorHandler.ofBucket(
+              s"Could not complete the upload for [$bucket/$name, $uploadId]",
+              bucket
+            )(_)
+
           Future.failed[Unit](handler(response))
+        }
       }
   }
 
@@ -646,7 +672,7 @@ final class WSS3ObjectRef private[s3] (
   /**
    * @see http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
    */
-  private[s3] case class ObjectVersions(
+  final private[s3] case class ObjectVersions(
       maybeMax: Option[Long] = None,
       includeDeleteMarkers: Boolean = false)
       extends ref.VersionedListRequest {
@@ -695,10 +721,11 @@ final class WSS3ObjectRef private[s3] (
         )
       }
 
-      val errorHandler = ErrorHandler.ofObject(
-        s"Could not list versions of object $name in bucket $bucket",
-        ref
-      )(_)
+      val errorHandler: StandaloneWSResponse => Throwable =
+        ErrorHandler.ofObject(
+          s"Could not list versions of object $name in bucket $bucket",
+          ref
+        )(_)
 
       WSS3BucketRef.list[VersionedObject](
         ref.storage,

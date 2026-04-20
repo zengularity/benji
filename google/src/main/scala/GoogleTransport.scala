@@ -95,7 +95,7 @@ final class GoogleTransport(
     ) {
       logger.trace("Google Access Token acquired")
       Future.successful(accessTok.getTokenValue)
-    } else
+    } else {
       Future {
         cred.refresh()
 
@@ -112,6 +112,7 @@ final class GoogleTransport(
           )
 
       }
+    }
   }
 
   /**
@@ -194,7 +195,7 @@ final class GoogleTransport(
   /*
    * [[https://cloud.google.com/storage/quotas 1 operation per 2-second limit]]
    */
-  private val bucketOpFlow = {
+  private val bucketOpFlow: Flow[BucketOp, Unit, NotUsed] = {
     @SuppressWarnings(Array("org.wartremover.warts.Var"))
     @volatile var errors = 0L // successive errors
 
@@ -209,6 +210,7 @@ final class GoogleTransport(
         } catch {
           case NonFatal(cause) =>
             op.result.failure(cause)
+
             errors += 1L
         })
         .initialDelay(250.milliseconds * errors)
@@ -224,6 +226,7 @@ final class GoogleTransport(
         case c @ CreateBucket(name) =>
           execute(c) {
             val nb = new model.Bucket()
+
             nb.setName(name)
 
             client.buckets().insert(projectId, nb).execute()
@@ -332,7 +335,7 @@ object GoogleTransport {
     )(implicit
       ws: StandaloneAhcWSClient
     ): GoogleTransport = {
-    val build = { (creds: GoogleCredentials) =>
+    val build: GoogleCredentials => Storage = { (creds: GoogleCredentials) =>
       new Storage.Builder(http, json, new HttpCredentialsAdapter(creds))
         .setApplicationName(application)
         .setRootUrl(baseRestUrl)
@@ -341,9 +344,11 @@ object GoogleTransport {
 
     new GoogleTransport(
       {
-        if (!credential.createScopedRequired) credential
-        else {
+        if (!credential.createScopedRequired) {
+          credential
+        } else {
           val scopes = StorageScopes.all()
+
           credential.createScoped(scopes)
         }
       },
@@ -429,7 +434,7 @@ object GoogleTransport {
         val uri = new URI(builtUri.getSchemeSpecificPart)
         val scheme = uri.getScheme
 
-        val credentialStream = scheme match {
+        val credentialStream: java.io.InputStream = scheme match {
           case "classpath" =>
             getClass.getResourceAsStream("/" + uri.getHost + uri.getPath)
 
@@ -475,6 +480,7 @@ object GoogleTransport {
             val http = GoogleNetHttpTransport.newTrustedTransport()
             val json = new JacksonFactory()
             val url = baseUrl.getOrElse(Storage.DEFAULT_ROOT_URL)
+
             GoogleTransport(
               credential,
               projectId,
@@ -501,6 +507,7 @@ object GoogleTransport {
     def unapply(value: String): Option[Boolean] =
       try {
         def bool = value.toBoolean
+
         Some(bool)
       } catch {
         case NonFatal(_) => Option.empty[Boolean]

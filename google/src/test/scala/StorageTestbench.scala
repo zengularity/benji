@@ -32,9 +32,7 @@ object StorageTestbench {
       host: String = "localhost",
       port: Int = 9000,
       timeout: Long = 5000
-    ): Try[Unit] = {
-    waitForReady(host, port, timeout)
-  }
+    ): Try[Unit] = waitForReady(host, port, timeout)
 
   /**
    * Stop is no-op since we don't manage the process lifecycle.
@@ -52,23 +50,26 @@ object StorageTestbench {
       port: Int,
       timeout: Long
     ): Try[Unit] = {
-    val deadline = System.currentTimeMillis() + timeout
+    val deadline: Long = System.currentTimeMillis() + timeout
     val url = s"http://$host:$port"
 
     var lastError: Option[Throwable] = None
 
     while (System.currentTimeMillis() < deadline) {
       try {
-        val conn =
+        val conn: java.net.HttpURLConnection =
           new URL(url).openConnection().asInstanceOf[HttpURLConnection]
+
         conn.setConnectTimeout(500)
         conn.setReadTimeout(500)
 
         val responseCode = conn.getResponseCode
+
         conn.disconnect()
 
         if (responseCode == 200) {
           logger.info(s"storage-testbench is ready at $url")
+
           return Success(())
         }
       } catch {
@@ -83,6 +84,7 @@ object StorageTestbench {
       s"storage-testbench not ready at $url after ${timeout}ms. " +
         s"Make sure testbench is running: docker-compose -f google/docker-compose.testbench.yml up -d"
     )
+
     lastError.foreach(timeoutError.addSuppressed)
     logger.error(timeoutError.getMessage)
     Failure(timeoutError)

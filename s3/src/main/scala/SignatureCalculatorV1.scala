@@ -64,14 +64,14 @@ private[s3] class SignatureCalculatorV1(
       request: Request,
       requestBuilder: RequestBuilderBase[_]
     ): Unit = {
-    @inline def header(name: String): Option[String] = {
-      Option(request.getHeaders.get(name))
-    }
+    @inline def header(name: String): Option[String] =
+      Option(request.getHeaders get name)
 
     val date = header("x-amz-date")
       .orElse(header("Date"))
       .getOrElse(RFC1123_DATE_TIME_FORMATTER format Instant.now())
-    val style = RequestStyle(header("X-Request-Style").getOrElse("path"))
+
+    val style = RequestStyle(header("X-Request-Style") getOrElse "path")
 
     requestBuilder.setHeader("Date", date)
 
@@ -91,6 +91,7 @@ private[s3] class SignatureCalculatorV1(
     computeSignature(str) match {
       case Success(signature) => {
         requestBuilder.setHeader("Authorization", s"AWS $accessKey:$signature")
+
         ()
       }
 
@@ -113,6 +114,7 @@ private[s3] class SignatureCalculatorV1(
             p.getName
           }
       }
+
       val baseUrl = request.getUri.toBaseUrl
 
       if (signatureQueries.isEmpty) {
@@ -195,6 +197,7 @@ private[s3] class SignatureCalculatorV1(
 
   @inline private def checkPathSlash(url: URL): String = {
     val path = url.getPath
+
     if (path startsWith "/") path else "/" + path
   }
 
@@ -222,10 +225,12 @@ private[s3] class SignatureCalculatorV1(
         val requestHost = url.getHost
         val canonicalHost = host.split(':').headOption.getOrElse(host)
         val suffix = s".$canonicalHost"
-        val bucket = {
-          if (requestHost.endsWith(suffix)) requestHost.stripSuffix(suffix)
+
+        val bucket: String = {
+          if (requestHost endsWith suffix) requestHost.stripSuffix(suffix)
           else ""
         }
+
         if (bucket.isEmpty) path else s"/$bucket$path"
       }
     }

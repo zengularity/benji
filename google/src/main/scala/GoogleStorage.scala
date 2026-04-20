@@ -50,12 +50,13 @@ class GoogleStorage(
 
       Source
         .fromFuture(Future {
-          val items =
+          val items: java.util.List[com.google.api.services.storage.model.Bucket] =
             transport.buckets().list(transport.projectId).execute().getItems
 
           Source(
-            if (items == null) List.empty[Bucket]
-            else
+            if (items == null) {
+              List.empty[Bucket]
+            } else {
               items.asScala.map { b =>
                 Bucket(
                   b.getName,
@@ -65,6 +66,7 @@ class GoogleStorage(
                   )
                 )
               }.toList
+            }
           )
         })
         .flatMapMerge(1, identity)

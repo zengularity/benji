@@ -546,6 +546,49 @@ jobs:
           play_json_version: 2.10.6
           variant: Play 2.9, WS 2.2
 
+  gridfs_scala212_play27_jdk8:
+    docker:
+      - image: cimg/openjdk:8.0
+      - image: mongo:8.0.3
+
+    working_directory: ~/repo
+
+    environment:
+      MONGODB_TEST_URI: gridfs:mongodb://localhost:27017/benji-test
+
+    steps:
+      - checkout
+
+      - setup_sbt
+
+      - run:
+          name: "Wait for MongoDB"
+          command: |
+            for i in {1..30}; do
+              if curl -s localhost:27017 2>/dev/null | grep -q "MongoDB"; then
+                echo "MongoDB ready"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "MongoDB ready"
+
+      - restore_cache:
+          keys:
+            - scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "version.sbt" }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
+
+      - run:
+          name: Build and Test GridFS (Scala 2.12)
+          command: |
+            export PATH="$HOME/sbt/bin:$PATH"
+            sbt -J-Xmx4g "++ 2.12.18; gridfs/test"
+
+      - save_cache:
+          paths:
+            - ~/.sbt
+            - ~/.m2
+            - ~/.cache
+          key: scala-{{ .Environment.CIRCLE_JOB }}-{{ checksum "version.sbt" }}-{{ checksum "build.sbt" }}-{{ checksum "project/Common.scala" }}
   # --- Master jobs --- #
 
   publish_snapshots:
@@ -642,6 +685,11 @@ workflows:
             - common_scala3_play29_jdk17
             - int_scala212_play27_jdk8
 
+      # GridFS
+      - gridfs_scala212_play27_jdk8:
+          requires:
+            - common_scala212_play27_jdk8
+
       # Master
       - publish_snapshots:
           filters:
@@ -652,6 +700,7 @@ workflows:
             - int_scala211_jdk8
             - int_scala212_play27_jdk8
             - int_scala3_play29_jdk17
+            - gridfs_scala212_play27_jdk8
 
       - examples:
           filters:

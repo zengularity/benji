@@ -39,7 +39,7 @@ final class StreamSpec(
         }
 
       def beSomeLast(data: Byte*) =
-        beTypedEqualTo(Seq[Chunk](Chunk.last(ByteString(data.toArray))))
+        beTypedEqualTo(Seq[Chunk](Chunk last ByteString(data.toArray)))
 
       "from an empty source" in assertAllStagesStopped {
         withSource() {
@@ -76,7 +76,7 @@ final class StreamSpec(
               case _1 :: _2 :: Nil =>
                 _1 must beEqualTo(
                   Chunk(ByteString(1, 1, 1, 1, 1))
-                ) and (_2 must beEqualTo(Chunk.last(ByteString(2, 2, 2))))
+                ) and (_2 must beEqualTo(Chunk last ByteString(2, 2, 2)))
             }.await(1, timeout)
           }
         }
@@ -101,7 +101,7 @@ final class StreamSpec(
         }
 
       def beSomeLast(data: Byte*) =
-        beTypedEqualTo(Seq[Chunk](Chunk.last(ByteString(data.toArray))))
+        beTypedEqualTo(Seq[Chunk](Chunk last ByteString(data.toArray)))
 
       "from an empty source" in assertAllStagesStopped {
         withSource() {

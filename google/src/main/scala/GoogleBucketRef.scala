@@ -44,7 +44,7 @@ final class GoogleBucketRef private[google] (
 
   import storage.{ transport => gt }
 
-  private case class Objects(
+  final private case class Objects(
       maybePrefix: Option[String],
       maybeMax: Option[Long])
       extends ref.ListRequest {
@@ -72,23 +72,24 @@ final class GoogleBucketRef private[google] (
             prefixed.setPageToken(_).execute()
           }
 
-          val currentPage = Option(request.getItems) match {
-            case Some(items) =>
-              Source.fromIterator[Object] { () =>
-                collectionAsScalaIterable(items).iterator.map { obj =>
-                  Object(
-                    obj.getName,
-                    Bytes(obj.getSize.longValue),
-                    LocalDateTime.ofInstant(
-                      Instant.ofEpochMilli(obj.getUpdated.getValue),
-                      ZoneOffset.UTC
+          val currentPage: Source[Object, NotUsed] =
+            Option(request.getItems) match {
+              case Some(items) =>
+                Source.fromIterator[Object] { () =>
+                  collectionAsScalaIterable(items).iterator.map { obj =>
+                    Object(
+                      obj.getName,
+                      Bytes(obj.getSize.longValue),
+                      LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(obj.getUpdated.getValue),
+                        ZoneOffset.UTC
+                      )
                     )
-                  )
+                  }
                 }
-              }
 
-            case _ => Source.empty[Object]
-          }
+              case _ => Source.empty[Object]
+            }
 
           Option(request.getNextPageToken) match {
             case nextPageToken @ Some(_) =>
@@ -147,7 +148,7 @@ final class GoogleBucketRef private[google] (
     })
   }
 
-  private case class GoogleDeleteRequest(
+  final private case class GoogleDeleteRequest(
       isRecursive: Boolean = false,
       ignoreExists: Boolean = false)
       extends DeleteRequest {
@@ -156,9 +157,11 @@ final class GoogleBucketRef private[google] (
       val marker = "unexpected end of file"
 
       error match {
-        case BenjiUnknownError(msg, cause) =>
+        case BenjiUnknownError(msg, cause) => {
           val fromCause = cause.map(_.getMessage).getOrElse("")
+
           s"$msg $fromCause".toLowerCase.contains(marker)
+        }
 
         case ioe: java.io.IOException =>
           Option(ioe.getMessage).exists(_.toLowerCase.contains(marker))
@@ -171,7 +174,7 @@ final class GoogleBucketRef private[google] (
       )(implicit
         ec: ExecutionContext
       ): Future[Unit] =
-      gt.executeBucketOp(GoogleTransport.DeleteBucket(name))
+      gt.executeBucketOp(GoogleTransport DeleteBucket name)
 
     def apply(
       )(implicit
@@ -179,7 +182,7 @@ final class GoogleBucketRef private[google] (
       ): Future[Unit] = {
       implicit val ec: ExecutionContext = m.executionContext
 
-      val rawResult = {
+      val rawResult: Future[Unit] = {
         if (!isRecursive) delete()
         else emptyBucket().flatMap(_ => delete())
       }
@@ -281,10 +284,14 @@ final class GoogleBucketRef private[google] (
     Future {
       val versioning =
         new com.google.api.services.storage.model.Bucket.Versioning()
+
       versioning.setEnabled(enabled)
+
       val bucket = new com.google.api.services.storage.model.Bucket()
+
       bucket.setVersioning(versioning)
       gt.client.buckets().patch(name, bucket).execute()
+
       ()
     }.recoverWith(
       ErrorHandler.ofBucketToFuture(
@@ -293,7 +300,7 @@ final class GoogleBucketRef private[google] (
       )
     )
 
-  private case class ObjectsVersions(
+  final private case class ObjectsVersions(
       maybePrefix: Option[String],
       maybeMax: Option[Long])
       extends ref.VersionedListRequest {
@@ -322,40 +329,44 @@ final class GoogleBucketRef private[google] (
             prefixed.setPageToken(_).execute()
           }
 
-          val currentPage = Option(request.getItems) match {
-            case Some(items) =>
-              val collection = collectionAsScalaIterable(items).toList
+          val currentPage: Source[VersionedObject, NotUsed] =
+            Option(request.getItems) match {
+              case Some(items) => {
+                val collection: List[StorageObject] =
+                  collectionAsScalaIterable(items).toList
 
-              // Group by name to find the latest generation per object
-              val latestGenerations: Map[String, Long] =
-                collection.groupBy(_.getName).map {
-                  case (n, objs) =>
-                    n -> objs.map(_.getGeneration.longValue).max
-                }
+                // Group by name to find the latest generation per object
+                val latestGenerations: Map[String, Long] =
+                  collection.groupBy(_.getName).map {
+                    case (n, objs) =>
+                      n -> objs.map(_.getGeneration.longValue).max
+                  }
 
-              Source.fromIterator[VersionedObject] { () =>
-                collection.iterator.map { (obj: StorageObject) =>
-                  val isLatest = obj.getTimeDeleted == null &&
-                    obj.getGeneration.longValue == latestGenerations.getOrElse(
+                Source.fromIterator[VersionedObject] { () =>
+                  collection.iterator.map { (obj: StorageObject) =>
+                    val isLatest: Boolean = obj.getTimeDeleted == null &&
+                      obj.getGeneration.longValue == latestGenerations
+                        .getOrElse(
+                          obj.getName,
+                          -1L
+                        )
+
+                    VersionedObject(
                       obj.getName,
-                      -1L
+                      Bytes(obj.getSize.longValue),
+                      LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(obj.getUpdated.getValue),
+                        ZoneOffset.UTC
+                      ),
+                      obj.getGeneration.toString,
+                      isLatest
                     )
-
-                  VersionedObject(
-                    obj.getName,
-                    Bytes(obj.getSize.longValue),
-                    LocalDateTime.ofInstant(
-                      Instant.ofEpochMilli(obj.getUpdated.getValue),
-                      ZoneOffset.UTC
-                    ),
-                    obj.getGeneration.toString,
-                    isLatest
-                  )
+                  }
                 }
               }
 
-            case _ => Source.empty[VersionedObject]
-          }
+              case _ => Source.empty[VersionedObject]
+            }
 
           Option(request.getNextPageToken) match {
             case nextPageToken @ Some(_) =>

@@ -7,6 +7,8 @@ package com.zengularity.benji.google
 import java.io.ByteArrayOutputStream
 import java.util
 
+import scala.collection.immutable.Vector
+
 private[google] object UriUtils {
 
   /*
@@ -15,8 +17,10 @@ private[google] object UriUtils {
   def encodePathSegment(s: String, inputCharset: String): String = {
     val in = s.getBytes(inputCharset)
     val out = new ByteArrayOutputStream()
+
     for (b <- in) {
       val allowed = segmentChars.get(b & 0xff)
+
       if (allowed) {
         out.write(b.toInt)
       } else {
@@ -25,6 +29,7 @@ private[google] object UriUtils {
         out.write(upperHex(b & 0xf))
       }
     }
+
     out.toString("US-ASCII")
   }
 
@@ -42,11 +47,13 @@ private[google] object UriUtils {
   private def pchar: Seq[Char] = {
     // RFC 3986, 2.3. Unreserved Characters
     // unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
-    val alphaDigit =
-      for (
+    val alphaDigit: Vector[Char] =
+      (for (
         (min, max) <- Seq(('a', 'z'), ('A', 'Z'), ('0', '9')); c <- min to max
-      ) yield c
-    val unreserved = alphaDigit ++ Seq('-', '.', '_', '~')
+      ) yield c).toVector
+
+    val unreserved: Vector[Char] =
+      (alphaDigit ++ Seq('-', '.', '_', '~')).toVector
 
     // RFC 3986, 2.2. Reserved Characters
     // sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
@@ -61,7 +68,9 @@ private[google] object UriUtils {
   /** Create a BitSet to act as a membership lookup table for the given characters. */
   private def membershipTable(chars: Seq[Char]): util.BitSet = {
     val bits = new util.BitSet(256)
+
     for (c <- chars) { bits.set(c.toInt) }
+
     bits
   }
 

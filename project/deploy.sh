@@ -42,7 +42,7 @@ EOF
 }
 
 if [ "x$SCALA_MODULES" = "x" ]; then
-    SCALA_MODULES="core:benji-core s3:benji-s3 google:benji-google vfs:benji-vfs play:benji-play"
+    SCALA_MODULES="core:benji-core s3:benji-s3 google:benji-google vfs:benji-vfs gridfs:benji-gridfs play:benji-play"
 fi
 
 SCALA_VERSIONS="2.11 2.12 2.13 3.4.3"

@@ -10,11 +10,13 @@ import java.nio.file.Files
 import scala.util.Try
 
 import org.apache.commons.vfs2.{
+  CacheStrategy,
   FileSystemManager,
   FileType,
   FileTypeSelector,
   VFS
 }
+import org.apache.commons.vfs2.cache.NullFilesCache
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
 import org.apache.commons.vfs2.provider.temp.TemporaryFileProvider
 
@@ -28,18 +30,13 @@ final class VFSTransport(
     _close: () => Unit = () => ())
     extends java.io.Closeable {
 
-  def close(): Unit = {
-    _close()
-  }
+  def close(): Unit = _close()
 }
 
 /** VFS transport factory. */
 object VFSTransport {
   private val logger = org.slf4j.LoggerFactory.getLogger(this.getClass)
   private val TemporaryScheme = "temporary"
-
-  import org.apache.commons.vfs2.CacheStrategy
-  import org.apache.commons.vfs2.cache.NullFilesCache
 
   /**
    * Initializes a transport based on the given FS manager.
@@ -103,6 +100,7 @@ object VFSTransport {
         temporary(s"benji-${System.currentTimeMillis().toString}")
       } else {
         val mngr = new StandardFileSystemManager
+
         mngr.init()
 
         val scheme = uri.getScheme
@@ -113,7 +111,7 @@ object VFSTransport {
           )
         }
 
-        mngr.setBaseFile(mngr.resolveFile(uri))
+        mngr.setBaseFile(mngr resolveFile uri)
 
         Try(new VFSTransport(mngr, () => mngr.close()))
       }

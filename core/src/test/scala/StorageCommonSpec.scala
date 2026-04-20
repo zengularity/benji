@@ -25,7 +25,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
   // e.g. S3 doesn't guarantee that right after write operation,
   // the result is available (to read operation) on all the cluster
-  protected def rwConsistencyRetry: Int = 5
+  protected def rwConsistencyRetry = 5
 
   protected def rwConsistencyDuration: FiniteDuration = 3.seconds
 
@@ -70,9 +70,11 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val filename = "testfile.txt"
       val filetest = bucket.obj(filename)
       val put = filetest.put[Array[Byte], Long]
+
       val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) =>
         Future.successful(sz + chunk.size)
       }
+
       val body =
         List.fill(1000)("hello world !!!").mkString(" ").getBytes("UTF-8")
 
@@ -155,9 +157,11 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       } and {
         // uploading file to bucket
         val put = filetest.put[Array[Byte], Long]
+
         val upload = put(0L, metadata = Map("foo" -> "bar")) { (sz, chunk) =>
           Future.successful(sz + chunk.size)
         }
+
         val body = "hello world".getBytes("UTF-8")
 
         Source.single(body).runWith(upload) must beTypedEqualTo(
@@ -232,7 +236,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
     "Write and copy file" in assertAllStagesStopped {
       // TODO: Remove once NIC storage store URL-encoded x-amz-copy-source
       // See https://github.com/zengularity/benji/pull/23
-      val sourceName = {
+      val sourceName: String = {
         if (storageKind == "ceph") "ceph.txt"
         else if (storageKind == "vfs") "vfs.txt"
         else "Capture d’écran 2018-11-14 à 09.35.49 (1).png"
@@ -283,7 +287,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
           target: ObjectRef,
           preventOverwrite: Boolean = true
         )(onMove: (ObjectRef, ObjectRef, Future[Unit]) => MatchResult[R]
-        ) = {
+        ): MatchResult[Any] = {
         val src =
           defaultBucketRef.obj(s"testsrc-${random.nextInt().toString}.txt")
 
@@ -318,15 +322,16 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
       val targetObj =
         defaultBucketRef.obj(s"testfile4-${random.nextInt().toString}.txt")
 
-      val successful = { (_: ObjectRef, _: ObjectRef, res: Future[Unit]) =>
-        res must beDone.await(2, 3.seconds)
+      val successful: (ObjectRef, ObjectRef, Future[Unit]) => MatchResult[Any] = {
+        (_: ObjectRef, _: ObjectRef, res: Future[Unit]) =>
+          res must beDone.await(2, 3.seconds)
       }
 
       @inline def failed(
           src: ObjectRef,
           target: ObjectRef,
           res: Future[Unit]
-        ) = {
+        ): MatchResult[Any] = {
         res.recover { case _: IllegalStateException => () } must beDone.await(
           2,
           3.seconds
@@ -439,12 +444,16 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
           .await(1, 3.seconds)
       }
 
-      def createFile(name: String) = {
+      def createFile(
+          name: String
+        ): Future[Long] = {
         val file = bucket.obj(name)
         val put = file.put[Array[Byte], Long]
+
         val upload = put(0L) { (sz, chunk) =>
           Future.successful(sz + chunk.size)
         }
+
         val body = List.fill(10)("hello world !!!").mkString(" ")
 
         repeat(10)(body getBytes "UTF-8") runWith upload
@@ -532,6 +541,7 @@ trait StorageCommonSpec extends BenjiMatchers with ErrorCommonSpec {
 
     "Versioning feature should be consistent between buckets and objects" in {
       val bucket = defaultBucketRef
+
       val obj =
         bucket.obj(s"benji-test-versioning-obj-${random.nextInt().toString}")
 

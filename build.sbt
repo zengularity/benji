@@ -21,7 +21,7 @@ lazy val core = project
       } else {
         Seq(
           // Silencer
-          "-P:silencer:globalFilters=constructor\\ deprecatedName\\ in\\ class\\ deprecatedName\\ is\\ deprecated",
+          "-P:silencer:globalFilters=constructor\\ deprecatedName\\ in\\ class\\ deprecatedName\\ is\\ deprecated;outer\\ reference.*cannot\\ be\\ checked",
           "-language:higherKinds"
         )
       }
@@ -40,7 +40,29 @@ lazy val core = project
         x[ReversedMissingMethodProblem](
           "com.zengularity.benji.BucketRef#ListRequest.withPrefix"
         ),
-        x[ReversedMissingMethodProblem]("com.zengularity.benji.BucketVersioning#VersionedListRequest.withPrefix")
+        x[ReversedMissingMethodProblem]("com.zengularity.benji.BucketVersioning#VersionedListRequest.withPrefix"),
+        x[FinalClassProblem]("com.zengularity.benji.Bucket"),
+        x[FinalClassProblem]("com.zengularity.benji.ByteRange"),
+        x[FinalClassProblem]("com.zengularity.benji.Object"),
+        x[FinalClassProblem]("com.zengularity.benji.VersionedObject"),
+        x[FinalClassProblem](
+          "com.zengularity.benji.exception.BenjiUnknownError"
+        ),
+        x[FinalClassProblem](
+          "com.zengularity.benji.exception.BucketAlreadyExistsException"
+        ),
+        x[FinalClassProblem](
+          "com.zengularity.benji.exception.BucketNotEmptyException"
+        ),
+        x[FinalClassProblem](
+          "com.zengularity.benji.exception.BucketNotFoundException"
+        ),
+        x[FinalClassProblem](
+          "com.zengularity.benji.exception.ObjectNotFoundException"
+        ),
+        x[FinalClassProblem](
+          "com.zengularity.benji.exception.VersionNotFoundException"
+        )
       )
     },
     libraryDependencies ++= Seq(
@@ -66,6 +88,20 @@ lazy val s3 = project
   .in(file("s3"))
   .settings(
     name := "benji-s3",
+    Compile / compile / scalacOptions ++= {
+      if (scalaBinaryVersion.value == "2.11") {
+        Seq(
+          "-P:silencer:globalFilters=outer\\ reference.*cannot\\ be\\ checked;constructor\\ URL\\ in\\ class\\ URL\\ is\\ deprecated",
+          "-language:higherKinds"
+        )
+      } else if (scalaBinaryVersion.value == "2.13") {
+        Seq(
+          "-Wconf:cat=unchecked&msg=outer\\ reference.*cannot\\ be\\ checked:s"
+        )
+      } else {
+        Seq.empty
+      }
+    },
     libraryDependencies ++= Dependencies.playAhcWS.value ++ Seq(
       Dependencies.playWSXml.value,
       "org.scala-lang.modules" %% "scala-xml" % scalaXmlVer.value % Provided
@@ -119,7 +155,11 @@ lazy val s3 = project
         ),
         x[IncompatibleSignatureProblem](
           "com.zengularity.benji.s3.WSS3BucketRef#Objects.unapply"
-        )
+        ),
+        x[FinalClassProblem](s"${pkg}.WSS3BucketRef$$ObjectVersions"),
+        x[FinalClassProblem](s"${pkg}.WSS3BucketRef$$Objects"),
+        x[FinalClassProblem](s"${pkg}.WSS3BucketRef$$WSS3DeleteRequest"),
+        x[FinalClassProblem](s"${pkg}.WSS3ObjectRef$$WSS3DeleteRequest")
       )
 
       wasPrivate
@@ -131,12 +171,36 @@ lazy val google = project
   .in(file("google"))
   .settings(
     name := "benji-google",
+    Compile / compile / scalacOptions ++= {
+      if (scalaBinaryVersion.value == "2.13") {
+        Seq(
+          "-Wconf:cat=unchecked&msg=outer\\ reference.*cannot\\ be\\ checked:s"
+        )
+      } else {
+        Seq.empty
+      }
+    },
     mimaPreviousArtifacts := {
       if (scalaBinaryVersion.value == "2.12") {
         Set(organization.value %% moduleName.value % "2.1.0")
       } else {
         Set.empty[ModuleID]
       }
+    },
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
+      val pkg = "com.zengularity.benji.google"
+
+      Seq(
+        x[FinalClassProblem](s"${pkg}.GoogleBucketRef$$GoogleDeleteRequest"),
+        x[FinalClassProblem](s"${pkg}.GoogleBucketRef$$Objects"),
+        x[FinalClassProblem](s"${pkg}.GoogleBucketRef$$ObjectsVersions"),
+        x[FinalClassProblem](s"${pkg}.GoogleObjectRef$$GoogleDeleteRequest"),
+        x[FinalClassProblem](s"${pkg}.GoogleObjectRef$$ObjectsVersions"),
+        x[FinalClassProblem](
+          s"${pkg}.GoogleVersionedObjectRef$$GoogleDeleteRequest"
+        )
+      )
     },
     libraryDependencies ++= Dependencies.playAhcWS.value ++ Seq(
       "com.typesafe.play" %% "play-json" % Dependencies.Version.playJson.value,
@@ -151,6 +215,15 @@ lazy val vfs = project
   .in(file("vfs"))
   .settings(
     name := "benji-vfs",
+    Compile / compile / scalacOptions ++= {
+      if (scalaBinaryVersion.value == "2.13") {
+        Seq(
+          "-Wconf:cat=unchecked&msg=outer\\ reference.*cannot\\ be\\ checked:s"
+        )
+      } else {
+        Seq.empty
+      }
+    },
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._, ProblemFilters.{ exclude => x }
       val pkg = "com.zengularity.benji.vfs"
@@ -166,7 +239,9 @@ lazy val vfs = project
         ),
         x[MissingClassProblem](
           f"com.zengularity.benji.vfs.VFSObjectRef$$RESTPutRequest"
-        )
+        ),
+        x[FinalClassProblem](s"${pkg}.VFSBucketRef$$VFSDeleteRequest"),
+        x[FinalClassProblem](s"${pkg}.VFSObjectRef$$VFSDeleteRequest")
       )
     },
     libraryDependencies ++= Seq(
@@ -174,6 +249,27 @@ lazy val vfs = project
       "com.typesafe.play" %% "play-json" % playJsonVer.value,
       Dependencies.slf4jApi,
       "commons-io" % "commons-io" % "2.21.0" % Test
+    )
+  )
+  .dependsOn(core % "test->test;compile->compile")
+
+lazy val gridfs = project
+  .in(file("gridfs"))
+  .settings(
+    name := "benji-gridfs",
+    Compile / compile / scalacOptions ++= {
+      if (scalaBinaryVersion.value == "2.13") {
+        Seq(
+          "-Wconf:cat=unchecked&msg=outer\\ reference.*cannot\\ be\\ checked:s"
+        )
+      } else {
+        Seq.empty
+      }
+    },
+    mimaPreviousArtifacts := Set.empty[ModuleID],
+    libraryDependencies ++= Seq(
+      "org.reactivemongo" %% "reactivemongo" % "1.1.0-RC20",
+      Dependencies.slf4jApi
     )
   )
   .dependsOn(core % "test->test;compile->compile")
@@ -348,5 +444,5 @@ lazy val benji = (project in file("."))
       }
     ) ++ Publish.settings
   )
-  .dependsOn(s3, google, vfs, play)
-  .aggregate(core, s3, google, vfs, play)
+  .dependsOn(s3, google, vfs, gridfs, play)
+  .aggregate(core, s3, google, vfs, gridfs, play)

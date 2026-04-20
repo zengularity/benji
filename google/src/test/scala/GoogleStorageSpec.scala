@@ -52,17 +52,20 @@ final class GoogleStorageSpec(
     val fileStart = "hello world !!!"
 
     val partCount = 3
+
     s"Write file in $bucketName bucket using ${partCount.toString} parts" in {
       val filetest = gbucket.obj(objName)
 
       @SuppressWarnings(Array("org.wartremover.warts.Var"))
       var b = 0.toByte
+
       def nextByte = {
         b = (b + 1).toByte
+
         b
       }
 
-      def body = fileStart.getBytes("UTF-8") ++ Array.fill(
+      def body: Array[Byte] = fileStart.getBytes("UTF-8") ++ Array.fill(
         GoogleObjectRef.defaultThreshold.bytes.toInt - 3
       )(nextByte) ++ "XXX".getBytes("UTF-8")
 

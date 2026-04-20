@@ -16,5 +16,6 @@ private[benji] object Compat {
   @inline def mapValues[K, V1, V2](m: Map[K, V1])(f: V1 => V2) =
     m.mapValues(f)
 
-  val javaConverters = scala.collection.JavaConverters
+  val javaConverters: scala.collection.JavaConverters.type =
+    scala.collection.JavaConverters
 }

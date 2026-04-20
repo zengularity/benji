@@ -19,6 +19,7 @@ object TestUtils {
 
   lazy val config: Config = {
     inited = true
+
     ConfigFactory.load("tests.conf")
   }
 
@@ -30,7 +31,12 @@ object TestUtils {
   implicit lazy val WS: play.api.libs.ws.ahc.StandaloneAhcWSClient =
     S3.client()(materializer)
 
-  private lazy val (awsAccessKey, awsSecretKey, awsHost, awsProtocol) = (
+  private lazy val (
+    awsAccessKey,
+    awsSecretKey,
+    awsHost,
+    awsProtocol
+  ): (String, String, String, String) = (
     config.getString("aws.s3.accessKey"),
     config.getString("aws.s3.secretKey"),
     config.getString("aws.s3.host"),
@@ -41,12 +47,18 @@ object TestUtils {
 
   private def isLoopbackHost(host: String): Boolean = {
     val hostName = host.takeWhile(_ != ':').toLowerCase(java.util.Locale.ROOT)
+
     hostName == "localhost" || hostName == "127.0.0.1" || hostName == "::1"
   }
 
   lazy val awsSupportsVirtualHostStyle: Boolean = !isLoopbackHost(awsHost)
 
-  private lazy val (cephAccessKey, cephSecretKey, cephHost, cephProtocol) = (
+  private lazy val (
+    cephAccessKey,
+    cephSecretKey,
+    cephHost,
+    cephProtocol
+  ): (String, String, String, String) = (
     config.getString("ceph.s3.accessKey"),
     config.getString("ceph.s3.secretKey"),
     config.getString("ceph.s3.host"),
@@ -97,39 +109,41 @@ object TestUtils {
 
   // ---
 
-  def close(): Unit = if (inited) {
-    implicit def m: Materializer = materializer
-    implicit def ec: ExecutionContext = m.executionContext
+  def close(): Unit = {
+    if (inited) {
+      implicit def m: Materializer = materializer
+      implicit def ec: ExecutionContext = m.executionContext
 
-    import com.zengularity.benji.ObjectStorage
+      import com.zengularity.benji.ObjectStorage
 
-    def storageCleanup(st: ObjectStorage): Future[Unit] =
-      st.buckets
-        .collect[List]()
-        .flatMap(bs =>
-          Future.sequence(bs.filter(_.name startsWith "benji-test-").map { b =>
-            st.bucket(b.name).delete.recursive()
-          })
-        )
-        .map(_ => {})
+      def storageCleanup(st: ObjectStorage): Future[Unit] =
+        st.buckets
+          .collect[List]()
+          .flatMap(bs =>
+            Future.sequence(bs.filter(_.name startsWith "benji-test-").map {
+              b => st.bucket(b.name).delete.recursive()
+            })
+          )
+          .map(_ => {})
 
-    try {
-      Await.result(storageCleanup(aws), Duration("30s"))
-    } catch {
-      case e: Throwable => logger.warn("fails to cleanup AWS", e)
-    }
+      try {
+        Await.result(storageCleanup(aws), Duration("30s"))
+      } catch {
+        case e: Throwable => logger.warn("fails to cleanup AWS", e)
+      }
 
-    try {
-      Await.result(storageCleanup(ceph), Duration("30s"))
-    } catch {
-      case e: Throwable => logger.warn("fails to cleanup Ceph", e)
-    }
+      try {
+        Await.result(storageCleanup(ceph), Duration("30s"))
+      } catch {
+        case e: Throwable => logger.warn("fails to cleanup Ceph", e)
+      }
 
-    system.terminate()
+      system.terminate()
 
-    try { WS.close() }
-    catch {
-      case e: Throwable => logger.warn("fails to close WS", e)
+      try { WS.close() }
+      catch {
+        case e: Throwable => logger.warn("fails to close WS", e)
+      }
     }
   }
 

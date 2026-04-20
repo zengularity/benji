@@ -15,7 +15,8 @@ import play.api.Configuration
 private[benji] object BenjiConfig {
   val logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
-  val registry = com.zengularity.benji.spi.Registry.getInstance
+  val registry: com.zengularity.benji.spi.Registry =
+    com.zengularity.benji.spi.Registry.getInstance
 
   object ValidUri {
 
@@ -26,12 +27,14 @@ private[benji] object BenjiConfig {
         "org.wartremover.warts.ToString"
       )
     )
-    def unapply(value: ConfigValue): Option[URI] =
-      if (!value.unwrapped.isInstanceOf[String]) None
-      else {
+    def unapply(value: ConfigValue): Option[URI] = {
+      if (!value.unwrapped.isInstanceOf[String]) {
+        None
+      } else {
         Try(value.unwrapped.asInstanceOf[String]).map(new URI(_)) match {
           case Failure(cause) => {
             logger.debug(s"Invalid URI: ${value.toString}", cause)
+
             Option.empty[URI]
           }
 
@@ -42,11 +45,13 @@ private[benji] object BenjiConfig {
               Some(uri)
             } else {
               logger.debug(s"Unsupported scheme '$s': ${uri.toString}")
+
               Option.empty[URI]
             }
           }
         }
       }
+    }
   }
 
   @SuppressWarnings(Array("org.wartremover.warts.ToString"))
@@ -58,6 +63,7 @@ private[benji] object BenjiConfig {
         subConf.entrySet.iterator.foreach[Unit] {
           case ("uri", ValidUri(uri)) => {
             parsed += "default" -> uri
+
             ()
           }
 
@@ -66,6 +72,7 @@ private[benji] object BenjiConfig {
 
           case ("default.uri", ValidUri(uri)) => {
             parsed += "default" -> uri
+
             ()
           }
 
@@ -76,6 +83,7 @@ private[benji] object BenjiConfig {
 
           case (key, ValidUri(uri)) if key.endsWith(".uri") => {
             parsed += key.dropRight(4) -> uri
+
             ()
           }
 
@@ -94,6 +102,7 @@ private[benji] object BenjiConfig {
 
       case _ => {
         logger.warn("No 'benji' section found in the configuration")
+
         Set.empty
       }
     }

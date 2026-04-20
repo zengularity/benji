@@ -48,6 +48,7 @@ trait ErrorCommonSpec extends BenjiMatchers {
     val nonExistingBucket = storage.bucket(
       s"benji-test-non-existing-bucket-${random.nextInt().toString}"
     )
+
     val existingBucket =
       storage.bucket(s"benji-test-existing-bucket-${random.nextInt().toString}")
 
@@ -139,7 +140,9 @@ trait ErrorCommonSpec extends BenjiMatchers {
           }
 
           "using chunks" in assertAllStagesStopped {
-            val threshold = objOfNonExistingBucket.defaultThreshold.bytes.toInt
+            val threshold: Int =
+              objOfNonExistingBucket.defaultThreshold.bytes.toInt
+
             def data = Array.fill(threshold * 2)('a'.toByte)
 
             put(objOfNonExistingBucket, data, 2) must throwA(
@@ -241,13 +244,16 @@ trait ErrorCommonSpec extends BenjiMatchers {
 
     def vExistingObj = existingObj.versioning
       .getOrElse(throw new IllegalArgumentException("versioning not supported"))
+
     def vNonExistingObj = nonExistingObj.versioning
       .getOrElse(throw new IllegalArgumentException("versioning not supported"))
+
     def vObjOfNonExistingBucket = objOfNonExistingBucket.versioning
       .getOrElse(throw new IllegalArgumentException("versioning not supported"))
 
     def nonExistingVersion = vExistingObj.version(sampleVersionId)
     def versionOfNonExistingObj = vNonExistingObj.version(sampleVersionId)
+
     def versionOfNonExistingBucket =
       vObjOfNonExistingBucket.version(sampleVersionId)
 

@@ -34,6 +34,7 @@ final class S3CephSpec
 
     withMatEx { implicit ee: EE =>
       commonTests("ceph", ceph, bucketName)
+
       commonVersioningTests(
         ceph,
         sampleVersionId = "t1Uelqn.uwzanWblaNOrIWpgWapViNXY"
@@ -45,11 +46,13 @@ final class S3CephSpec
     s"Write file in $bucketName bucket using multipart" >> {
       "with the default maximum" in withMatEx { implicit ee: EE =>
         val filetest = ceph.bucket(bucketName).obj(objName)
+
         def part(b: Byte) =
           Array.fill[Byte](filetest.defaultThreshold.bytes.toInt)(b)
 
-        def body = Source.single("hello world !!!".getBytes("UTF-8")) ++ Source
-          .fromIterator(() => Seq(part(1), part(2), part(3)).iterator)
+        def body: akka.stream.scaladsl.Source[Array[Byte], akka.NotUsed] =
+          Source.single("hello world !!!" getBytes "UTF-8") ++ Source
+            .fromIterator(() => Seq(part(1), part(2), part(3)).iterator)
 
         type PutReq = filetest.RESTPutRequest[Array[Byte], Unit]
 
@@ -77,6 +80,7 @@ final class S3CephSpec
         def body = repeat(3)(part)
 
         def req = obj.put[Array[Byte], Unit].withMaxPart(2)
+
         val upload = req({}, size = Some(part.size * 3L)) { (_, _) =>
           Future.successful { partCount = partCount + 1 }
         }

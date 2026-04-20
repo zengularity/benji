@@ -16,6 +16,7 @@ final class StorageSchemeSpec extends org.specs2.mutable.Specification {
   "Dummy storage" should {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
     lazy val scheme = loader.iterator.next()
+
     lazy val service =
       scheme.factoryClass.getDeclaredConstructor().newInstance()
 

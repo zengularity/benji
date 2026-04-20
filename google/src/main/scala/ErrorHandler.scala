@@ -29,7 +29,7 @@ private[google] object ErrorHandler {
     )(statusCode: Int,
       message: String
     ): Throwable =
-    (statusCode, message) match {
+    (statusCode -> message) match {
       case (404, _) => BucketNotFoundException(bucketName)
 
       case (409, msg) if msg.contains("already") =>
@@ -98,7 +98,7 @@ private[google] object ErrorHandler {
       bucketName: String
     ): Throwable => Throwable = {
     case g: GoogleJsonResponseException => {
-      val msg = {
+      val msg: String = {
         if (g.getDetails == null) g.getMessage
         else g.getDetails.getMessage
       }
@@ -179,7 +179,7 @@ private[google] object ErrorHandler {
       versionId: String
     ): Throwable => Throwable = {
     case g: GoogleJsonResponseException =>
-      (g.getStatusCode, g.getStatusMessage) match {
+      (g.getStatusCode -> g.getStatusMessage) match {
         case (404, _) =>
           VersionNotFoundException(bucketName, objName, versionId)
 

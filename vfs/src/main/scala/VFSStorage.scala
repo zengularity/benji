@@ -34,7 +34,9 @@ class VFSStorage(
 
   object buckets extends self.BucketsRequest {
     private val selector = new FileTypeSelector(FileType.FOLDER)
-    private val rootBaseFile = transport.fsManager.getBaseFile
+
+    private val rootBaseFile: org.apache.commons.vfs2.FileObject =
+      transport.fsManager.getBaseFile
 
     def apply(
       )(implicit
@@ -45,7 +47,7 @@ class VFSStorage(
       Source
         .fromFuture(Future {
           lazy val root = transport.fsManager.resolveFile(rootBaseFile.getURL)
-          lazy val items = Option(root.findFiles(selector))
+          lazy val items = Option(root findFiles selector)
 
           Source.fromIterator[Bucket] { () =>
             items match {
@@ -66,6 +68,7 @@ class VFSStorage(
                     )
                   }
                   .iterator
+
               case _ => Iterator.empty
             }
           }
