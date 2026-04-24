@@ -248,7 +248,7 @@ lazy val vfs = project
       "org.apache.commons" % "commons-vfs2" % "2.10.0",
       "com.typesafe.play" %% "play-json" % playJsonVer.value,
       Dependencies.slf4jApi,
-      "commons-io" % "commons-io" % "2.21.0" % Test
+      "commons-io" % "commons-io" % "2.22.0" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")
