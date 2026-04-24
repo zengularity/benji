@@ -38,6 +38,7 @@ final class BenjiModule extends Module {
       val provider: Provider[ObjectStorage] = {
         @SuppressWarnings(Array("org.wartremover.warts.TryPartial"))
         val result = BenjiProvider.from(uri).get
+
         result
       }
 

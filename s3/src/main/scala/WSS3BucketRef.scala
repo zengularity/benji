@@ -60,7 +60,7 @@ final class WSS3BucketRef private[s3] (
     )(implicit
       ec: ExecutionContext
     ): Future[Unit] = {
-    val before: scala.concurrent.Future[Unit] = {
+    val before: Future[Unit] = {
       if (failsIfExists) {
         exists.flatMap {
           case true  => Future.failed[Unit](BucketAlreadyExistsException(name))
