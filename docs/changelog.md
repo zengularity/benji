@@ -1,5 +1,9 @@
 # Changelog
 
+## Release 2.4.0
+
+New module for MongoDB GridFS
+
 ## Release 2.3.0
 
 Update build, dependencies & compatibility
