@@ -12,7 +12,7 @@ final class GridFSStorageSpec
     extends org.specs2.mutable.Specification
     with AfterAll {
 
-  "GridFS Cloud Storage".title
+  "GridFS storage".title
 
   sequential
 
