@@ -11,7 +11,23 @@ final class VFSFactorySpec extends org.specs2.mutable.Specification {
 
   "VFS storage" should {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
-    lazy val scheme = loader.iterator.next()
+    lazy val scheme: StorageScheme = {
+      def go(it: java.util.Iterator[StorageScheme]): StorageScheme = {
+        if (!it.hasNext) {
+          null
+        } else {
+          val s = it.next()
+
+          if (s.scheme == "vfs") {
+            s
+          } else {
+            go(it)
+          }
+        }
+      }
+
+      go(loader.iterator)
+    }
 
     lazy val service =
       scheme.factoryClass.getDeclaredConstructor().newInstance()

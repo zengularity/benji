@@ -28,16 +28,16 @@ object Dependencies {
     }
 
     val akka = Def.setting[String] {
-      if (scalaBinaryVersion.value startsWith "3") "2.6.19"
+      if (scalaBinaryVersion.value.startsWith("3")) "2.6.19"
       else if (scalaBinaryVersion.value == "2.13") "2.6.1"
-      else if (play.value startsWith "2.8.") "2.6.1"
+      else if (play.value.startsWith("2.8.")) "2.6.1"
       else "2.5.21"
     }
 
     val playJson: Def.Initialize[String] = Def.setting[String] {
       val v = scalaBinaryVersion.value
       val lower = {
-        if (v startsWith "3") "2.10.0-RC5"
+        if (v.startsWith("3")) "2.10.0-RC5"
         else if (v == "2.13") "2.7.4"
         else "2.6.14"
       }

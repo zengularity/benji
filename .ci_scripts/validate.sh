@@ -76,6 +76,8 @@ fi
 
 export _JAVA_OPTIONS="$JVM_OPTS"
 
+export JDK_JAVA_OPTIONS="--add-opens java.base/java.lang=ALL-UNNAMED"
+
 SBT_OPTS="++$SCALA_VERSION"
 
 # Scalariform check
@@ -95,7 +97,7 @@ fi
 "${SBT_CMD_PREFIX[@]}" "$SBT_OPTS" ';error ;scalafmtCheckAll ;scalafmtSbtCheck'
 
 # MiMa, Tests
-SBT_CMD=";error ;test:compile ;doc ;mimaReportBinaryIssues; info"
+SBT_CMD=";error ;Test/compile ;doc ;mimaReportBinaryIssues; info"
 
 if [ "x$SBT_TEST_PROJECTS" = "x" ]; then
   SBT_CMD="$SBT_CMD ;testQuick -- stopOnFail"

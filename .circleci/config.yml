@@ -6,7 +6,7 @@ commands:
     parameters:
       sbt_version:
         type: string
-        default: "1.11.4"
+        default: "2.0.1"
     steps:
       - restore_cache:
           keys:
@@ -67,14 +67,14 @@ commands:
                     exit 1
 
   build_n_test:
-    description: Build & Run tests
+    description: 'Build & Run tests'
     parameters:
       variant:
         type: string
         default: ""
       java_version:
         type: string
-        default: "openjdk8"
+        default: "openjdk26"
       scala_version:
         type: string
         default: "2.13"
@@ -159,7 +159,7 @@ commands:
         default: ""
       java_version:
         type: string
-        default: "openjdk8"
+        default: "openjdk26"
       scala_version:
         type: string
         default: "2.13"
@@ -214,7 +214,7 @@ commands:
 
       - run:
           name: Build example << parameters.module >>
-          command: cd examples && sbt +test:compile
+          command: cd examples && sbt +Test/compile
 
       - save_cache:
           paths:
@@ -285,9 +285,9 @@ commands:
 jobs:
   # --- Common tests --- #
 
-  common_scala211_jdk8:
+  common_scala211_jdk26:
     docker:
-      - image: cimg/openjdk:8.0
+      - image: cimg/openjdk:26.0
 
     working_directory: ~/repo
     
@@ -300,9 +300,9 @@ jobs:
           play_json_version: 2.6.7
           variant: Play 2.6, WS 1.1
 
-  common_scala212_play27_jdk8:
+  common_scala212_play27_jdk26:
     docker:
-      - image: cimg/openjdk:8.0
+      - image: cimg/openjdk:26.0
 
     working_directory: ~/repo
 
@@ -323,15 +323,14 @@ jobs:
           play_json_version: 2.9.1
           variant: Play 2.7, WS 2.0
 
-  common_scala213_play28_jdk9:
+  common_scala213_play28_jdk26:
     docker:
-      - image: circleci/openjdk:9-jdk
+      - image: cimg/openjdk:26.0
 
     working_directory: ~/repo
 
     steps:
       - test_suite:
-          java_version: openjdk9
           modules: core vfs play
           scala_version: "2.13"
           ws_version: 2.0.6
@@ -340,7 +339,6 @@ jobs:
           variant: Play 2.7, WS 2.0
 
       - test_suite:
-          java_version: openjdk9
           modules: core vfs play
           scala_version: "2.13"
           ws_version: 2.1.2
@@ -358,7 +356,7 @@ jobs:
       - test_suite:
           java_version: openjdk17
           modules: core vfs play
-          scala_version: 3.8.4
+          scala_version: 3.4.3
           ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
@@ -366,9 +364,9 @@ jobs:
 
   # --- Integration: S3/Google --- #
 
-  int_scala211_jdk8:
+  int_scala211_jdk26:
     docker:
-      - image: cimg/openjdk:8.0
+      - image: cimg/openjdk:26.0
       - image: minio/minio:RELEASE.2024-11-07T00-52-20Z
         environment:
           MINIO_ROOT_USER: minioadmin
@@ -423,9 +421,9 @@ jobs:
           play_json_version: 2.6.7
           variant: Play 2.6, WS 1.1
 
-  int_scala212_play27_jdk8:
+  int_scala212_play27_jdk26:
     docker:
-      - image: cimg/openjdk:8.0
+      - image: cimg/openjdk:26.0
       - image: minio/minio:RELEASE.2024-11-07T00-52-20Z
         environment:
           MINIO_ROOT_USER: minioadmin
@@ -540,15 +538,15 @@ jobs:
       - test_suite:
           java_version: openjdk17
           modules: s3 google
-          scala_version: 3.8.4
+          scala_version: 3.4.3
           ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
           variant: Play 2.9, WS 2.2
 
-  gridfs_scala212_play27_jdk8:
+  gridfs_scala212_play27_jdk26:
     docker:
-      - image: cimg/openjdk:8.0
+      - image: cimg/openjdk:26.0
       - image: mongo:8.0.3
 
     working_directory: ~/repo
@@ -581,7 +579,7 @@ jobs:
           name: Build and Test GridFS (Scala 2.12)
           command: |
             export PATH="$HOME/sbt/bin:$PATH"
-            sbt -J-Xmx4g "++ 2.12.18; gridfs/test"
+            sbt -J-Xmx4g "++ 2.12.21; gridfs/test"
 
       - save_cache:
           paths:
@@ -593,7 +591,7 @@ jobs:
 
   publish_snapshots:
     docker:
-      - image: cimg/openjdk:8.0
+      - image: cimg/openjdk:26.0
 
     working_directory: ~/repo
 
@@ -631,7 +629,7 @@ jobs:
           ws_version: 2.2.11
           play_version: 2.9.5
           play_json_version: 2.10.6
-          scala_versions: "3.8.4"
+          scala_versions: "3.4.3"
       # TODO: play29
 
       - publish_snapshots:
@@ -650,7 +648,7 @@ jobs:
 
   examples:
     docker:
-      - image: cimg/openjdk:11.0
+      - image: cimg/openjdk:26.0
 
     working_directory: ~/repo
 
@@ -667,28 +665,28 @@ workflows:
   main_suite:
     jobs:
       # Common
-      - common_scala211_jdk8
-      - common_scala212_play27_jdk8
-      - common_scala213_play28_jdk9
+      - common_scala211_jdk26
+      - common_scala212_play27_jdk26
+      - common_scala213_play28_jdk26
       - common_scala3_play29_jdk17
 
       # S3/Google
-      - int_scala211_jdk8:
+      - int_scala211_jdk26:
           requires:
-            - common_scala211_jdk8
-      - int_scala212_play27_jdk8:
+            - common_scala211_jdk26
+      - int_scala212_play27_jdk26:
           requires:
-            - common_scala212_play27_jdk8
-            - int_scala211_jdk8
+            - common_scala212_play27_jdk26
+            - int_scala211_jdk26
       - int_scala3_play29_jdk17:
           requires:
             - common_scala3_play29_jdk17
-            - int_scala212_play27_jdk8
+            - int_scala212_play27_jdk26
 
       # GridFS
-      - gridfs_scala212_play27_jdk8:
+      - gridfs_scala212_play27_jdk26:
           requires:
-            - common_scala212_play27_jdk8
+            - common_scala212_play27_jdk26
 
       # Master
       - publish_snapshots:
@@ -697,10 +695,10 @@ workflows:
               only:
                 - master
           requires:
-            - int_scala211_jdk8
-            - int_scala212_play27_jdk8
+            - int_scala211_jdk26
+            - int_scala212_play27_jdk26
             - int_scala3_play29_jdk17
-            - gridfs_scala212_play27_jdk8
+            - gridfs_scala212_play27_jdk26
 
       - examples:
           filters:
