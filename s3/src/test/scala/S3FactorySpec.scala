@@ -6,12 +6,29 @@ import com.zengularity.benji.s3.{ S3Factory, S3Scheme, WSS3 }
 import com.zengularity.benji.s3.tests.TestUtils
 import com.zengularity.benji.spi.{ Injector, Registry, StorageScheme }
 
-class S3FactorySpec extends org.specs2.mutable.Specification {
+final class S3FactorySpec extends org.specs2.mutable.Specification {
   "S3 factory".title
 
   "S3 storage" should {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
-    lazy val scheme = loader.iterator.next()
+    lazy val scheme: StorageScheme = {
+      def go(it: java.util.Iterator[StorageScheme]): StorageScheme = {
+        if (!it.hasNext) {
+          null
+        } else {
+          val s = it.next()
+
+          if (s.scheme == "s3") {
+            s
+          } else {
+            go(it)
+          }
+        }
+      }
+
+      go(loader.iterator)
+    }
+
     def factory = scheme.factoryClass.getDeclaredConstructor().newInstance()
 
     {

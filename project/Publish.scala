@@ -1,6 +1,8 @@
 import sbt._
 import sbt.Keys._
 
+import xsbti.HashedVirtualFileRef
+
 import sbtheader.HeaderPlugin.autoImport._
 
 import com.typesafe.tools.mima.plugin.MimaKeys.{
@@ -26,10 +28,7 @@ object Publish {
     },
     Compile / packageBin / mappings ~= coreFilter,
     Compile / packageSrc / mappings ~= coreFilter,
-    licenses := Seq(
-      "Apache-2.0" ->
-        url("https://www.apache.org/licenses/LICENSE-2.0.txt")
-    ),
+    licenses := Seq(License.Apache2),
     pomIncludeRepository := { _ => false },
     autoAPIMappings := true,
     apiURL := Some(url(siteUrl)), // TODO
@@ -61,8 +60,8 @@ object Publish {
     )
   )
 
-  private lazy val coreFilter: Seq[(File, String)] => Seq[(File, String)] = {
-    (_: Seq[(File, String)]).filter {
+  private lazy val coreFilter: Seq[(HashedVirtualFileRef, String)] => Seq[(HashedVirtualFileRef, String)] = {
+    (_: Seq[(HashedVirtualFileRef, String)]).filter {
       case (file, name) =>
         name.indexOf("com/github/ghik/silencer") == -1
     }
