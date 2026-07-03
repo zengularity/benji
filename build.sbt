@@ -14,7 +14,7 @@ lazy val core = project
   .settings(
     name := "benji-core",
     Compile / compile / scalacOptions ++= {
-      if (scalaBinaryVersion.value startsWith "3") {
+      if (scalaBinaryVersion.value.startsWith("3")) {
         Seq("-language:higherKinds")
       } else if (scalaBinaryVersion.value == "2.12") {
         Seq("-language:higherKinds")
@@ -77,7 +77,7 @@ lazy val core = project
 val scalaXmlVer = Def.setting[String] {
   val sv = scalaBinaryVersion.value
 
-  if (sv startsWith "3") "2.0.1"
+  if (sv.startsWith("3")) "2.0.1"
   else if (sv == "2.13") "1.3.0"
   else "1.0.6"
 }
@@ -276,7 +276,7 @@ lazy val gridfs = project
 
 lazy val playTest = Def.setting {
   val ver = {
-    if (scalaBinaryVersion.value startsWith "3") {
+    if (scalaBinaryVersion.value.startsWith("3")) {
       "2.8.11"
     } else if (
       scalaBinaryVersion.value == "2.13" && playVer.value.startsWith("2.7")
@@ -302,21 +302,21 @@ lazy val play = project
       val ver = (ThisBuild / version).value
       val playMajor = playVer.value.split("\\.").take(2).mkString
 
-      if (ver endsWith "-SNAPSHOT") {
+      if (ver.endsWith("-SNAPSHOT")) {
         s"${ver.dropRight(9)}-play${playMajor}-SNAPSHOT"
       } else {
         s"${ver}-play${playMajor}"
       }
     },
     Test / sourceDirectory := {
-      if (scalaBinaryVersion.value startsWith "3") {
+      if (scalaBinaryVersion.value.startsWith("3")) {
         baseDirectory.value / "no-test" // TODO
       } else {
         (Test / sourceDirectory).value
       }
     },
     Test / unmanagedSourceDirectories ++= {
-      if (scalaBinaryVersion.value startsWith "3") {
+      if (scalaBinaryVersion.value.startsWith("3")) {
         Seq.empty
       } else {
         val v = playVer.value.split("\\.").take(2).mkString(".")
@@ -342,7 +342,7 @@ lazy val play = project
     },
     libraryDependencies ++= {
       val exclude: ModuleID => ModuleID = {
-        if (scalaBinaryVersion.value startsWith "3") { (mid: ModuleID) =>
+        if (scalaBinaryVersion.value.startsWith("3")) { (mid: ModuleID) =>
           mid
             .exclude("com.typesafe.akka", "*")
             .exclude("org.scala-lang.modules", "*")
@@ -369,7 +369,7 @@ lazy val play = project
       ) % Provided
 
       val playDeps: Seq[ModuleID] = {
-        if (playVer.value startsWith "2.6") {
+        if (playVer.value.startsWith("2.6")) {
           Seq(playMain)
         } else if (
           scalaBinaryVersion.value == "2.13" && playVer.value.startsWith("2.7")
@@ -406,32 +406,32 @@ lazy val play = project
     Compile / doc / sources := {
       val compiled = (Compile / sources).value
 
-      compiled.filter { _.getName endsWith "NamedStorage.java" }
+      compiled.filter { _.getName.endsWith("NamedStorage.java") }
     }
   )
   .dependsOn(core % "test->test;compile->compile", vfs % "test->compile")
 
 mimaPreviousArtifacts := Set.empty
 
-lazy val benji = (project in file("."))
+lazy val benji = project
+  .in(file("."))
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
-    Seq(
+    Publish.settings ++ Seq(
       libraryDependencies ++= Dependencies.playAhcWS.value,
       pomPostProcess := Common.transformPomDependencies { depSpec =>
         // Filter in POM the dependencies only required to compile sample in doc
 
-        if ((depSpec \ "artifactId").text startsWith "benji-") {
+        if ((depSpec \ "artifactId").text.startsWith("benji-")) {
           Some(depSpec)
         } else {
           Option.empty
         }
       },
-      doc / excludeFilter := "play",
-      Compile / doc / scalacOptions ++= List(
-        "-skip-packages",
-        "highlightextractor"
+      mimaPreviousArtifacts := Set(
+        /* organization.value %% name.value % previousRelease */
       ),
+      doc / excludeFilter := "play",
       ScalaUnidoc / unidoc / unidocAllSources ~= {
         _.map(_.filterNot { f =>
           val name = f.getName
@@ -442,7 +442,7 @@ lazy val benji = (project in file("."))
             f.getPath.indexOf("src_managed") != -1)
         })
       }
-    ) ++ Publish.settings
+    )
   )
   .dependsOn(s3, google, vfs, gridfs, play)
   .aggregate(core, s3, google, vfs, gridfs, play)

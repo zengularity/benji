@@ -10,6 +10,7 @@ object Common extends AutoPlugin {
   override def requires = sbt.plugins.JvmPlugin
 
   override def projectSettings = Seq(
+    semanticdbEnabled := scalaBinaryVersion.value != "2.11",
     scalacOptions ++= Seq(
       "-encoding",
       "UTF-8",
@@ -28,7 +29,7 @@ object Common extends AutoPlugin {
       }
     },
     scalacOptions ++= {
-      if (scalaBinaryVersion.value startsWith "2.") {
+      if (scalaBinaryVersion.value.startsWith("2.")) {
         Seq("-Xlint", "-g:vars")
       } else Seq.empty
     },
@@ -37,6 +38,7 @@ object Common extends AutoPlugin {
 
       if (sv == "2.12") {
         Seq(
+          "-target:jvm-1.8",
           "-Xmax-classfile-name",
           "128",
           "-Ywarn-numeric-widen",
@@ -49,6 +51,7 @@ object Common extends AutoPlugin {
         )
       } else if (sv == "2.11") {
         Seq(
+          "-target:jvm-1.8",
           "-Xmax-classfile-name",
           "128",
           "-Yopt:_",
@@ -58,6 +61,8 @@ object Common extends AutoPlugin {
         )
       } else if (sv == "2.13") {
         Seq(
+          "-release",
+          "8",
           "-explaintypes",
           "-Werror",
           "-Wnumeric-widen",
@@ -71,6 +76,8 @@ object Common extends AutoPlugin {
         )
       } else {
         Seq(
+          "-release",
+          "8",
           "-Wunused:all",
           "-language:implicitConversions",
           "-Wconf:cat=deprecation&msg=.*(fromFuture|ActorMaterializer).*:s",
@@ -99,7 +106,7 @@ object Common extends AutoPlugin {
     },
     Test / scalacOptions += "-Xlint:-infer-any", // specs2 `and`
     Test / scalacOptions ++= {
-      if (scalaBinaryVersion.value startsWith "2.") {
+      if (scalaBinaryVersion.value.startsWith("2.")) {
         Seq("-Yrangepos")
       } else {
         Seq.empty
@@ -153,13 +160,12 @@ object Common extends AutoPlugin {
     },
     Test / fork := true,
     ThisBuild / mimaFailOnNoPrevious := false,
-    mimaPreviousArtifacts := Set(
-      /* organization.value %% name.value % previousRelease */
-    ),
     autoAPIMappings := true,
-    apiMappings ++= mappings("org.scala-lang", "http://scala-lang.org/api/%s/")(
-      "scala-library"
-    ).value
+    apiMappings ++= Def.uncached {
+      mappings("org.scala-lang", "http://scala-lang.org/api/%s/")(
+        "scala-library"
+      ).value
+    }
   ) ++ Publish.settings
 
   // ---
@@ -169,21 +175,23 @@ object Common extends AutoPlugin {
       location: String,
       revision: String => String = identity
     )(names: String*
-    ) = Def.task[Map[File, URL]] {
+    ) = Def.task[Map[HashedVirtualFileRef, URI]] {
+
     (for {
-      entry: Attributed[File] <- (Compile / fullClasspath).value
-      module: ModuleID <- entry.get(moduleID.key)
+      entry <- (Compile / fullClasspath).value
+      module: ModuleID <- entry
+        .get(moduleIDStr)
+        .map(Classpaths.moduleIdJsonKeyFormat.read)
       if module.organization == org
       if names.exists(module.name.startsWith)
-      rev = revision(module.revision)
-    } yield entry.data -> url(location.format(rev)))(scala.collection.breakOut)
+    } yield entry.data -> url(location.format(revision(module.revision)))).toMap
   }
 
   import scala.xml.{ Elem => XmlElem, Node => XmlNode }
 
   def transformPomDependencies(
       tx: XmlElem => Option[XmlNode]
-    ): XmlNode => XmlNode = { node: XmlNode =>
+    ): XmlNode => XmlNode = { (node: XmlNode) =>
     import scala.xml.{ NodeSeq, XML }
     import scala.xml.transform.{ RewriteRule, RuleTransformer }
 

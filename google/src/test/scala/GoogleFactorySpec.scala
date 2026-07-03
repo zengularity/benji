@@ -15,7 +15,24 @@ final class GoogleFactorySpec extends org.specs2.mutable.Specification {
 
   "Google storage" should {
     val loader = java.util.ServiceLoader.load(classOf[StorageScheme])
-    lazy val scheme = loader.iterator.next()
+    lazy val scheme: StorageScheme = {
+      def go(it: java.util.Iterator[StorageScheme]): StorageScheme = {
+        if (!it.hasNext) {
+          null
+        } else {
+          val s = it.next()
+
+          if (s.scheme == "google") {
+            s
+          } else {
+            go(it)
+          }
+        }
+      }
+
+      go(loader.iterator)
+    }
+
     def factory = scheme.factoryClass.getDeclaredConstructor().newInstance()
 
     {
