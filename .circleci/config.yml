@@ -250,7 +250,7 @@ commands:
                       exit 1
                     fi
                     
-                    V=`sbt ';project core ;show version' | grep -A 1 core | grep -v core | cut -d ' ' -f 2`
+                    V=`sbt -server ';project core ;show version' | grep -A 1 core | grep -v core | cut -d ' ' -f 2`
                     IS_SNAPSHOT=`echo "$V" | grep SNAPSHOT | wc -l`
                     
                     if [ $IS_SNAPSHOT -eq 0 ]; then
@@ -275,10 +275,10 @@ commands:
                     echo "Publishing artifacts for $PLAY_VERSION"
                     
                     if [ "x<< parameters.scala_versions >>" = "x" ]; then
-                      sbt +publish
+                      sbt -server +publish
                     else
                       for V in `echo "<< parameters.scala_versions >>"`; do
-                        sbt ++$V publish
+                        sbt -server ++$V publish
                       done
                     fi
 
@@ -579,7 +579,7 @@ jobs:
           name: Build and Test GridFS (Scala 2.12)
           command: |
             export PATH="$HOME/sbt/bin:$PATH"
-            sbt -J-Xmx4g "++ 2.12.21; gridfs/test"
+            sbt -J-Xmx4g "++ 2.12; gridfs/test"
 
       - save_cache:
           paths:
