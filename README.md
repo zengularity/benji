@@ -2,6 +2,12 @@
 
 A Scala framework for unified object storage access, supporting Amazon S3, Google Cloud Storage, and local/remote filesystems via Apache VFS.
 
+## ⚠️ Maintenance status
+
+The original maintainer, [cchantep](https://github.com/cchantep), is no longer actively maintaining this project.
+
+See the continuation at [Jinbe](https://github.com/cchantep/jinbe).
+
 ## Build
 
 The project is using [SBT](http://www.scala-sbt.org/), so to build it from sources the following command can be used.

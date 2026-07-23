@@ -8,6 +8,12 @@ This guide helps you get started with Benji in your project.
 
 *See also: [API Documentation](https://zengularity.github.io/benji/api/)*
 
+## ⚠️ Maintenance status
+
+The original maintainer, [cchantep](https://github.com/cchantep), is no longer actively maintaining this project.
+
+See the continuation at [Jinbe](https://github.com/cchantep/jinbe).
+
 ## Choosing your backend
 
 Benji supports multiple object storage backends. Select the module that matches your storage provider:
